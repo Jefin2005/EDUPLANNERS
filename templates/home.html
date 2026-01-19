@@ -1,0 +1,199 @@
+{% extends 'base.html' %}
+
+{% block title %}EDUPLANNER - Automated Timetable Generator{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <!-- Hero Section -->
+    <section class="py-5"
+        style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);">
+        <div class="container py-5">
+            <div class="row align-items-center">
+                <div class="col-lg-6">
+                    <span class="badge badge-gradient mb-3">
+                        <i class="bi bi-mortarboard me-1"></i>KTU University
+                    </span>
+                    <h1 class="display-4 fw-bold mb-4">
+                        Automated Timetable
+                        <span
+                            style="background: var(--primary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                            Generator
+                        </span>
+                    </h1>
+                    <p class="lead text-muted mb-4">
+                        Generate conflict-free, workload-balanced academic timetables for B.Tech CSE and MCA departments
+                        using advanced Genetic Algorithm optimization.
+                    </p>
+                    <div class="d-flex gap-3 flex-wrap">
+                        <a href="{% url 'timetable_view' %}" class="btn btn-gradient btn-lg">
+                            <i class="bi bi-table me-2"></i>View Timetables
+                        </a>
+                        {% if user.is_authenticated and user.is_staff %}
+                        <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-light btn-lg">
+                            <i class="bi bi-speedometer2 me-2"></i>Admin Dashboard
+                        </a>
+                        {% else %}
+                        <a href="{% url 'login' %}" class="btn btn-outline-light btn-lg">
+                            <i class="bi bi-box-arrow-in-right me-2"></i>Login
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-lg-6 text-center mt-5 mt-lg-0">
+                    <div class="position-relative">
+                        <div class="card card-custom p-4" style="transform: rotate(-3deg);">
+                            <table class="table table-sm mb-0" style="font-size: 0.8rem;">
+                                <thead>
+                                    <tr>
+                                        <th></th>
+                                        <th>MON</th>
+                                        <th>TUE</th>
+                                        <th>WED</th>
+                                        <th>THU</th>
+                                        <th>FRI</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>P1</td>
+                                        <td style="background: rgba(102, 126, 234, 0.3);">DBMS</td>
+                                        <td style="background: rgba(17, 153, 142, 0.3);">Lab</td>
+                                        <td>OS</td>
+                                        <td>CN</td>
+                                        <td style="background: rgba(102, 126, 234, 0.3);">DBMS</td>
+                                    </tr>
+                                    <tr>
+                                        <td>P2</td>
+                                        <td>OS</td>
+                                        <td style="background: rgba(17, 153, 142, 0.3);">Lab</td>
+                                        <td>CN</td>
+                                        <td style="background: rgba(102, 126, 234, 0.3);">DBMS</td>
+                                        <td>OS</td>
+                                    </tr>
+                                    <tr>
+                                        <td>P3</td>
+                                        <td>CN</td>
+                                        <td style="background: rgba(17, 153, 142, 0.3);">Lab</td>
+                                        <td style="background: rgba(102, 126, 234, 0.3);">DBMS</td>
+                                        <td>OS</td>
+                                        <td>CN</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="position-absolute" style="top: 20px; right: -20px; transform: rotate(6deg);">
+                            <span class="badge bg-success p-2">
+                                <i class="bi bi-check-circle me-1"></i>Conflict Free
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section class="py-5">
+        <div class="container">
+            <div class="text-center mb-5">
+                <h2 class="fw-bold">Powered by Genetic Algorithm</h2>
+                <p class="text-muted">Intelligent optimization for complex scheduling constraints</p>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="stat-card h-100">
+                        <div class="icon primary mb-3">
+                            <i class="bi bi-shield-check"></i>
+                        </div>
+                        <h5 class="fw-bold">No Conflicts</h5>
+                        <p>Ensures no faculty teaches two classes simultaneously and no class has overlapping subjects.
+                        </p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card h-100">
+                        <div class="icon success mb-3">
+                            <i class="bi bi-graph-up"></i>
+                        </div>
+                        <h5 class="fw-bold">Balanced Workload</h5>
+                        <p>Distributes teaching hours evenly across faculty based on their designation limits.</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card h-100">
+                        <div class="icon secondary mb-3">
+                            <i class="bi bi-gear"></i>
+                        </div>
+                        <h5 class="fw-bold">Lab Optimization</h5>
+                        <p>Places labs in continuous 3-period blocks with proper morning/afternoon scheduling.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats -->
+    <section class="py-5" style="background: var(--card-bg);">
+        <div class="container">
+            <div class="row g-4 text-center">
+                <div class="col-6 col-md-3">
+                    <h2 class="display-5 fw-bold"
+                        style="background: var(--primary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                        35</h2>
+                    <p class="text-muted mb-0">Periods/Week</p>
+                </div>
+                <div class="col-6 col-md-3">
+                    <h2 class="display-5 fw-bold"
+                        style="background: var(--success-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                        33</h2>
+                    <p class="text-muted mb-0">Max Faculty</p>
+                </div>
+                <div class="col-6 col-md-3">
+                    <h2 class="display-5 fw-bold"
+                        style="background: var(--secondary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                        8</h2>
+                    <p class="text-muted mb-0">Semesters</p>
+                </div>
+                <div class="col-6 col-md-3">
+                    <h2 class="display-5 fw-bold"
+                        style="background: var(--primary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                        2</h2>
+                    <p class="text-muted mb-0">Departments</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Current Status -->
+    {% if config %}
+    <section class="py-5">
+        <div class="container">
+            <div class="card card-custom p-4">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h4 class="fw-bold mb-2">
+                            <i class="bi bi-info-circle me-2"></i>Current Academic Status
+                        </h4>
+                        <p class="text-muted mb-0">
+                            Academic Year: <strong>{{ config.current_academic_year }}</strong> |
+                            Active Mode: <strong class="text-primary">{{ config.get_active_semester_type_display
+                                }}</strong>
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                        <span class="badge badge-gradient fs-6">
+                            {% if config.active_semester_type == 'ODD' %}
+                            Semesters 1, 3, 5, 7
+                            {% else %}
+                            Semesters 2, 4, 6, 8
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}

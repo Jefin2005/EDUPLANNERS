@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+
+{% block title %}View Timetables - EDUPLANNER{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">Timetables</h2>
+            <p class="text-muted mb-0">{{ config.current_academic_year }} - {{ config.active_semester_type }} Semesters
+            </p>
+        </div>
+
+        <!-- View Toggle -->
+        <div class="semester-toggle">
+            <a href="?type=class{% if selected_class %}&id={{ selected_class.id }}{% endif %}"
+                class="btn {% if view_type == 'class' %}active{% endif %}">
+                <i class="bi bi-door-open me-1"></i>Class-wise
+            </a>
+            <a href="?type=faculty{% if selected_faculty %}&id={{ selected_faculty.id }}{% endif %}"
+                class="btn {% if view_type == 'faculty' %}active{% endif %}">
+                <i class="bi bi-person me-1"></i>Faculty-wise
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Selection Panel -->
+        <div class="col-lg-3 mb-4">
+            <div class="card card-custom p-4">
+                {% if view_type == 'class' %}
+                <h5 class="fw-bold mb-3">Select Class</h5>
+                <div class="list-group list-group-flush">
+                    {% for class in classes %}
+                    <a href="?type=class&id={{ class.id }}"
+                        class="list-group-item list-group-item-action bg-transparent border-0 text-white {% if selected_class.id == class.id %}active{% endif %}"
+                        style="{% if selected_class.id == class.id %}background: rgba(102, 126, 234, 0.2) !important;{% endif %}">
+                        <i class="bi bi-door-open me-2"></i>
+                        {{ class.semester }}-{{ class.name }}
+                    </a>
+                    {% empty %}
+                    <p class="text-muted text-center py-3">No classes available</p>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <h5 class="fw-bold mb-3">Select Faculty</h5>
+                <div class="list-group list-group-flush" style="max-height: 400px; overflow-y: auto;">
+                    {% for faculty in faculties %}
+                    <a href="?type=faculty&id={{ faculty.id }}"
+                        class="list-group-item list-group-item-action bg-transparent border-0 text-white {% if selected_faculty.id == faculty.id %}active{% endif %}"
+                        style="{% if selected_faculty.id == faculty.id %}background: rgba(102, 126, 234, 0.2) !important;{% endif %}">
+                        <i class="bi bi-person me-2"></i>
+                        {{ faculty.name }}
+                    </a>
+                    {% empty %}
+                    <p class="text-muted text-center py-3">No faculty available</p>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Timetable Display -->
+        <div class="col-lg-9">
+            {% if timetable_grid %}
+            <div class="card card-custom p-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="fw-bold mb-0">
+                        {% if view_type == 'class' %}
+                        <i class="bi bi-door-open me-2"></i>{{ selected_class }}
+                        {% else %}
+                        <i class="bi bi-person me-2"></i>{{ selected_faculty.name }}
+                        {% endif %}
+                    </h4>
+                    <a href="{% url 'export_timetable_pdf' %}?type={{ view_type }}&id={% if view_type == 'class' %}{{ selected_class.id }}{% else %}{{ selected_faculty.id }}{% endif %}"
+                        class="btn btn-gradient">
+                        <i class="bi bi-file-pdf me-2"></i>Export PDF
+                    </a>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table timetable-grid mb-0">
+                        <thead>
+                            <tr>
+                                <th style="width: 80px;">Period</th>
+                                {% for day in days %}
+                                <th>{{ day }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for period in periods %}
+                            <tr>
+                                <td class="fw-bold">
+                                    P{{ period }}
+                                    <br>
+                                    <small class="text-muted">
+                                        {% if period == 1 %}09:00{% endif %}
+                                        {% if period == 2 %}09:50{% endif %}
+                                        {% if period == 3 %}10:50{% endif %}
+                                        {% if period == 4 %}11:40{% endif %}
+                                        {% if period == 5 %}13:30{% endif %}
+                                        {% if period == 6 %}14:20{% endif %}
+                                        {% if period == 7 %}15:20{% endif %}
+                                    </small>
+                                </td>
+                                {% for day in days %}
+                                <td>
+                                    {% with slot=timetable_grid|default:dict %}
+                                    {% for d, periods_dict in timetable_grid.items %}
+                                    {% if d == day %}
+                                    {% for p, entry in periods_dict.items %}
+                                    {% if p == period and entry %}
+                                    <div class="timetable-cell {% if entry.is_lab %}lab{% else %}theory{% endif %}">
+                                        <span class="subject-code">{{ entry.subject }}</span>
+                                        {% if view_type == 'class' %}
+                                        <span class="faculty-name">{{ entry.faculty }}</span>
+                                        {% if entry.assistant %}
+                                        <small class="text-warning">+ {{ entry.assistant }}</small>
+                                        {% endif %}
+                                        {% else %}
+                                        <span class="faculty-name">{{ entry.class }}</span>
+                                        {% if entry.role == 'Assistant' %}
+                                        <small class="text-warning">(Asst.)</small>
+                                        {% endif %}
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                    {% endfor %}
+                                    {% endif %}
+                                    {% endfor %}
+                                    {% endwith %}
+                                </td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Legend -->
+                <div class="mt-4 d-flex gap-4 flex-wrap">
+                    <div class="d-flex align-items-center">
+                        <div style="width: 24px; height: 24px; background: rgba(102, 126, 234, 0.15); border-radius: 6px;"
+                            class="me-2"></div>
+                        <span class="text-muted">Theory Subject</span>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <div style="width: 24px; height: 24px; background: rgba(17, 153, 142, 0.2); border-radius: 6px;"
+                            class="me-2"></div>
+                        <span class="text-muted">Lab Session</span>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="card card-custom p-5 text-center">
+                <i class="bi bi-calendar2-x display-3 text-muted mb-3"></i>
+                <h4>Select a {% if view_type == 'class' %}Class{% else %}Faculty{% endif %}</h4>
+                <p class="text-muted mb-0">
+                    Choose from the list on the left to view the timetable.
+                </p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

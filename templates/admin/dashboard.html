@@ -1,0 +1,284 @@
+{% extends 'base.html' %}
+
+{% block title %}Admin Dashboard - EDUPLANNER{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-lg-2 sidebar d-none d-lg-block">
+            <div class="mb-4">
+                <h6 class="text-muted text-uppercase small fw-bold mb-3">Management</h6>
+                <a href="{% url 'manage_departments' %}" class="sidebar-link">
+                    <i class="bi bi-building"></i>Departments
+                </a>
+                <a href="{% url 'manage_semesters' %}" class="sidebar-link">
+                    <i class="bi bi-calendar3"></i>Semesters & Classes
+                </a>
+                <a href="{% url 'manage_faculty' %}" class="sidebar-link">
+                    <i class="bi bi-people"></i>Faculty
+                </a>
+                <a href="{% url 'manage_subjects' %}" class="sidebar-link">
+                    <i class="bi bi-book"></i>Subjects
+                </a>
+            </div>
+
+            <div class="mb-4">
+                <h6 class="text-muted text-uppercase small fw-bold mb-3">Setup</h6>
+                <a href="{% url 'init_time_slots' %}" class="sidebar-link">
+                    <i class="bi bi-clock"></i>Time Slots
+                </a>
+                <a href="/admin/" class="sidebar-link">
+                    <i class="bi bi-gear"></i>Django Admin
+                </a>
+            </div>
+
+            <div>
+                <h6 class="text-muted text-uppercase small fw-bold mb-3">Timetable</h6>
+                <a href="{% url 'timetable_view' %}" class="sidebar-link">
+                    <i class="bi bi-table"></i>View Timetables
+                </a>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="col-lg-10 py-4 px-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="fw-bold mb-1">Admin Dashboard</h2>
+                    <p class="text-muted mb-0">Manage timetable generation for {{ config.current_academic_year }}</p>
+                </div>
+
+                <!-- Semester Toggle -->
+                <div class="semester-toggle">
+                    <button class="btn {% if config.active_semester_type == 'ODD' %}active{% endif %}"
+                        onclick="toggleSemester('ODD')" id="btn-odd">
+                        ODD Semesters
+                    </button>
+                    <button class="btn {% if config.active_semester_type == 'EVEN' %}active{% endif %}"
+                        onclick="toggleSemester('EVEN')" id="btn-even">
+                        EVEN Semesters
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="row g-4 mb-4">
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <p>Departments</p>
+                                <h3>{{ departments.count }}</h3>
+                            </div>
+                            <div class="icon primary">
+                                <i class="bi bi-building"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <p>Active Faculty</p>
+                                <h3>{{ total_faculty }}</h3>
+                            </div>
+                            <div class="icon success">
+                                <i class="bi bi-people"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <p>Subjects</p>
+                                <h3>{{ total_subjects }}</h3>
+                            </div>
+                            <div class="icon secondary">
+                                <i class="bi bi-book"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <p>Classes</p>
+                                <h3>{{ total_classes }}</h3>
+                            </div>
+                            <div class="icon primary">
+                                <i class="bi bi-door-open"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Generate Timetable Section -->
+            <div class="card card-custom p-4 mb-4">
+                <h5 class="fw-bold mb-3">
+                    <i class="bi bi-lightning-charge me-2"></i>Generate Timetable
+                </h5>
+                <p class="text-muted mb-3">
+                    Select a semester to generate conflict-free timetables for all classes using Genetic Algorithm.
+                </p>
+
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-6">
+                        <label class="form-label">Select Semester</label>
+                        <select class="form-select" id="semester-select">
+                            <option value="">-- Select Semester --</option>
+                            {% for semester in active_semesters %}
+                            <option value="{{ semester.id }}">{{ semester }} ({{ semester.sections.count }} classes)
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <button class="btn btn-gradient" onclick="generateTimetable()" id="generate-btn">
+                            <i class="bi bi-play-circle me-2"></i>Generate Timetable
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Progress -->
+                <div id="generation-progress" class="mt-4 d-none">
+                    <div class="d-flex align-items-center">
+                        <div class="spinner-gradient me-3"></div>
+                        <div>
+                            <h6 class="mb-0">Generating Timetable...</h6>
+                            <small class="text-muted" id="progress-text">Running Genetic Algorithm optimization</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Result -->
+                <div id="generation-result" class="mt-4 d-none">
+                    <div class="alert alert-success alert-custom">
+                        <i class="bi bi-check-circle me-2"></i>
+                        <span id="result-text"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="card card-custom p-4 h-100">
+                        <h5 class="fw-bold mb-3">
+                            <i class="bi bi-plus-circle me-2"></i>Quick Actions
+                        </h5>
+                        <div class="d-grid gap-2">
+                            <a href="{% url 'manage_departments' %}" class="btn btn-outline-light text-start">
+                                <i class="bi bi-building me-2"></i>Add Department
+                            </a>
+                            <a href="{% url 'manage_faculty' %}" class="btn btn-outline-light text-start">
+                                <i class="bi bi-person-plus me-2"></i>Add Faculty
+                            </a>
+                            <a href="{% url 'manage_subjects' %}" class="btn btn-outline-light text-start">
+                                <i class="bi bi-book me-2"></i>Add Subject
+                            </a>
+                            <a href="{% url 'init_time_slots' %}" class="btn btn-outline-light text-start">
+                                <i class="bi bi-clock me-2"></i>Initialize Time Slots
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card card-custom p-4 h-100">
+                        <h5 class="fw-bold mb-3">
+                            <i class="bi bi-info-circle me-2"></i>Current Configuration
+                        </h5>
+                        <table class="table table-borderless mb-0">
+                            <tr>
+                                <td class="text-muted">Academic Year</td>
+                                <td class="text-end fw-bold">{{ config.current_academic_year }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Active Semesters</td>
+                                <td class="text-end fw-bold">{{ config.active_semester_type }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Periods/Day</td>
+                                <td class="text-end fw-bold">{{ config.periods_per_day }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Days/Week</td>
+                                <td class="text-end fw-bold">{{ config.days_per_week }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function toggleSemester(mode) {
+        fetch('{% url "toggle_semester_mode" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: 'mode=' + mode
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                }
+            });
+    }
+
+    function generateTimetable() {
+        const semesterId = document.getElementById('semester-select').value;
+        if (!semesterId) {
+            alert('Please select a semester');
+            return;
+        }
+
+        const btn = document.getElementById('generate-btn');
+        const progress = document.getElementById('generation-progress');
+        const result = document.getElementById('generation-result');
+
+        btn.disabled = true;
+        progress.classList.remove('d-none');
+        result.classList.add('d-none');
+
+        fetch('{% url "generate_timetable" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: 'semester_id=' + semesterId
+        })
+            .then(response => response.json())
+            .then(data => {
+                btn.disabled = false;
+                progress.classList.add('d-none');
+
+                if (data.success) {
+                    result.classList.remove('d-none');
+                    document.getElementById('result-text').textContent =
+                        `Timetable generated successfully! Created ${data.entries_created} entries. Final fitness: ${data.final_fitness.toFixed(2)}. Generations: ${data.generations_run}`;
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                btn.disabled = false;
+                progress.classList.add('d-none');
+                alert('Error generating timetable: ' + error);
+            });
+    }
+</script>
+{% endblock %}

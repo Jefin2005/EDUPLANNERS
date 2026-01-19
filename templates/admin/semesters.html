@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+
+{% block title %}Manage Semesters - EDUPLANNER{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">Semesters & Classes</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}"
+                            class="text-decoration-none">Dashboard</a></li>
+                    <li class="breadcrumb-item active text-muted">Semesters</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    {% for dept in departments %}
+    <div class="card card-custom p-4 mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold mb-0">
+                <span class="badge badge-gradient me-2">{{ dept.code }}</span>
+                {{ dept.name }}
+            </h5>
+            <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal"
+                data-bs-target="#addSemester{{ dept.id }}">
+                <i class="bi bi-plus me-1"></i>Add Semester
+            </button>
+        </div>
+
+        <div class="row g-3">
+            {% for semester in dept.semesters.all %}
+            <div class="col-md-6 col-lg-3">
+                <div class="stat-card">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <h4 class="fw-bold mb-0">S{{ semester.number }}</h4>
+                            <small class="text-muted">{{ semester.semester_type }}</small>
+                        </div>
+                        <form method="post" class="d-inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete_semester">
+                            <input type="hidden" name="semester_id" value="{{ semester.id }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger"
+                                onclick="return confirm('Delete?');">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+
+                    <p class="text-muted small mb-2">Classes (Sections):</p>
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        {% for section in semester.sections.all %}
+                        <span class="badge bg-dark">
+                            {{ section.name }}
+                            <form method="post" class="d-inline ms-1">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="delete_class">
+                                <input type="hidden" name="class_id" value="{{ section.id }}">
+                                <button type="submit" class="btn btn-link btn-sm p-0 text-danger"
+                                    onclick="return confirm('Delete class?');">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </form>
+                        </span>
+                        {% empty %}
+                        <small class="text-muted">No classes</small>
+                        {% endfor %}
+                    </div>
+
+                    <button class="btn btn-sm btn-outline-light w-100" data-bs-toggle="modal"
+                        data-bs-target="#addClass{{ semester.id }}">
+                        <i class="bi bi-plus me-1"></i>Add Class
+                    </button>
+                </div>
+
+                <!-- Add Class Modal -->
+                <div class="modal fade" id="addClass{{ semester.id }}" tabindex="-1">
+                    <div class="modal-dialog modal-sm">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h6 class="modal-title">Add Class to S{{ semester.number }}</h6>
+                                <button type="button" class="btn-close btn-close-white"
+                                    data-bs-dismiss="modal"></button>
+                            </div>
+                            <form method="post">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="add_class">
+                                <input type="hidden" name="semester_id" value="{{ semester.id }}">
+                                <div class="modal-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">Section Name</label>
+                                        <input type="text" name="name" class="form-control" placeholder="e.g., A, B, C"
+                                            required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Capacity</label>
+                                        <input type="number" name="capacity" class="form-control" value="60">
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="submit" class="btn btn-gradient w-100">Add Class</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12">
+                <p class="text-muted text-center py-4">No semesters added yet.</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Add Semester Modal -->
+        <div class="modal fade" id="addSemester{{ dept.id }}" tabindex="-1">
+            <div class="modal-dialog modal-sm">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h6 class="modal-title">Add Semester to {{ dept.code }}</h6>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="add_semester">
+                        <input type="hidden" name="department_id" value="{{ dept.id }}">
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">Semester Number</label>
+                                <select name="number" class="form-select" required>
+                                    {% for i in "12345678" %}
+                                    <option value="{{ i }}">Semester {{ i }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-gradient w-100">Add Semester</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="card card-custom p-5 text-center">
+        <i class="bi bi-building display-4 text-muted mb-3"></i>
+        <p class="text-muted">No departments found. <a href="{% url 'manage_departments' %}">Add departments first</a>.
+        </p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

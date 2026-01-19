@@ -1,0 +1,240 @@
+{% extends 'base.html' %}
+
+{% block title %}Manage Faculty - EDUPLANNER{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">Manage Faculty</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}"
+                            class="text-decoration-none">Dashboard</a></li>
+                    <li class="breadcrumb-item active text-muted">Faculty</li>
+                </ol>
+            </nav>
+        </div>
+        <button class="btn btn-gradient" data-bs-toggle="modal" data-bs-target="#addModal">
+            <i class="bi bi-person-plus me-2"></i>Add Faculty
+        </button>
+    </div>
+
+    <!-- Stats -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <p>Professors</p>
+                        <h3>{{ faculties|length }}</h3>
+                    </div>
+                    <div class="icon primary"><i class="bi bi-mortarboard"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <p>Max Hours (Prof)</p>
+                        <h3>10</h3>
+                    </div>
+                    <div class="icon success"><i class="bi bi-clock"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <p>Max Hours (Asst.)</p>
+                        <h3>23</h3>
+                    </div>
+                    <div class="icon secondary"><i class="bi bi-clock-history"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card card-custom">
+        <div class="table-responsive">
+            <table class="table table-dark-custom mb-0">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Designation</th>
+                        <th>Max Hours</th>
+                        <th>Workload</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for faculty in faculties %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center me-2"
+                                    style="width: 35px; height: 35px;">
+                                    {{ faculty.name|slice:":1" }}
+                                </div>
+                                {{ faculty.name }}
+                            </div>
+                        </td>
+                        <td class="text-muted">{{ faculty.email }}</td>
+                        <td>
+                            {% if faculty.designation == 'PROFESSOR' %}
+                            <span class="badge bg-primary">Professor</span>
+                            {% elif faculty.designation == 'ASSOCIATE_PROFESSOR' %}
+                            <span class="badge bg-info">Associate Prof.</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Assistant Prof.</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ faculty.max_hours }} hrs</td>
+                        <td>
+                            <div class="progress" style="height: 8px; width: 80px;">
+                                {% widthratio faculty.current_workload faculty.max_hours 100 as pct %}
+                                <div class="progress-bar bg-success" style="width: {{ pct|default:0 }}%"></div>
+                            </div>
+                            <small class="text-muted">{{ faculty.current_workload }}/{{ faculty.max_hours }}</small>
+                        </td>
+                        <td>
+                            <form method="post" class="d-inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="toggle_active">
+                                <input type="hidden" name="faculty_id" value="{{ faculty.id }}">
+                                <button type="submit"
+                                    class="btn btn-sm {% if faculty.is_active %}btn-success{% else %}btn-outline-secondary{% endif %}">
+                                    {% if faculty.is_active %}Active{% else %}Inactive{% endif %}
+                                </button>
+                            </form>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal"
+                                data-bs-target="#editModal{{ faculty.id }}">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <form method="post" class="d-inline" onsubmit="return confirm('Delete this faculty?');">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="faculty_id" value="{{ faculty.id }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+
+                    <!-- Edit Modal -->
+                    <div class="modal fade" id="editModal{{ faculty.id }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Edit Faculty</h5>
+                                    <button type="button" class="btn-close btn-close-white"
+                                        data-bs-dismiss="modal"></button>
+                                </div>
+                                <form method="post">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="update">
+                                    <input type="hidden" name="faculty_id" value="{{ faculty.id }}">
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">Name</label>
+                                            <input type="text" name="name" class="form-control"
+                                                value="{{ faculty.name }}" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Email</label>
+                                            <input type="email" name="email" class="form-control"
+                                                value="{{ faculty.email }}" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Designation</label>
+                                            <select name="designation" class="form-select" required>
+                                                <option value="PROFESSOR" {% if faculty.designation=='PROFESSOR'
+                                                    %}selected{% endif %}>Professor (10 hrs)</option>
+                                                <option value="ASSOCIATE_PROFESSOR" {% if
+                                                    faculty.designation=='ASSOCIATE_PROFESSOR' %}selected{% endif %}>
+                                                    Associate Professor (15 hrs)</option>
+                                                <option value="ASSISTANT_PROFESSOR" {% if
+                                                    faculty.designation=='ASSISTANT_PROFESSOR' %}selected{% endif %}>
+                                                    Assistant Professor (23 hrs)</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Preferred Subjects</label>
+                                            <textarea name="preferences" class="form-control" rows="2"
+                                                placeholder="Enter comma-separated subject codes">{{ faculty.preferences }}</textarea>
+                                            <small class="text-muted">e.g., CS301, CS302, CS303</small>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-outline-light"
+                                            data-bs-dismiss="modal">Cancel</button>
+                                        <button type="submit" class="btn btn-gradient">Save Changes</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">
+                            No faculty members added yet.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add Modal -->
+<div class="modal fade" id="addModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Add Faculty</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="add">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Full Name</label>
+                        <input type="text" name="name" class="form-control" placeholder="Dr. John Doe" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" name="email" class="form-control" placeholder="john@university.edu"
+                            required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Designation</label>
+                        <select name="designation" class="form-select" required>
+                            <option value="PROFESSOR">Professor (10 hrs/week)</option>
+                            <option value="ASSOCIATE_PROFESSOR">Associate Professor (15 hrs/week)</option>
+                            <option value="ASSISTANT_PROFESSOR" selected>Assistant Professor (23 hrs/week)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Preferred Subjects (Optional)</label>
+                        <textarea name="preferences" class="form-control" rows="2"
+                            placeholder="Comma-separated subject codes"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-gradient">Add Faculty</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
