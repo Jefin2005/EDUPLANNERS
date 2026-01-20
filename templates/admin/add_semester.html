@@ -1,0 +1,288 @@
+{% extends 'base.html' %}
+
+{% block title %}Add Semester - EDUPLANNER{% endblock %}
+
+{% block extra_css %}
+<style>
+    .page-container {
+        padding: 2rem;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--text-muted);
+        text-decoration: none;
+        font-weight: 500;
+        margin-bottom: 1.5rem;
+        transition: all 0.2s ease;
+    }
+
+    .back-link:hover {
+        color: var(--primary-color);
+    }
+
+    .page-header {
+        margin-bottom: 2rem;
+    }
+
+    .page-header h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin: 0 0 0.25rem 0;
+        color: var(--text-heading);
+    }
+
+    .page-header p {
+        color: var(--text-muted);
+        margin: 0;
+    }
+
+    .form-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+        display: block;
+        color: var(--text-body);
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .form-label .required {
+        color: var(--danger-color);
+        margin-left: 0.25rem;
+    }
+
+    .form-input,
+    .form-select {
+        width: 100%;
+        background: var(--input-bg);
+        border: 1px solid var(--input-border);
+        color: var(--text-body);
+        border-radius: 10px;
+        padding: 0.875rem 1rem;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-input:focus,
+    .form-select:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px var(--primary-light);
+    }
+
+    .form-input::placeholder {
+        color: var(--text-muted);
+    }
+
+    .form-select {
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2364748B' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 1rem center;
+        padding-right: 2.5rem;
+        cursor: pointer;
+    }
+
+    .form-error {
+        color: var(--danger-color);
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .has-error .form-input,
+    .has-error .form-select {
+        border-color: var(--danger-color);
+    }
+
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .btn-cancel {
+        background: transparent;
+        border: 1px solid var(--border-color);
+        color: var(--text-muted);
+        font-weight: 500;
+        padding: 0.75rem 1.5rem;
+        border-radius: 10px;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-cancel:hover {
+        background: var(--bg-secondary);
+        border-color: var(--text-muted);
+        color: var(--text-heading);
+    }
+
+    .btn-save {
+        background: var(--primary-color);
+        border: none;
+        color: #fff;
+        font-weight: 600;
+        padding: 0.75rem 1.5rem;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-save:hover {
+        background: var(--primary-hover);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+
+    @media (max-width: 576px) {
+        .page-container {
+            padding: 1rem;
+        }
+
+        .form-card {
+            padding: 1.5rem;
+        }
+
+        .form-actions {
+            flex-direction: column-reverse;
+        }
+
+        .btn-cancel,
+        .btn-save {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+    <a href="{% url 'manage_semesters' %}" class="back-link">
+        <i class="bi bi-arrow-left"></i>
+        Back to Semesters & Classes
+    </a>
+
+    <div class="page-header">
+        <h1><i class="bi bi-calendar-plus me-2"></i>Add Semester</h1>
+        <p>Create a new semester for a department</p>
+    </div>
+
+    <div class="form-card">
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_semester">
+
+            <!-- Department -->
+            <div class="form-group {% if errors.department %}has-error{% endif %}">
+                <label class="form-label">
+                    Department <span class="required">*</span>
+                </label>
+                <select name="department_id" class="form-select" required>
+                    <option value="">Select Department</option>
+                    {% if departments %}
+                    {% for dept in departments %}
+                    <option value="{{ dept.id }}" {% if selected_dept==dept.id %}selected{% endif %}{% if
+                        form_data.department_id==dept.id|stringformat:"s" %}selected{% endif %}>
+                        {{ dept.code }} - {{ dept.name }}
+                    </option>
+                    {% endfor %}
+                    {% endif %}
+                </select>
+                {% if errors.department %}
+                <p class="form-error">
+                    <i class="bi bi-exclamation-circle"></i>
+                    {{ errors.department }}
+                </p>
+                {% endif %}
+            </div>
+
+            <!-- Semester Name/Number -->
+            <div class="form-group {% if errors.number %}has-error{% endif %}">
+                <label class="form-label">
+                    Semester Name <span class="required">*</span>
+                </label>
+                <select name="number" class="form-select" required>
+                    <option value="">Select Semester</option>
+                    <option value="1" {% if form_data.number=="1" %}selected{% endif %}>Semester 1</option>
+                    <option value="2" {% if form_data.number=="2" %}selected{% endif %}>Semester 2</option>
+                    <option value="3" {% if form_data.number=="3" %}selected{% endif %}>Semester 3</option>
+                    <option value="4" {% if form_data.number=="4" %}selected{% endif %}>Semester 4</option>
+                    <option value="5" {% if form_data.number=="5" %}selected{% endif %}>Semester 5</option>
+                    <option value="6" {% if form_data.number=="6" %}selected{% endif %}>Semester 6</option>
+                    <option value="7" {% if form_data.number=="7" %}selected{% endif %}>Semester 7</option>
+                    <option value="8" {% if form_data.number=="8" %}selected{% endif %}>Semester 8</option>
+                </select>
+                {% if errors.number %}
+                <p class="form-error">
+                    <i class="bi bi-exclamation-circle"></i>
+                    {{ errors.number }}
+                </p>
+                {% endif %}
+            </div>
+
+            <!-- Academic Year -->
+            <div class="form-group {% if errors.academic_year %}has-error{% endif %}">
+                <label class="form-label">
+                    Academic Year <span class="required">*</span>
+                </label>
+                <input type="text" name="academic_year" class="form-input" placeholder="e.g., 2024-25"
+                    value="{{ form_data.academic_year|default:'' }}" required>
+                {% if errors.academic_year %}
+                <p class="form-error">
+                    <i class="bi bi-exclamation-circle"></i>
+                    {{ errors.academic_year }}
+                </p>
+                {% endif %}
+            </div>
+
+            <!-- Status -->
+            <div class="form-group">
+                <label class="form-label">Status</label>
+                <select name="is_active" class="form-select">
+                    <option value="1" selected>Active</option>
+                    <option value="0">Inactive</option>
+                </select>
+            </div>
+
+            <div class="form-actions">
+                <a href="{% url 'manage_semesters' %}" class="btn-cancel">
+                    <i class="bi bi-x-lg"></i>
+                    Cancel
+                </a>
+                <button type="submit" class="btn-save">
+                    <i class="bi bi-check-lg"></i>
+                    Save Semester
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

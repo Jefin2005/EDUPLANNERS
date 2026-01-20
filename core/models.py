@@ -6,6 +6,8 @@ class Department(models.Model):
     """Department model for CSE and MCA"""
     name = models.CharField(max_length=100)
     code = models.CharField(max_length=10, unique=True)
+    description = models.TextField(blank=True, help_text="Optional description about the department")
+    is_active = models.BooleanField(default=True, help_text="Whether the department is currently active")
     
     def __str__(self):
         return f"{self.code} - {self.name}"

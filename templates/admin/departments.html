@@ -1,96 +1,698 @@
 {% extends 'base.html' %}
 
-{% block title %}Manage Departments - EDUPLANNER{% endblock %}
+{% block title %}Departments - EDUPLANNER{% endblock %}
+
+{% block extra_css %}
+<style>
+    .page-container {
+        padding: 2rem;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    /* Page Header */
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .page-header-content h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin: 0 0 0.25rem 0;
+        color: var(--text-heading);
+    }
+
+    .page-header-content p {
+        color: var(--text-muted);
+        margin: 0;
+        font-size: 0.95rem;
+    }
+
+    .btn-add {
+        background: var(--primary-color);
+        border: none;
+        color: #fff;
+        font-weight: 600;
+        padding: 0.75rem 1.5rem;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+    }
+
+    .btn-add:hover {
+        background: var(--primary-hover);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        color: #fff;
+    }
+
+    /* Stats Row */
+    .stats-row {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .stat-mini {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 1rem 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .stat-mini-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+    }
+
+    .stat-mini-icon.primary {
+        background: var(--primary-light);
+        color: var(--primary-color);
+    }
+
+    .stat-mini-icon.success {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--success-color);
+    }
+
+    .stat-mini-content .stat-value {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--text-heading);
+        display: block;
+    }
+
+    .stat-mini-content .stat-label {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+    }
+
+    @media (max-width: 576px) {
+        .stats-row {
+            flex-direction: column;
+        }
+    }
+
+    /* Main Card */
+    .dept-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+    }
+
+    /* Table Styles */
+    .dept-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .dept-table thead {
+        background: var(--bg-secondary);
+    }
+
+    .dept-table th {
+        color: var(--text-muted);
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.5px;
+        padding: 1rem 1.25rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .dept-table td {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--border-color);
+        color: var(--text-body);
+        vertical-align: middle;
+    }
+
+    .dept-table tbody tr {
+        transition: all 0.2s ease;
+    }
+
+    .dept-table tbody tr:hover {
+        background: var(--primary-light);
+    }
+
+    .dept-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .dept-name {
+        font-weight: 600;
+        color: var(--text-heading);
+    }
+
+    .dept-code {
+        display: inline-block;
+        background: var(--primary-light);
+        color: var(--primary-color);
+        padding: 0.35rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+
+    .dept-description {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        max-width: 300px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.35rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+
+    .status-badge.active {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--success-color);
+    }
+
+    .status-badge.inactive {
+        background: rgba(239, 68, 68, 0.1);
+        color: var(--danger-color);
+    }
+
+    .status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+    }
+
+    /* Action Buttons */
+    .action-btns {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .btn-action {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        background: var(--bg-card);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 1rem;
+    }
+
+    .btn-edit {
+        color: var(--primary-color);
+    }
+
+    .btn-edit:hover {
+        background: var(--primary-light);
+        border-color: var(--primary-color);
+        transform: translateY(-2px);
+    }
+
+    .btn-delete {
+        color: var(--danger-color);
+    }
+
+    .btn-delete:hover {
+        background: rgba(239, 68, 68, 0.1);
+        border-color: var(--danger-color);
+        transform: translateY(-2px);
+    }
+
+    /* Empty State */
+    .empty-state {
+        padding: 4rem 2rem;
+        text-align: center;
+    }
+
+    .empty-state-icon {
+        width: 100px;
+        height: 100px;
+        margin: 0 auto 1.5rem;
+        background: var(--primary-light);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        color: var(--primary-color);
+    }
+
+    .empty-state h3 {
+        color: var(--text-heading);
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .empty-state p {
+        color: var(--text-muted);
+        margin-bottom: 1.5rem;
+        max-width: 400px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    /* Delete Modal */
+    .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: var(--modal-overlay);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1050;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .modal-overlay.active {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .modal-container {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        width: 100%;
+        max-width: 400px;
+        margin: 1rem;
+        transform: scale(0.9) translateY(20px);
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-lg);
+    }
+
+    .modal-overlay.active .modal-container {
+        transform: scale(1) translateY(0);
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .modal-header h4 {
+        margin: 0;
+        font-weight: 600;
+        color: var(--text-heading);
+    }
+
+    .modal-close {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        background: var(--bg-secondary);
+        color: var(--text-muted);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+    }
+
+    .modal-close:hover {
+        background: var(--primary-light);
+        color: var(--primary-color);
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+        text-align: center;
+    }
+
+    .delete-icon {
+        width: 60px;
+        height: 60px;
+        background: rgba(239, 68, 68, 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        font-size: 1.5rem;
+        color: var(--danger-color);
+    }
+
+    .modal-body h5 {
+        color: var(--text-heading);
+        margin-bottom: 0.5rem;
+    }
+
+    .modal-body p {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+    }
+
+    .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+        padding: 1rem 1.5rem;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .btn-cancel {
+        background: transparent;
+        border: 1px solid var(--border-color);
+        color: var(--text-muted);
+        font-weight: 500;
+        padding: 0.65rem 1.25rem;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .btn-cancel:hover {
+        background: var(--bg-secondary);
+        color: var(--text-heading);
+    }
+
+    .btn-delete-confirm {
+        background: var(--danger-color);
+        border: none;
+        color: #fff;
+        font-weight: 600;
+        padding: 0.65rem 1.25rem;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .btn-delete-confirm:hover {
+        background: #DC2626;
+    }
+
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+        .page-container {
+            padding: 1rem;
+        }
+
+        .page-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .btn-add {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .dept-table-wrapper {
+            display: none;
+        }
+
+        .dept-cards-mobile {
+            display: block;
+        }
+
+        .dept-card-mobile {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .dept-card-mobile-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+        }
+
+        .dept-card-mobile-info h4 {
+            color: var(--text-heading);
+            font-weight: 600;
+            margin: 0 0 0.25rem 0;
+            font-size: 1rem;
+        }
+
+        .dept-card-mobile-body {
+            margin-bottom: 0.75rem;
+        }
+
+        .dept-card-mobile-body p {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin: 0;
+        }
+
+        .dept-card-mobile-footer {
+            display: flex;
+            justify-content: flex-end;
+        }
+    }
+
+    @media (min-width: 769px) {
+        .dept-cards-mobile {
+            display: none;
+        }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="fw-bold mb-1">Manage Departments</h2>
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}"
-                            class="text-decoration-none">Dashboard</a></li>
-                    <li class="breadcrumb-item active text-muted">Departments</li>
-                </ol>
-            </nav>
+<div class="page-container">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item">
+                <a href="{% url 'admin_dashboard' %}">
+                    <i class="bi bi-speedometer2 me-1"></i>Admin
+                </a>
+            </li>
+            <li class="breadcrumb-item active">Departments</li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="page-header-content">
+            <h1><i class="bi bi-building me-2"></i>Departments</h1>
+            <p>Add and manage academic departments</p>
         </div>
-        <button class="btn btn-gradient" data-bs-toggle="modal" data-bs-target="#addModal">
-            <i class="bi bi-plus-circle me-2"></i>Add Department
-        </button>
+        <a href="{% url 'add_department' %}" class="btn-add">
+            <i class="bi bi-plus-lg"></i>
+            Add Department
+        </a>
     </div>
 
-    <div class="card card-custom">
-        <div class="table-responsive">
-            <table class="table table-dark-custom mb-0">
+    <!-- Stats Row -->
+    <div class="stats-row">
+        <div class="stat-mini">
+            <div class="stat-mini-icon primary">
+                <i class="bi bi-building"></i>
+            </div>
+            <div class="stat-mini-content">
+                <span class="stat-value">{{ departments.count }}</span>
+                <span class="stat-label">Total Departments</span>
+            </div>
+        </div>
+        <div class="stat-mini">
+            <div class="stat-mini-icon success">
+                <i class="bi bi-check-circle"></i>
+            </div>
+            <div class="stat-mini-content">
+                <span class="stat-value">{{ active_count|default:departments.count }}</span>
+                <span class="stat-label">Active</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Departments Card -->
+    <div class="dept-card">
+        {% if departments %}
+        <!-- Desktop Table -->
+        <div class="dept-table-wrapper">
+            <table class="dept-table">
                 <thead>
                     <tr>
+                        <th>Department Name</th>
                         <th>Code</th>
-                        <th>Name</th>
-                        <th>Semesters</th>
-                        <th>Subjects</th>
+                        <th>Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for dept in departments %}
                     <tr>
-                        <td><span class="badge badge-gradient">{{ dept.code }}</span></td>
-                        <td>{{ dept.name }}</td>
-                        <td>{{ dept.semester_count }}</td>
-                        <td>{{ dept.subject_count }}</td>
                         <td>
-                            <form method="post" class="d-inline" onsubmit="return confirm('Delete this department?');">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="delete">
-                                <input type="hidden" name="department_id" value="{{ dept.id }}">
-                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                            <span class="dept-name">{{ dept.name }}</span>
+                        </td>
+                        <td>
+                            <span class="dept-code">{{ dept.code }}</span>
+                        </td>
+                        <td>
+                            {% if dept.is_active %}
+                            <span class="status-badge active">
+                                <span class="status-dot"></span>Active
+                            </span>
+                            {% else %}
+                            <span class="status-badge inactive">
+                                <span class="status-dot"></span>Inactive
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="action-btns">
+                                <a href="{% url 'add_department' %}?edit={{ dept.id }}" class="btn-action btn-edit"
+                                    title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <button class="btn-action btn-delete" title="Delete"
+                                    onclick="openDeleteModal({{ dept.id }}, '{{ dept.name }}')">
                                     <i class="bi bi-trash"></i>
                                 </button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="5" class="text-center text-muted py-4">
-                            No departments yet. Add CSE and MCA to get started.
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+
+        <!-- Mobile Cards -->
+        <div class="dept-cards-mobile" style="padding: 1rem;">
+            {% for dept in departments %}
+            <div class="dept-card-mobile">
+                <div class="dept-card-mobile-header">
+                    <div class="dept-card-mobile-info">
+                        <h4>{{ dept.name }}</h4>
+                        <span class="dept-code">{{ dept.code }}</span>
+                    </div>
+                    {% if dept.is_active %}
+                    <span class="status-badge active">
+                        <span class="status-dot"></span>Active
+                    </span>
+                    {% else %}
+                    <span class="status-badge inactive">
+                        <span class="status-dot"></span>Inactive
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="dept-card-mobile-footer">
+                    <div class="action-btns">
+                        <a href="{% url 'add_department' %}?edit={{ dept.id }}" class="btn-action btn-edit"
+                            title="Edit">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <button class="btn-action btn-delete" title="Delete"
+                            onclick="openDeleteModal({{ dept.id }}, '{{ dept.name }}')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <!-- Empty State -->
+        <div class="empty-state">
+            <div class="empty-state-icon">
+                <i class="bi bi-building"></i>
+            </div>
+            <h3>No departments found</h3>
+            <p>Get started by creating your first academic department.</p>
+            <a href="{% url 'add_department' %}" class="btn-add">
+                <i class="bi bi-plus-lg"></i>
+                Add Department
+            </a>
+        </div>
+        {% endif %}
     </div>
 </div>
 
-<!-- Add Modal -->
-<div class="modal fade" id="addModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title fw-bold">Add Department</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="post">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="add">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Department Code</label>
-                        <input type="text" name="code" class="form-control" placeholder="e.g., CSE" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Department Name</label>
-                        <input type="text" name="name" class="form-control"
-                            placeholder="e.g., Computer Science and Engineering" required>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-gradient">Add Department</button>
-                </div>
-            </form>
+<!-- Delete Confirmation Modal -->
+<div class="modal-overlay" id="deleteModal">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h4><i class="bi bi-exclamation-triangle text-danger me-2"></i>Delete Department</h4>
+            <button class="modal-close" onclick="closeDeleteModal()">
+                <i class="bi bi-x-lg"></i>
+            </button>
         </div>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="department_id" id="deleteDeptId" value="">
+            <div class="modal-body">
+                <div class="delete-icon">
+                    <i class="bi bi-trash"></i>
+                </div>
+                <h5>Are you sure?</h5>
+                <p>You are about to delete <strong id="deleteDeptName"></strong>. This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" onclick="closeDeleteModal()">Cancel</button>
+                <button type="submit" class="btn-delete-confirm">
+                    <i class="bi bi-trash me-1"></i>Delete
+                </button>
+            </div>
+        </form>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function openDeleteModal(id, name) {
+        document.getElementById('deleteDeptId').value = id;
+        document.getElementById('deleteDeptName').textContent = name;
+        document.getElementById('deleteModal').classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeDeleteModal() {
+        document.getElementById('deleteModal').classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    document.getElementById('deleteModal').addEventListener('click', function (e) {
+        if (e.target === this) closeDeleteModal();
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closeDeleteModal();
+    });
+</script>
 {% endblock %}

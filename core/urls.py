@@ -11,13 +11,16 @@ urlpatterns = [
     
     # Admin Dashboard
     path('admin-dashboard/', views.admin_dashboard, name='admin_dashboard'),
-    path('admin/departments/', views.manage_departments, name='manage_departments'),
-    path('admin/semesters/', views.manage_semesters, name='manage_semesters'),
-    path('admin/faculty/', views.manage_faculty, name='manage_faculty'),
-    path('admin/subjects/', views.manage_subjects, name='manage_subjects'),
-    path('admin/toggle-semester/', views.toggle_semester_mode, name='toggle_semester_mode'),
-    path('admin/generate-timetable/', views.generate_timetable_view, name='generate_timetable'),
-    path('admin/init-slots/', views.initialize_time_slots, name='init_time_slots'),
+    path('manage/departments/', views.manage_departments, name='manage_departments'),
+    path('manage/departments/add/', views.add_department, name='add_department'),
+    path('manage/semesters/', views.manage_semesters, name='manage_semesters'),
+    path('manage/semesters/add/', views.add_semester, name='add_semester'),
+    path('manage/classes/add/', views.add_class, name='add_class'),
+    path('manage/faculty/', views.manage_faculty, name='manage_faculty'),
+    path('manage/subjects/', views.manage_subjects, name='manage_subjects'),
+    path('manage/toggle-semester/', views.toggle_semester_mode, name='toggle_semester_mode'),
+    path('manage/generate-timetable/', views.generate_timetable_view, name='generate_timetable'),
+    path('manage/init-slots/', views.initialize_time_slots, name='init_time_slots'),
     
     # Faculty Dashboard
     path('faculty/', views.faculty_dashboard, name='faculty_dashboard'),

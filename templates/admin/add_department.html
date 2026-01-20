@@ -1,0 +1,321 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if department %}Edit{% else %}Add{% endif %} Department - EDUPLANNER{% endblock %}
+
+{% block extra_css %}
+<style>
+    .page-container {
+        padding: 2rem;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    /* Back Button */
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--text-muted);
+        text-decoration: none;
+        font-weight: 500;
+        margin-bottom: 1.5rem;
+        transition: all 0.2s ease;
+    }
+
+    .back-link:hover {
+        color: var(--primary-color);
+    }
+
+    /* Page Header */
+    .page-header {
+        margin-bottom: 2rem;
+    }
+
+    .page-header h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin: 0 0 0.25rem 0;
+        color: var(--text-heading);
+    }
+
+    .page-header p {
+        color: var(--text-muted);
+        margin: 0;
+    }
+
+    /* Form Card */
+    .form-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group:last-of-type {
+        margin-bottom: 0;
+    }
+
+    .form-label {
+        display: block;
+        color: var(--text-body);
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .form-label .required {
+        color: var(--danger-color);
+        margin-left: 0.25rem;
+    }
+
+    .form-input,
+    .form-textarea,
+    .form-select {
+        width: 100%;
+        background: var(--input-bg);
+        border: 1px solid var(--input-border);
+        color: var(--text-body);
+        border-radius: 10px;
+        padding: 0.875rem 1rem;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-input:focus,
+    .form-textarea:focus,
+    .form-select:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px var(--primary-light);
+    }
+
+    .form-input::placeholder,
+    .form-textarea::placeholder {
+        color: var(--text-muted);
+    }
+
+    .form-textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+
+    .form-select {
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2364748B' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 1rem center;
+        padding-right: 2.5rem;
+        cursor: pointer;
+    }
+
+    .form-error {
+        color: var(--danger-color);
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .has-error .form-input,
+    .has-error .form-textarea,
+    .has-error .form-select {
+        border-color: var(--danger-color);
+    }
+
+    /* Form Actions */
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .btn-cancel {
+        background: transparent;
+        border: 1px solid var(--border-color);
+        color: var(--text-muted);
+        font-weight: 500;
+        padding: 0.75rem 1.5rem;
+        border-radius: 10px;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-cancel:hover {
+        background: var(--bg-secondary);
+        border-color: var(--text-muted);
+        color: var(--text-heading);
+    }
+
+    .btn-save {
+        background: var(--primary-color);
+        border: none;
+        color: #fff;
+        font-weight: 600;
+        padding: 0.75rem 1.5rem;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-save:hover {
+        background: var(--primary-hover);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+
+    /* Responsive */
+    @media (max-width: 576px) {
+        .page-container {
+            padding: 1rem;
+        }
+
+        .form-card {
+            padding: 1.5rem;
+        }
+
+        .form-actions {
+            flex-direction: column-reverse;
+        }
+
+        .btn-cancel,
+        .btn-save {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+    <!-- Back Button -->
+    <a href="{% url 'manage_departments' %}" class="back-link">
+        <i class="bi bi-arrow-left"></i>
+        Back to Departments
+    </a>
+
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1>
+            <i class="bi bi-building me-2"></i>
+            {% if department %}Edit Department{% else %}Add Department{% endif %}
+        </h1>
+        <p>{% if department %}Update department details{% else %}Create a new academic department{% endif %}</p>
+    </div>
+
+    <!-- Form Card -->
+    <div class="form-card">
+        <form method="post" id="departmentForm" novalidate>
+            {% csrf_token %}
+            {% if department %}
+            <input type="hidden" name="action" value="update">
+            <input type="hidden" name="department_id" value="{{ department.id }}">
+            {% else %}
+            <input type="hidden" name="action" value="add">
+            {% endif %}
+
+            <!-- Department Name -->
+            <div class="form-group {% if errors.name %}has-error{% endif %}">
+                <label class="form-label">
+                    Department Name <span class="required">*</span>
+                </label>
+                {% if department %}
+                <input type="text" name="name" class="form-input" placeholder="e.g., Computer Science & Engineering"
+                    value="{{ department.name }}" required>
+                {% else %}
+                <input type="text" name="name" class="form-input" placeholder="e.g., Computer Science & Engineering"
+                    value="{{ form_data.name|default:'' }}" required>
+                {% endif %}
+                {% if errors.name %}
+                <p class="form-error">
+                    <i class="bi bi-exclamation-circle"></i>
+                    {{ errors.name }}
+                </p>
+                {% endif %}
+            </div>
+
+            <!-- Department Code -->
+            <div class="form-group {% if errors.code %}has-error{% endif %}">
+                <label class="form-label">
+                    Department Code <span class="required">*</span>
+                </label>
+                {% if department %}
+                <input type="text" name="code" id="deptCode" class="form-input" placeholder="e.g., CSE"
+                    value="{{ department.code }}" required maxlength="10" style="text-transform: uppercase;">
+                {% else %}
+                <input type="text" name="code" id="deptCode" class="form-input" placeholder="e.g., CSE"
+                    value="{{ form_data.code|default:'' }}" required maxlength="10" style="text-transform: uppercase;">
+                {% endif %}
+                {% if errors.code %}
+                <p class="form-error">
+                    <i class="bi bi-exclamation-circle"></i>
+                    {{ errors.code }}
+                </p>
+                {% endif %}
+            </div>
+
+            <!-- Description -->
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                {% if department %}
+                <textarea name="description" class="form-textarea"
+                    placeholder="Optional description about the department">{{ department.description }}</textarea>
+                {% else %}
+                <textarea name="description" class="form-textarea"
+                    placeholder="Optional description about the department">{{ form_data.description|default:'' }}</textarea>
+                {% endif %}
+            </div>
+
+            <!-- Status -->
+            <div class="form-group">
+                <label class="form-label">Status</label>
+                <select name="is_active" class="form-select">
+                    {% if department %}
+                    <option value="1" {% if department.is_active %}selected{% endif %}>Active</option>
+                    <option value="0" {% if not department.is_active %}selected{% endif %}>Inactive</option>
+                    {% else %}
+                    <option value="1" selected>Active</option>
+                    <option value="0">Inactive</option>
+                    {% endif %}
+                </select>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <a href="{% url 'manage_departments' %}" class="btn-cancel">
+                    <i class="bi bi-x-lg"></i>
+                    Cancel
+                </a>
+                <button type="submit" class="btn-save">
+                    <i class="bi bi-check-lg"></i>
+                    {% if department %}Update Department{% else %}Save Department{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-uppercase department code
+    document.getElementById('deptCode').addEventListener('input', function () {
+        this.value = this.value.toUpperCase();
+    });
+</script>
+{% endblock %}

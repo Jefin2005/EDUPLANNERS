@@ -96,22 +96,119 @@ def manage_departments(request):
         action = request.POST.get('action')
         
         if action == 'add':
-            name = request.POST.get('name')
-            code = request.POST.get('code')
-            Department.objects.create(name=name, code=code)
+            name = request.POST.get('name', '').strip()
+            code = request.POST.get('code', '').strip().upper()
+            description = request.POST.get('description', '').strip()
+            is_active = request.POST.get('is_active', '1') == '1'
+            Department.objects.create(
+                name=name, 
+                code=code,
+                description=description,
+                is_active=is_active
+            )
             messages.success(request, f'Department {code} created successfully.')
+        
+        elif action == 'update':
+            dept_id = request.POST.get('department_id')
+            dept = Department.objects.get(id=dept_id)
+            dept.name = request.POST.get('name', '').strip()
+            dept.code = request.POST.get('code', '').strip().upper()
+            dept.description = request.POST.get('description', '').strip()
+            dept.is_active = request.POST.get('is_active', '1') == '1'
+            dept.save()
+            messages.success(request, f'Department {dept.code} updated successfully.')
         
         elif action == 'delete':
             dept_id = request.POST.get('department_id')
-            Department.objects.filter(id=dept_id).delete()
-            messages.success(request, 'Department deleted successfully.')
+            dept = Department.objects.filter(id=dept_id).first()
+            if dept:
+                messages.success(request, f'Department {dept.code} deleted successfully.')
+                dept.delete()
     
     departments = Department.objects.annotate(
         semester_count=Count('semesters'),
         subject_count=Count('subjects')
     )
     
-    return render(request, 'admin/departments.html', {'departments': departments})
+    active_count = departments.filter(is_active=True).count()
+    
+    return render(request, 'admin/departments.html', {
+        'departments': departments,
+        'active_count': active_count
+    })
+
+
+@login_required
+def add_department(request):
+    """Add or edit a department - dedicated page"""
+    if not request.user.is_staff:
+        return redirect('home')
+    
+    errors = {}
+    form_data = {}
+    department = None
+    
+    # Check if editing an existing department
+    edit_id = request.GET.get('edit')
+    if edit_id:
+        department = Department.objects.filter(id=edit_id).first()
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        name = request.POST.get('name', '').strip()
+        code = request.POST.get('code', '').strip().upper()
+        description = request.POST.get('description', '').strip()
+        is_active = request.POST.get('is_active', '1') == '1'
+        
+        form_data = {
+            'name': name,
+            'code': code,
+            'description': description,
+            'is_active': '1' if is_active else '0'
+        }
+        
+        # Validation
+        if not name:
+            errors['name'] = 'Department name is required'
+        
+        if not code:
+            errors['code'] = 'Department code is required'
+        else:
+            # Check for duplicate code (excluding current department if editing)
+            existing = Department.objects.filter(code=code)
+            if action == 'update':
+                dept_id = request.POST.get('department_id')
+                existing = existing.exclude(id=dept_id)
+            if existing.exists():
+                errors['code'] = 'A department with this code already exists'
+        
+        if not errors:
+            if action == 'update':
+                # Update existing department
+                dept_id = request.POST.get('department_id')
+                dept = Department.objects.get(id=dept_id)
+                dept.name = name
+                dept.code = code
+                dept.description = description
+                dept.is_active = is_active
+                dept.save()
+                messages.success(request, f'Department "{code} - {name}" updated successfully!')
+            else:
+                # Create new department
+                Department.objects.create(
+                    name=name,
+                    code=code,
+                    description=description,
+                    is_active=is_active
+                )
+                messages.success(request, f'Department "{code} - {name}" created successfully!')
+            return redirect('manage_departments')
+    
+    return render(request, 'admin/add_department.html', {
+        'errors': errors,
+        'form_data': form_data,
+        'department': department
+    })
 
 
 @login_required
@@ -153,6 +250,91 @@ def manage_semesters(request):
     departments = Department.objects.prefetch_related('semesters__sections')
     
     return render(request, 'admin/semesters.html', {'departments': departments})
+
+
+@login_required
+def add_semester(request):
+    """Add a new semester - dedicated page"""
+    if not request.user.is_staff:
+        return redirect('home')
+    
+    errors = {}
+    form_data = {}
+    
+    if request.method == 'POST':
+        dept_id = request.POST.get('department_id', '').strip()
+        number = request.POST.get('number', '').strip()
+        academic_year = request.POST.get('academic_year', '').strip()
+        
+        form_data = {
+            'department_id': dept_id,
+            'number': number,
+            'academic_year': academic_year
+        }
+        
+        # Validation
+        if not dept_id:
+            errors['department'] = 'Please select a department'
+        
+        if not number:
+            errors['number'] = 'Please select a semester'
+        
+        if not academic_year:
+            errors['academic_year'] = 'Academic year is required'
+        
+        if dept_id and number and not errors:
+            # Check if semester already exists
+            existing = Semester.objects.filter(department_id=dept_id, number=number).exists()
+            if existing:
+                errors['number'] = f'Semester {number} already exists for this department'
+            else:
+                Semester.objects.create(department_id=dept_id, number=number)
+                messages.success(request, f'Semester S{number} created successfully.')
+                return redirect('manage_semesters')
+    
+    departments = Department.objects.filter(is_active=True)
+    selected_dept = request.GET.get('department')
+    
+    return render(request, 'admin/add_semester.html', {
+        'departments': departments,
+        'selected_dept': int(selected_dept) if selected_dept else None,
+        'errors': errors,
+        'form_data': form_data
+    })
+
+
+@login_required
+def add_class(request):
+    """Add a new class section - dedicated page"""
+    if not request.user.is_staff:
+        return redirect('home')
+    
+    if request.method == 'POST':
+        semester_id = request.POST.get('semester_id')
+        name = request.POST.get('name', '').strip()
+        capacity = request.POST.get('capacity', 60)
+        
+        if semester_id and name:
+            # Check if class already exists
+            existing = ClassSection.objects.filter(semester_id=semester_id, name=name).exists()
+            if existing:
+                messages.error(request, f'Class {name} already exists for this semester.')
+            else:
+                ClassSection.objects.create(
+                    semester_id=semester_id,
+                    name=name,
+                    capacity=capacity or 60
+                )
+                messages.success(request, f'Class {name} created successfully.')
+                return redirect('manage_semesters')
+    
+    semesters = Semester.objects.select_related('department').order_by('department__code', 'number')
+    selected_semester = request.GET.get('semester')
+    
+    return render(request, 'admin/add_class.html', {
+        'semesters': semesters,
+        'selected_semester': int(selected_semester) if selected_semester else None
+    })
 
 
 @login_required
