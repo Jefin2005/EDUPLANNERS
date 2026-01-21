@@ -427,10 +427,12 @@ def manage_faculty(request):
         action = request.POST.get('action')
         
         if action == 'add':
+            department_id = request.POST.get('department_id')
             Faculty.objects.create(
                 name=request.POST.get('name'),
                 email=request.POST.get('email'),
                 designation=request.POST.get('designation'),
+                department_id=department_id if department_id else None,
                 preferences=request.POST.get('preferences', '')
             )
             messages.success(request, 'Faculty added successfully.')
@@ -441,6 +443,8 @@ def manage_faculty(request):
             faculty.name = request.POST.get('name')
             faculty.email = request.POST.get('email')
             faculty.designation = request.POST.get('designation')
+            department_id = request.POST.get('department_id')
+            faculty.department_id = department_id if department_id else None
             faculty.preferences = request.POST.get('preferences', '')
             faculty.save()
             messages.success(request, 'Faculty updated successfully.')
@@ -456,9 +460,50 @@ def manage_faculty(request):
             faculty.is_active = not faculty.is_active
             faculty.save()
     
-    faculties = Faculty.objects.all().order_by('designation', 'name')
+    # Pre-compute all display data for template (no comparisons in template)
+    designation_labels = {
+        'PROFESSOR': 'Professor',
+        'ASSOCIATE_PROFESSOR': 'Associate Professor',
+        'ASSISTANT_PROFESSOR': 'Assistant Professor',
+    }
     
-    return render(request, 'admin/faculty.html', {'faculties': faculties})
+    # Fetch departments for dropdown
+    departments = list(Department.objects.filter(is_active=True).order_by('code'))
+    
+    faculty_list = []
+    for f in Faculty.objects.select_related('department').order_by('designation', 'name'):
+        # Build designation options with selected flag
+        desig_options = [
+            {'value': 'PROFESSOR', 'label': 'Professor', 'selected': f.designation == 'PROFESSOR'},
+            {'value': 'ASSOCIATE_PROFESSOR', 'label': 'Associate Professor', 'selected': f.designation == 'ASSOCIATE_PROFESSOR'},
+            {'value': 'ASSISTANT_PROFESSOR', 'label': 'Assistant Professor', 'selected': f.designation == 'ASSISTANT_PROFESSOR'},
+        ]
+        
+        # Build department options with selected flag for this faculty
+        dept_options = []
+        for dept in departments:
+            dept_options.append({
+                'id': dept.id,
+                'name': dept.name,
+                'code': dept.code,
+                'selected': f.department_id == dept.id if f.department_id else False
+            })
+        
+        faculty_list.append({
+            'id': f.id,
+            'name': f.name,
+            'email': f.email,
+            'designation_display': designation_labels.get(f.designation, f.designation),
+            'department_display': f.department.name if f.department else '',
+            'status_display': 'Active' if f.is_active else 'Inactive',
+            'desig_options': desig_options,
+            'dept_options': dept_options,
+        })
+    
+    return render(request, 'admin/faculty.html', {
+        'faculty_list': faculty_list,
+        'departments': departments
+    })
 
 
 @login_required

@@ -101,6 +101,13 @@ class Faculty(models.Model):
     name = models.CharField(max_length=100)
     email = models.EmailField(unique=True)
     designation = models.CharField(max_length=30, choices=DESIGNATION_CHOICES)
+    department = models.ForeignKey(
+        Department,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='faculty_members'
+    )
     preferences = models.TextField(blank=True, help_text="Comma-separated preferred subject codes")
     is_active = models.BooleanField(default=True)
     
