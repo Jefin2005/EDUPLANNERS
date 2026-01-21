@@ -229,38 +229,19 @@
             <input type="hidden" name="action" value="add">
             {% endif %}
 
-            <!-- Department Name -->
-            <div class="form-group {% if errors.name %}has-error{% endif %}">
-                <label class="form-label">
-                    Department Name <span class="required">*</span>
-                </label>
-                {% if department %}
-                <input type="text" name="name" class="form-input" placeholder="e.g., Computer Science & Engineering"
-                    value="{{ department.name }}" required>
-                {% else %}
-                <input type="text" name="name" class="form-input" placeholder="e.g., Computer Science & Engineering"
-                    value="{{ form_data.name|default:'' }}" required>
-                {% endif %}
-                {% if errors.name %}
-                <p class="form-error">
-                    <i class="bi bi-exclamation-circle"></i>
-                    {{ errors.name }}
-                </p>
-                {% endif %}
-            </div>
-
-            <!-- Department Code -->
+            <!-- Department Selection -->
             <div class="form-group {% if errors.code %}has-error{% endif %}">
                 <label class="form-label">
-                    Department Code <span class="required">*</span>
+                    Department <span class="required">*</span>
                 </label>
-                {% if department %}
-                <input type="text" name="code" id="deptCode" class="form-input" placeholder="e.g., CSE"
-                    value="{{ department.code }}" required maxlength="10" style="text-transform: uppercase;">
-                {% else %}
-                <input type="text" name="code" id="deptCode" class="form-input" placeholder="e.g., CSE"
-                    value="{{ form_data.code|default:'' }}" required maxlength="10" style="text-transform: uppercase;">
-                {% endif %}
+                <select name="code" class="form-select" required>
+                    <option value="">Select a Department</option>
+                    {% for code, name in department_choices %}
+                    <option value="{{ code }}" {% if department and department.code == code %}selected{% endif %}{% if form_data.code == code %}selected{% endif %}>
+                        {{ code }} - {{ name }}
+                    </option>
+                    {% endfor %}
+                </select>
                 {% if errors.code %}
                 <p class="form-error">
                     <i class="bi bi-exclamation-circle"></i>
@@ -309,13 +290,4 @@
         </form>
     </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-    // Auto-uppercase department code
-    document.getElementById('deptCode').addEventListener('input', function () {
-        this.value = this.value.toUpperCase();
-    });
-</script>
 {% endblock %}

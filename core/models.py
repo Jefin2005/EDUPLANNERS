@@ -3,11 +3,43 @@ from django.contrib.auth.models import User
 
 
 class Department(models.Model):
-    """Department model for CSE and MCA"""
+    """Department model with fixed list of valid departments"""
+    
+    # Fixed list of valid department codes and names
+    DEPARTMENT_CHOICES = [
+        ('AU', 'Automobile Engineering'),
+        ('CE', 'Civil Engineering'),
+        ('CS', 'Computer Science & Engineering'),
+        ('CT', 'Computer Technology'),
+        ('CO', 'Computer Engineering'),
+        ('EE', 'Electrical Engineering'),
+        ('EC', 'Electronics & Communication Engineering'),
+        ('ME', 'Mechanical Engineering'),
+        ('MCA', 'Master of Computer Applications'),
+    ]
+    
+    # Dictionary for quick lookup of department names by code
+    DEPARTMENT_DICT = {code: name for code, name in DEPARTMENT_CHOICES}
+    
     name = models.CharField(max_length=100)
     code = models.CharField(max_length=10, unique=True)
     description = models.TextField(blank=True, help_text="Optional description about the department")
     is_active = models.BooleanField(default=True, help_text="Whether the department is currently active")
+    
+    @classmethod
+    def get_department_choices(cls):
+        """Returns the list of valid department choices"""
+        return cls.DEPARTMENT_CHOICES
+    
+    @classmethod
+    def is_valid_code(cls, code):
+        """Validate if a department code is in the allowed list"""
+        return code.upper() in cls.DEPARTMENT_DICT
+    
+    @classmethod
+    def get_name_for_code(cls, code):
+        """Get the department name for a given code"""
+        return cls.DEPARTMENT_DICT.get(code.upper(), None)
     
     def __str__(self):
         return f"{self.code} - {self.name}"

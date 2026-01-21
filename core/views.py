@@ -138,15 +138,29 @@ def manage_departments(request):
     })
 
 
+def get_department_choices(request):
+    """API endpoint to get the list of valid department choices"""
+    choices = Department.get_department_choices()
+    return JsonResponse({
+        'departments': [
+            {'code': code, 'name': name}
+            for code, name in choices
+        ]
+    })
+
+
 @login_required
 def add_department(request):
-    """Add or edit a department - dedicated page"""
+    """Add or edit a department - dedicated page with fixed department selection"""
     if not request.user.is_staff:
         return redirect('home')
     
     errors = {}
     form_data = {}
     department = None
+    
+    # Get the list of valid department choices
+    department_choices = Department.get_department_choices()
     
     # Check if editing an existing department
     edit_id = request.GET.get('edit')
@@ -155,24 +169,24 @@ def add_department(request):
     
     if request.method == 'POST':
         action = request.POST.get('action')
-        name = request.POST.get('name', '').strip()
         code = request.POST.get('code', '').strip().upper()
         description = request.POST.get('description', '').strip()
         is_active = request.POST.get('is_active', '1') == '1'
         
+        # Auto-populate name from the code using the fixed choices
+        name = Department.get_name_for_code(code)
+        
         form_data = {
-            'name': name,
             'code': code,
             'description': description,
             'is_active': '1' if is_active else '0'
         }
         
         # Validation
-        if not name:
-            errors['name'] = 'Department name is required'
-        
         if not code:
-            errors['code'] = 'Department code is required'
+            errors['code'] = 'Please select a department'
+        elif not Department.is_valid_code(code):
+            errors['code'] = 'Invalid department selected. Please choose from the list.'
         else:
             # Check for duplicate code (excluding current department if editing)
             existing = Department.objects.filter(code=code)
@@ -180,7 +194,7 @@ def add_department(request):
                 dept_id = request.POST.get('department_id')
                 existing = existing.exclude(id=dept_id)
             if existing.exists():
-                errors['code'] = 'A department with this code already exists'
+                errors['code'] = 'This department has already been added'
         
         if not errors:
             if action == 'update':
@@ -207,7 +221,8 @@ def add_department(request):
     return render(request, 'admin/add_department.html', {
         'errors': errors,
         'form_data': form_data,
-        'department': department
+        'department': department,
+        'department_choices': department_choices
     })
 
 

@@ -13,6 +13,7 @@ urlpatterns = [
     path('admin-dashboard/', views.admin_dashboard, name='admin_dashboard'),
     path('manage/departments/', views.manage_departments, name='manage_departments'),
     path('manage/departments/add/', views.add_department, name='add_department'),
+    path('api/department-choices/', views.get_department_choices, name='get_department_choices'),
     path('manage/semesters/', views.manage_semesters, name='manage_semesters'),
     path('manage/semesters/add/', views.add_semester, name='add_semester'),
     path('manage/classes/add/', views.add_class, name='add_class'),
