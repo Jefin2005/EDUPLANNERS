@@ -144,6 +144,7 @@ class Subject(models.Model):
     SUBJECT_TYPE_CHOICES = [
         ('THEORY', 'Theory'),
         ('LAB', 'Lab'),
+        ('ELECTIVE', 'Elective'),
     ]
     
     name = models.CharField(max_length=150)

@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if subject %}Edit{% else %}Add{% endif %} Subject - EDUPLANNER{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width: 700px;">
+    <a href="{% url 'manage_subjects' %}" class="text-decoration-none text-muted mb-3 d-inline-block">
+        <i class="bi bi-arrow-left me-1"></i> Back to Subjects
+    </a>
+
+    <h2 class="fw-bold mb-4"><i class="bi bi-book me-2"></i>{% if subject %}Edit Subject{% else %}Add Subject{% endif %}
+    </h2>
+
+    <div class="card card-custom p-4">
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="row mb-3">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Subject Code <span class="text-danger">*</span></label>
+                    <input type="text" name="code" class="form-control" placeholder="e.g., CS401"
+                        value="{% firstof subject.code form_data.code '' %}" required>
+                    {% if errors.code %}<div class="text-danger small">{{ errors.code }}</div>{% endif %}
+                    <small class="text-muted">Unique code like CS401, ME302</small>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Subject Name <span class="text-danger">*</span></label>
+                    <input type="text" name="name" class="form-control" placeholder="e.g., Machine Learning"
+                        value="{% firstof subject.name form_data.name '' %}" required>
+                    {% if errors.name %}<div class="text-danger small">{{ errors.name }}</div>{% endif %}
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Department <span class="text-danger">*</span></label>
+                    <select name="department_id" id="departmentSelect" class="form-select" required
+                        onchange="updateSemesters()">
+                        <option value="">Select Department</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept.id }}">{{ dept.code }} - {{ dept.name }}</option>
+                        {% endfor %}
+                    </select>
+                    {% if errors.department %}<div class="text-danger small">{{ errors.department }}</div>{% endif %}
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Semester <span class="text-danger">*</span></label>
+                    <select name="semester_id" id="semesterSelect" class="form-select" required>
+                        <option value="">Select Department First</option>
+                    </select>
+                    {% if errors.semester %}<div class="text-danger small">{{ errors.semester }}</div>{% endif %}
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Subject Type <span class="text-danger">*</span></label>
+                <div class="d-flex gap-3 flex-wrap">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="subject_type" id="type_THEORY" value="THEORY"
+                            checked>
+                        <label class="form-check-label" for="type_THEORY"><i
+                                class="bi bi-journal-text text-info me-1"></i> Theory</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="subject_type" id="type_LAB" value="LAB">
+                        <label class="form-check-label" for="type_LAB"><i
+                                class="bi bi-pc-display text-success me-1"></i> Lab</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="subject_type" id="type_ELECTIVE"
+                            value="ELECTIVE">
+                        <label class="form-check-label" for="type_ELECTIVE"><i
+                                class="bi bi-bookmark-star text-warning me-1"></i> Elective</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Hours per Week <span class="text-danger">*</span></label>
+                    <input type="number" name="hours_per_week" class="form-control"
+                        value="{% firstof subject.hours_per_week '3' %}" min="1" max="10" required>
+                    <small class="text-muted">Typical: 3-4 for theory, 2-3 for lab</small>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Credits <span class="text-danger">*</span></label>
+                    <input type="number" name="credits" class="form-control" value="{% firstof subject.credits '3' %}"
+                        min="1" max="6" required>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+                <a href="{% url 'manage_subjects' %}" class="btn btn-outline-secondary">Cancel</a>
+                <button type="submit" class="btn btn-gradient"><i class="bi bi-check-lg me-1"></i>{% if subject %}Update
+                    Subject{% else %}Save Subject{% endif %}</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    const semestersByDept = {{ semesters_by_dept| safe }};
+    const currentDeptId = "{{ subject.department.id|default:'' }}";
+    const currentSemId = "{{ subject.semester.id|default:'' }}";
+    const currentType = "{{ subject.subject_type|default:'THEORY' }}";
+
+    function updateSemesters() {
+        const deptSelect = document.getElementById('departmentSelect');
+        const semSelect = document.getElementById('semesterSelect');
+        const selectedDept = deptSelect.value;
+
+        semSelect.innerHTML = '<option value="">Select Semester</option>';
+
+        if (selectedDept && semestersByDept[selectedDept]) {
+            semestersByDept[selectedDept].forEach(sem => {
+                const option = document.createElement('option');
+                option.value = sem.id;
+                option.textContent = 'Semester ' + sem.number;
+                if (currentSemId && sem.id == currentSemId) option.selected = true;
+                semSelect.appendChild(option);
+            });
+        } else if (!selectedDept) {
+            semSelect.innerHTML = '<option value="">Select Department First</option>';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // Pre-select department if editing
+        if (currentDeptId) {
+            const deptSelect = document.getElementById('departmentSelect');
+            deptSelect.value = currentDeptId;
+            updateSemesters();
+        }
+
+        // Pre-select subject type if editing
+        if (currentType) {
+            const radio = document.getElementById('type_' + currentType);
+            if (radio) radio.checked = true;
+        }
+    });
+</script>
+{% endblock %}

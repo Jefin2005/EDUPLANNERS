@@ -15,137 +15,158 @@
                 </ol>
             </nav>
         </div>
-        <button class="btn btn-gradient" data-bs-toggle="modal" data-bs-target="#addModal">
-            <i class="bi bi-book me-2"></i>Add Subject
-        </button>
+        <a href="{% url 'add_subject' %}" class="btn btn-gradient"><i class="bi bi-plus-lg me-2"></i>Add Subject</a>
     </div>
 
-    <div class="card card-custom">
-        <div class="table-responsive">
-            <table class="table table-dark-custom mb-0">
-                <thead>
-                    <tr>
-                        <th>Code</th>
-                        <th>Name</th>
-                        <th>Department</th>
-                        <th>Semester</th>
-                        <th>Type</th>
-                        <th>Hours/Week</th>
-                        <th>Credits</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for subject in subjects %}
-                    <tr>
-                        <td><span class="badge badge-gradient">{{ subject.code }}</span></td>
-                        <td>{{ subject.name }}</td>
-                        <td>{{ subject.department.code }}</td>
-                        <td>S{{ subject.semester.number }}</td>
-                        <td>
-                            {% if subject.subject_type == 'LAB' %}
-                            <span class="badge bg-success">Lab</span>
-                            {% else %}
-                            <span class="badge bg-info">Theory</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ subject.hours_per_week }}</td>
-                        <td>{{ subject.credits }}</td>
-                        <td>
-                            <form method="post" class="d-inline" onsubmit="return confirm('Delete this subject?');">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="delete">
-                                <input type="hidden" name="subject_id" value="{{ subject.id }}">
-                                <button type="submit" class="btn btn-sm btn-outline-danger">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="8" class="text-center text-muted py-4">
-                            No subjects added yet.
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-<!-- Add Modal -->
-<div class="modal fade" id="addModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title fw-bold">Add Subject</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+    <!-- Stats Row -->
+    <div class="row mb-4">
+        <div class="col-md-3 col-6 mb-3">
+            <div class="card card-custom text-center p-3">
+                <div class="fs-2 fw-bold text-primary">{{ total_subjects }}</div>
+                <small class="text-muted">Total Subjects</small>
             </div>
-            <form method="post">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="add">
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Subject Code</label>
-                            <input type="text" name="code" class="form-control" placeholder="e.g., CS301" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Subject Type</label>
-                            <select name="subject_type" class="form-select" required>
-                                <option value="THEORY">Theory</option>
-                                <option value="LAB">Lab</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Subject Name</label>
-                        <input type="text" name="name" class="form-control"
-                            placeholder="e.g., Database Management Systems" required>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Department</label>
-                            <select name="department_id" class="form-select" required>
-                                {% for dept in departments %}
-                                <option value="{{ dept.id }}">{{ dept.code }} - {{ dept.name }}</option>
-                                {% empty %}
-                                <option value="">No departments available</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Semester</label>
-                            <select name="semester_id" class="form-select" required>
-                                {% for semester in semesters %}
-                                <option value="{{ semester.id }}">S{{ semester.number }} ({{ semester.department.code
-                                    }})</option>
-                                {% empty %}
-                                <option value="">No semesters available</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Hours per Week</label>
-                            <input type="number" name="hours_per_week" class="form-control" value="3" min="1" max="6"
-                                required>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Credits</label>
-                            <input type="number" name="credits" class="form-control" value="3" min="1" max="6" required>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-gradient">Add Subject</button>
-                </div>
-            </form>
+        </div>
+        <div class="col-md-3 col-6 mb-3">
+            <div class="card card-custom text-center p-3">
+                <div class="fs-2 fw-bold text-info">{{ theory_count }}</div>
+                <small class="text-muted">Theory</small>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-3">
+            <div class="card card-custom text-center p-3">
+                <div class="fs-2 fw-bold text-success">{{ lab_count }}</div>
+                <small class="text-muted">Lab</small>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-3">
+            <div class="card card-custom text-center p-3">
+                <div class="fs-2 fw-bold text-warning">{{ elective_count }}</div>
+                <small class="text-muted">Elective</small>
+            </div>
         </div>
     </div>
+
+    <!-- Filters -->
+    <div class="card card-custom mb-4 p-3">
+        <div class="row g-3 align-items-center">
+            <div class="col-md-4">
+                <label class="form-label small text-muted mb-1">Department</label>
+                <select class="form-select" id="deptFilter" onchange="applyFilters()">
+                    <option value="">All Departments</option>
+                    {% for dept in departments %}
+                    <option value="{{ dept.code }}" {% if selected_dept==dept.code %}selected{% endif %}>{{ dept.code }}
+                        - {{ dept.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small text-muted mb-1">Semester</label>
+                <select class="form-select" id="semFilter" onchange="applyFilters()">
+                    <option value="">All Semesters</option>
+                    {% for i in "12345678" %}
+                    <option value="{{ i }}" {% if selected_sem==i %}selected{% endif %}>Semester {{ i }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                {% if selected_dept or selected_sem %}
+                <button class="btn btn-outline-secondary" onclick="clearFilters()"><i class="bi bi-x-lg me-1"></i>Clear
+                    Filters</button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Subject Groups -->
+    {% for dept_code, dept_data in grouped_subjects.items %}
+    <div class="card card-custom mb-4 overflow-hidden">
+        <div class="card-header bg-gradient text-white py-3">
+            <span class="badge bg-light text-dark me-2">{{ dept_code }}</span>
+            <strong>{{ dept_data.name }}</strong>
+        </div>
+
+        {% for sem_num, sem_data in dept_data.semesters.items %}
+        <div class="border-bottom">
+            <div class="d-flex justify-content-between align-items-center p-3 bg-light">
+                <div>
+                    <h6 class="mb-0"><i class="bi bi-mortarboard me-2"></i>Semester {{ sem_num }}</h6>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary">{{ sem_data.subjects|length }} subject{{
+                        sem_data.subjects|length|pluralize }}</span>
+                    <a href="{% url 'add_subject' %}?dept={{ sem_data.dept_id }}&sem={{ sem_data.sem_id }}"
+                        class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-plus"></i> Add Subject
+                    </a>
+                </div>
+            </div>
+            <div class="p-3">
+                <div class="row">
+                    {% for subject in sem_data.subjects %}
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="badge badge-gradient">{{ subject.code }}</span>
+                                    {% if subject.subject_type == 'THEORY' %}
+                                    <span class="badge bg-info">Theory</span>
+                                    {% elif subject.subject_type == 'LAB' %}
+                                    <span class="badge bg-success">Lab</span>
+                                    {% else %}
+                                    <span class="badge bg-warning text-dark">Elective</span>
+                                    {% endif %}
+                                </div>
+                                <h6 class="card-title">{{ subject.name }}</h6>
+                                <p class="card-text small text-muted mb-2">
+                                    <i class="bi bi-clock me-1"></i>{{ subject.hours_per_week }} hrs/week
+                                    <span class="ms-2"><i class="bi bi-award me-1"></i>{{ subject.credits }}
+                                        credits</span>
+                                </p>
+                                <div class="d-flex gap-2">
+                                    <a href="{% url 'edit_subject' subject.id %}"
+                                        class="btn btn-sm btn-outline-primary flex-fill"><i class="bi bi-pencil"></i>
+                                        Edit</a>
+                                    <form method="post" class="flex-fill"
+                                        onsubmit="return confirm('Delete this subject?');">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="delete">
+                                        <input type="hidden" name="subject_id" value="{{ subject.id }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger w-100"><i
+                                                class="bi bi-trash"></i> Delete</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% empty %}
+    <div class="card card-custom text-center py-5">
+        <i class="bi bi-book display-1 text-muted mb-3"></i>
+        <h4>No Subjects Found</h4>
+        <p class="text-muted">{% if selected_dept or selected_sem %}No subjects match your filters.{% else %}Add your
+            first subject to get started.{% endif %}</p>
+        <a href="{% url 'add_subject' %}" class="btn btn-gradient mt-2"><i class="bi bi-plus-lg me-2"></i>Add
+            Subject</a>
+    </div>
+    {% endfor %}
 </div>
+
+<script>
+    function applyFilters() {
+        const dept = document.getElementById('deptFilter').value;
+        const sem = document.getElementById('semFilter').value;
+        let url = '{% url "manage_subjects" %}';
+        const params = [];
+        if (dept) params.push('department=' + dept);
+        if (sem) params.push('semester=' + sem);
+        if (params.length > 0) url += '?' + params.join('&');
+        window.location.href = url;
+    }
+    function clearFilters() { window.location.href = '{% url "manage_subjects" %}'; }
+</script>
 {% endblock %}

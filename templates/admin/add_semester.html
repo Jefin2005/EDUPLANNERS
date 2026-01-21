@@ -2,112 +2,377 @@
 
 {% block title %}Add Semester & Classes - EDUPLANNER{% endblock %}
 
-{% block content %}
-<div class="page-container">
-    <a href="{% url 'manage_semesters' %}" class="back-link">
-        <i class="bi bi-arrow-left"></i>
-        Back to Semesters & Classes
-    </a>
+{% block extra_css %}
+<style>
+    .page-wrapper {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
 
-    <h1>Add Semester & Classes</h1>
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--text-muted);
+        text-decoration: none;
+        font-weight: 500;
+        margin-bottom: 1.5rem;
+        transition: all 0.2s ease;
+    }
+
+    .back-link:hover {
+        color: var(--primary-color);
+    }
+
+    .page-header {
+        margin-bottom: 2rem;
+    }
+
+    .page-header h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--text-heading);
+        margin: 0 0 0.5rem 0;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .page-header p {
+        color: var(--text-muted);
+        margin: 0;
+    }
+
+    .form-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-section {
+        padding: 1.5rem 2rem;
+    }
+
+    .form-section-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .form-section-header i {
+        font-size: 1.5rem;
+        color: var(--primary-color);
+    }
+
+    .form-section-header h2 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-heading);
+        margin: 0;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.25rem;
+    }
+
+    .form-group {
+        margin-bottom: 0;
+    }
+
+    .form-label {
+        display: block;
+        font-weight: 500;
+        color: var(--text-body);
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .form-label .required {
+        color: var(--danger-color);
+        margin-left: 0.25rem;
+    }
+
+    .form-control,
+    .form-select {
+        width: 100%;
+        background: var(--input-bg);
+        border: 1px solid var(--input-border);
+        color: var(--text-body);
+        border-radius: 10px;
+        padding: 0.875rem 1rem;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+    }
+
+    .form-hint {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin-top: 0.35rem;
+    }
+
+    .form-error-msg {
+        color: var(--danger-color);
+        font-size: 0.85rem;
+        margin-top: 0.35rem;
+    }
+
+    .classes-section {
+        background: var(--bg-secondary);
+        border-top: 1px solid var(--border-color);
+        padding: 1.5rem 2rem;
+    }
+
+    .classes-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .classes-header h3 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text-heading);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .classes-header .badge {
+        background: var(--primary-light);
+        color: var(--primary-color);
+        font-size: 0.75rem;
+        padding: 0.25rem 0.6rem;
+        border-radius: 12px;
+    }
+
+    .btn-add-class {
+        background: transparent;
+        border: 1px dashed var(--primary-color);
+        color: var(--primary-color);
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        cursor: pointer;
+    }
+
+    .btn-add-class:hover {
+        background: var(--primary-light);
+    }
+
+    .class-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+    }
+
+    .class-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .class-card-header span {
+        font-weight: 600;
+        color: var(--text-muted);
+        font-size: 0.85rem;
+    }
+
+    .btn-remove-class {
+        background: transparent;
+        border: none;
+        color: var(--danger-color);
+        cursor: pointer;
+        opacity: 0.6;
+    }
+
+    .btn-remove-class:hover {
+        opacity: 1;
+    }
+
+    .class-fields {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr;
+        gap: 1rem;
+    }
+
+    .form-actions {
+        padding: 1.5rem 2rem;
+        border-top: 1px solid var(--border-color);
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+    }
+
+    .btn-cancel {
+        background: transparent;
+        border: 1px solid var(--border-color);
+        color: var(--text-muted);
+        padding: 0.875rem 1.5rem;
+        border-radius: 10px;
+        text-decoration: none;
+    }
+
+    .btn-cancel:hover {
+        background: var(--bg-secondary);
+    }
+
+    .btn-save {
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+        border: none;
+        color: #fff;
+        font-weight: 600;
+        padding: 0.875rem 2rem;
+        border-radius: 10px;
+        cursor: pointer;
+    }
+
+    .btn-save:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    }
+
+    @media (max-width: 768px) {
+
+        .form-grid,
+        .class-fields {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrapper">
+    <a href="{% url 'manage_semesters' %}" class="back-link"><i class="bi bi-arrow-left"></i> Back to Semesters &
+        Classes</a>
+
+    <div class="page-header">
+        <h1><i class="bi bi-calendar-plus"></i> Add Semester & Classes</h1>
+        <p>Create a new semester and optionally add class sections</p>
+    </div>
 
     {% if errors.general %}
-    <div class="general-error">
-        {{ errors.general }}
-    </div>
+    <div class="alert alert-danger mb-3"><i class="bi bi-exclamation-triangle me-2"></i>{{ errors.general }}</div>
     {% endif %}
 
     <form method="post">
         {% csrf_token %}
-
-        <!-- Department -->
-        <div class="form-group {% if errors.department %}has-error{% endif %}">
-            <label>Department *</label>
-            <select name="department_id" class="form-select" required>
-                <option value="">Select Department</option>
-                {% for dept in departments %}
-                <option value="{{ dept.id }}"
-                    {% if selected_dept == dept.id %}selected{% endif %}
-                    {% if form_data.department_id|stringformat:"s" == dept.id|stringformat:"s" %}selected{% endif %}>
-                    {{ dept.code }} - {{ dept.name }}
-                </option>
-                {% endfor %}
-            </select>
-            {% if errors.department %}
-            <div class="form-error">{{ errors.department }}</div>
-            {% endif %}
-        </div>
-
-        <!-- Semester Number -->
-        <div class="form-group {% if errors.number %}has-error{% endif %}">
-            <label>Semester *</label>
-            <select name="number" class="form-select" required>
-                <option value="">Select Semester</option>
-                {% for i in "12345678" %}
-                <option value="{{ i }}" {% if form_data.number == i %}selected{% endif %}>
-                    Semester {{ i }}
-                </option>
-                {% endfor %}
-            </select>
-            {% if errors.number %}
-            <div class="form-error">{{ errors.number }}</div>
-            {% endif %}
-        </div>
-
-        <!-- Academic Year -->
-        <div class="form-group {% if errors.academic_year %}has-error{% endif %}">
-            <label>Academic Year *</label>
-            <input type="text" name="academic_year"
-                   value="{{ form_data.academic_year|default:'' }}"
-                   class="form-input" required>
-            {% if errors.academic_year %}
-            <div class="form-error">{{ errors.academic_year }}</div>
-            {% endif %}
-        </div>
-
-        <!-- Status -->
-        <div class="form-group">
-            <label>Status</label>
-            <select name="is_active" class="form-select">
-                <option value="1" {% if form_data.is_active == "1" or not form_data.is_active %}selected{% endif %}>
-                    Active
-                </option>
-                <option value="0" {% if form_data.is_active == "0" %}selected{% endif %}>
-                    Inactive
-                </option>
-            </select>
-        </div>
-
-        <hr>
-
-        <!-- Classes -->
-        <h3>Classes (Optional)</h3>
-
-        <div id="classesContainer">
-            {% for cls in classes_data %}
-            <div class="class-row">
-                <label>Class Name</label>
-                <input type="text" name="class_name[]" value="{{ cls.name }}" class="form-input">
-
-                <label>Section</label>
-                <input type="text" name="class_section[]" value="{{ cls.section }}" class="form-input">
-
-                <label>Status</label>
-                <select name="class_status[]" class="form-select">
-                    <option value="1" {% if cls.status == "1" or not cls.status %}selected{% endif %}>
-                        Active
-                    </option>
-                    <option value="0" {% if cls.status == "0" %}selected{% endif %}>
-                        Inactive
-                    </option>
-                </select>
+        <div class="form-card">
+            <div class="form-section">
+                <div class="form-section-header">
+                    <i class="bi bi-mortarboard"></i>
+                    <h2>Semester Details</h2>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Department <span class="required">*</span></label>
+                        <select name="department_id" class="form-select" required>
+                            <option value="">Select Department</option>
+                            {% for dept in departments %}
+                            <option value="{{ dept.id }}">{{ dept.code }} - {{ dept.name }}</option>
+                            {% endfor %}
+                        </select>
+                        {% if errors.department %}<div class="form-error-msg">{{ errors.department }}</div>{% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Semester <span class="required">*</span></label>
+                        <select name="number" class="form-select" required>
+                            <option value="">Select Semester</option>
+                            {% for i in "12345678" %}
+                            <option value="{{ i }}">Semester {{ i }}</option>
+                            {% endfor %}
+                        </select>
+                        {% if errors.number %}<div class="form-error-msg">{{ errors.number }}</div>{% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Academic Year <span class="required">*</span></label>
+                        <input type="text" name="academic_year" class="form-control" placeholder="e.g., 2024-2025"
+                            value="{{ form_data.academic_year|default:'' }}" required>
+                        {% if errors.academic_year %}<div class="form-error-msg">{{ errors.academic_year }}</div>{% endif %}
+                        <div class="form-hint">Format: 2024-2025</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Status</label>
+                        <select name="is_active" class="form-select">
+                            <option value="1" selected>Active</option>
+                            <option value="0">Inactive</option>
+                        </select>
+                    </div>
+                </div>
             </div>
-            {% endfor %}
-        </div>
 
-        <button type="submit" class="btn btn-primary mt-3">
-            Save Semester & Classes
-        </button>
+            <div class="classes-section">
+                <div class="classes-header">
+                    <h3><i class="bi bi-people"></i> Class Sections <span class="badge">Optional</span></h3>
+                    <button type="button" class="btn-add-class" onclick="addClassRow()"><i class="bi bi-plus"></i> Add
+                        Class</button>
+                </div>
+                <div id="classesContainer">
+                    <p class="text-muted text-center py-3">No class sections added yet. Click "Add Class" to create
+                        sections.</p>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <a href="{% url 'manage_semesters' %}" class="btn-cancel"><i class="bi bi-x-lg"></i> Cancel</a>
+                <button type="submit" class="btn-save"><i class="bi bi-check-lg"></i> Save Semester & Classes</button>
+            </div>
+        </div>
     </form>
 </div>
+
+<script>
+    function addClassRow() {
+        const container = document.getElementById('classesContainer');
+        const emptyMsg = container.querySelector('p.text-muted');
+        if (emptyMsg) emptyMsg.remove();
+
+        const card = document.createElement('div');
+        card.className = 'class-card';
+        card.innerHTML = `
+        <div class="class-card-header">
+            <span>Class Section</span>
+            <button type="button" class="btn-remove-class" onclick="this.closest('.class-card').remove()"><i class="bi bi-trash"></i></button>
+        </div>
+        <div class="class-fields">
+            <div class="form-group">
+                <label class="form-label">Class Name</label>
+                <input type="text" name="class_name[]" class="form-control" placeholder="e.g., CSE-A">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Section</label>
+                <input type="text" name="class_section[]" class="form-control" placeholder="A, B, C...">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Status</label>
+                <select name="class_status[]" class="form-select">
+                    <option value="1" selected>Active</option>
+                    <option value="0">Inactive</option>
+                </select>
+            </div>
+        </div>
+    `;
+        container.appendChild(card);
+    }
+</script>
 {% endblock %}

@@ -508,38 +508,215 @@ def manage_faculty(request):
 
 @login_required
 def manage_subjects(request):
-    """Manage subjects"""
+    """Manage subjects with department and semester filtering"""
     if not request.user.is_staff:
         return redirect('home')
     
+    # Handle delete action
     if request.method == 'POST':
         action = request.POST.get('action')
-        
-        if action == 'add':
-            Subject.objects.create(
-                name=request.POST.get('name'),
-                code=request.POST.get('code'),
-                department_id=request.POST.get('department_id'),
-                semester_id=request.POST.get('semester_id'),
-                subject_type=request.POST.get('subject_type'),
-                hours_per_week=request.POST.get('hours_per_week', 3),
-                credits=request.POST.get('credits', 3)
-            )
-            messages.success(request, 'Subject added successfully.')
-        
-        elif action == 'delete':
+        if action == 'delete':
             subject_id = request.POST.get('subject_id')
-            Subject.objects.filter(id=subject_id).delete()
-            messages.success(request, 'Subject deleted.')
+            subject = Subject.objects.filter(id=subject_id).first()
+            if subject:
+                messages.success(request, f'Subject "{subject.code}" deleted successfully.')
+                subject.delete()
+            return redirect('manage_subjects')
     
+    # Get filter parameters
+    selected_dept = request.GET.get('department', '')
+    selected_sem = request.GET.get('semester', '')
+    
+    # Get all departments
+    departments = Department.objects.filter(is_active=True).order_by('code')
+    
+    # Build subjects query
     subjects = Subject.objects.select_related('department', 'semester')
-    departments = Department.objects.all()
-    semesters = Semester.objects.all()
+    
+    if selected_dept:
+        subjects = subjects.filter(department__code=selected_dept)
+    if selected_sem:
+        subjects = subjects.filter(semester__number=selected_sem)
+    
+    subjects = subjects.order_by('department__code', 'semester__number', 'code')
+    
+    # Group subjects by department and semester
+    grouped_subjects = {}
+    for subject in subjects:
+        dept_code = subject.department.code
+        sem_num = subject.semester.number
+        
+        if dept_code not in grouped_subjects:
+            grouped_subjects[dept_code] = {
+                'name': subject.department.name,
+                'semesters': {}
+            }
+        
+        if sem_num not in grouped_subjects[dept_code]['semesters']:
+            grouped_subjects[dept_code]['semesters'][sem_num] = []
+        
+        grouped_subjects[dept_code]['semesters'][sem_num].append(subject)
+    
+    # Get counts
+    total_subjects = Subject.objects.count()
+    theory_count = Subject.objects.filter(subject_type='THEORY').count()
+    lab_count = Subject.objects.filter(subject_type='LAB').count()
+    elective_count = Subject.objects.filter(subject_type='ELECTIVE').count()
     
     return render(request, 'admin/subjects.html', {
-        'subjects': subjects,
+        'grouped_subjects': grouped_subjects,
         'departments': departments,
-        'semesters': semesters
+        'selected_dept': selected_dept,
+        'selected_sem': selected_sem,
+        'total_subjects': total_subjects,
+        'theory_count': theory_count,
+        'lab_count': lab_count,
+        'elective_count': elective_count,
+    })
+
+
+@login_required
+def add_subject(request):
+    """Add a new subject - supports context-aware pre-filling via query params"""
+    if not request.user.is_staff:
+        return redirect('home')
+    
+    departments = Department.objects.filter(is_active=True).order_by('code')
+    semesters = Semester.objects.select_related('department').order_by('department__code', 'number')
+    
+    # Check for preset department and semester from query params
+    preset_dept_id = request.GET.get('dept')
+    preset_sem_id = request.GET.get('sem')
+    
+    # Validate and get preset objects
+    preset_dept = None
+    preset_sem = None
+    
+    if preset_dept_id:
+        preset_dept = Department.objects.filter(id=preset_dept_id, is_active=True).first()
+    if preset_sem_id:
+        preset_sem = Semester.objects.select_related('department').filter(id=preset_sem_id).first()
+        # If we have a preset semester, also set the department from it
+        if preset_sem and not preset_dept:
+            preset_dept = preset_sem.department
+    
+    # Build semester data for JavaScript
+    semesters_by_dept = {}
+    for sem in semesters:
+        dept_id = str(sem.department.id)
+        if dept_id not in semesters_by_dept:
+            semesters_by_dept[dept_id] = []
+        semesters_by_dept[dept_id].append({'id': sem.id, 'number': sem.number})
+    
+    errors = {}
+    form_data = {}
+    
+    if request.method == 'POST':
+        code = request.POST.get('code', '').strip().upper()
+        name = request.POST.get('name', '').strip()
+        department_id = request.POST.get('department_id', '')
+        semester_id = request.POST.get('semester_id', '')
+        subject_type = request.POST.get('subject_type', 'THEORY')
+        hours_per_week = request.POST.get('hours_per_week', '3')
+        credits = request.POST.get('credits', '3')
+        
+        form_data = {
+            'code': code, 'name': name, 'department_id': department_id,
+            'semester_id': semester_id, 'subject_type': subject_type,
+            'hours_per_week': hours_per_week, 'credits': credits
+        }
+        
+        if not code:
+            errors['code'] = 'Subject code is required'
+        elif Subject.objects.filter(code=code).exists():
+            errors['code'] = 'Subject code already exists'
+        if not name:
+            errors['name'] = 'Subject name is required'
+        if not department_id:
+            errors['department'] = 'Select a department'
+        if not semester_id:
+            errors['semester'] = 'Select a semester'
+        
+        if not errors:
+            Subject.objects.create(
+                code=code, name=name, department_id=department_id,
+                semester_id=semester_id, subject_type=subject_type,
+                hours_per_week=int(hours_per_week), credits=int(credits)
+            )
+            messages.success(request, f'Subject "{code}" added successfully!')
+            # Redirect back with filters if they were preset
+            if preset_dept:
+                return redirect(f"{reverse('manage_subjects')}?department={preset_dept.code}")
+            return redirect('manage_subjects')
+    
+    return render(request, 'admin/add_subject.html', {
+        'departments': departments,
+        'semesters': semesters,
+        'semesters_by_dept': json.dumps(semesters_by_dept),
+        'subject_types': Subject.SUBJECT_TYPE_CHOICES,
+        'errors': errors,
+        'form_data': form_data,
+        'preset_dept': preset_dept,
+        'preset_sem': preset_sem,
+    })
+
+
+@login_required
+def edit_subject(request, subject_id):
+    """Edit an existing subject"""
+    if not request.user.is_staff:
+        return redirect('home')
+    
+    subject = get_object_or_404(Subject, id=subject_id)
+    departments = Department.objects.filter(is_active=True).order_by('code')
+    semesters = Semester.objects.select_related('department').order_by('department__code', 'number')
+    
+    # Build semester data for JavaScript
+    semesters_by_dept = {}
+    for sem in semesters:
+        dept_id = str(sem.department.id)
+        if dept_id not in semesters_by_dept:
+            semesters_by_dept[dept_id] = []
+        semesters_by_dept[dept_id].append({'id': sem.id, 'number': sem.number})
+    
+    errors = {}
+    
+    if request.method == 'POST':
+        code = request.POST.get('code', '').strip().upper()
+        name = request.POST.get('name', '').strip()
+        department_id = request.POST.get('department_id', '')
+        semester_id = request.POST.get('semester_id', '')
+        subject_type = request.POST.get('subject_type', 'THEORY')
+        hours_per_week = request.POST.get('hours_per_week', '3')
+        credits = request.POST.get('credits', '3')
+        
+        if not code:
+            errors['code'] = 'Subject code is required'
+        elif Subject.objects.filter(code=code).exclude(id=subject_id).exists():
+            errors['code'] = 'Subject code already exists'
+        if not name:
+            errors['name'] = 'Subject name is required'
+        
+        if not errors:
+            subject.code = code
+            subject.name = name
+            subject.department_id = department_id
+            subject.semester_id = semester_id
+            subject.subject_type = subject_type
+            subject.hours_per_week = int(hours_per_week)
+            subject.credits = int(credits)
+            subject.save()
+            messages.success(request, f'Subject "{code}" updated!')
+            return redirect('manage_subjects')
+    
+    return render(request, 'admin/add_subject.html', {
+        'subject': subject,
+        'departments': departments,
+        'semesters': semesters,
+        'semesters_by_dept': json.dumps(semesters_by_dept),
+        'subject_types': Subject.SUBJECT_TYPE_CHOICES,
+        'errors': errors,
+        'form_data': {},
     })
 
 
