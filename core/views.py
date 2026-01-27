@@ -594,6 +594,7 @@ def manage_subjects(request):
             'id': subject.id,
             'code': subject.code,
             'name': subject.name,
+            'ltp_string': subject.ltp_string,
             'hours_per_week': subject.hours_per_week,
             'credits': subject.credits,
             'type_badge': type_badges.get(subject.subject_type, 'bg-secondary'),
@@ -623,8 +624,15 @@ def add_subject(request):
     if not request.user.is_staff:
         return redirect('home')
     
+    # Get system configuration to determine active semester type
+    config = SystemConfiguration.objects.first()
+    if config and config.active_semester_type == 'ODD':
+        semester_numbers = [1, 3, 5, 7]
+    else:
+        semester_numbers = [2, 4, 6, 8]
+    
     departments = Department.objects.filter(is_active=True).order_by('code')
-    semesters = Semester.objects.select_related('department').order_by('department__code', 'number')
+    semesters = Semester.objects.filter(number__in=semester_numbers).select_related('department').order_by('department__code', 'number')
     
     # Check for preset department and semester from query params
     preset_dept_id = request.GET.get('dept')
@@ -650,7 +658,10 @@ def add_subject(request):
         semesters_by_dept[dept_id].append({'id': sem.id, 'number': sem.number})
     
     errors = {}
-    form_data = {'code': '', 'name': '', 'hours_per_week': '3', 'credits': '3', 'subject_type': 'THEORY'}
+    form_data = {
+        'code': '', 'name': '', 'subject_type': 'THEORY',
+        'lecture_hours': '3', 'tutorial_hours': '0', 'practical_hours': '0', 'credits': '3'
+    }
     
     if request.method == 'POST':
         code = request.POST.get('code', '').strip().upper()
@@ -658,13 +669,16 @@ def add_subject(request):
         department_id = request.POST.get('department_id', '')
         semester_id = request.POST.get('semester_id', '')
         subject_type = request.POST.get('subject_type', 'THEORY')
-        hours_per_week = request.POST.get('hours_per_week', '3')
+        lecture_hours = request.POST.get('lecture_hours', '3')
+        tutorial_hours = request.POST.get('tutorial_hours', '0')
+        practical_hours = request.POST.get('practical_hours', '0')
         credits = request.POST.get('credits', '3')
         
         form_data = {
             'code': code, 'name': name, 'department_id': department_id,
             'semester_id': semester_id, 'subject_type': subject_type,
-            'hours_per_week': hours_per_week, 'credits': credits
+            'lecture_hours': lecture_hours, 'tutorial_hours': tutorial_hours,
+            'practical_hours': practical_hours, 'credits': credits
         }
         
         if not code:
@@ -682,7 +696,8 @@ def add_subject(request):
             Subject.objects.create(
                 code=code, name=name, department_id=department_id,
                 semester_id=semester_id, subject_type=subject_type,
-                hours_per_week=int(hours_per_week), credits=int(credits)
+                lecture_hours=int(lecture_hours), tutorial_hours=int(tutorial_hours),
+                practical_hours=int(practical_hours), credits=int(credits)
             )
             messages.success(request, f'Subject "{code}" added successfully!')
             if preset_dept:
@@ -732,8 +747,16 @@ def edit_subject(request, subject_id):
         return redirect('home')
     
     subject = get_object_or_404(Subject, id=subject_id)
+    
+    # Get system configuration to determine active semester type
+    config = SystemConfiguration.objects.first()
+    if config and config.active_semester_type == 'ODD':
+        semester_numbers = [1, 3, 5, 7]
+    else:
+        semester_numbers = [2, 4, 6, 8]
+    
     departments = Department.objects.filter(is_active=True).order_by('code')
-    semesters = Semester.objects.select_related('department').order_by('department__code', 'number')
+    semesters = Semester.objects.filter(number__in=semester_numbers).select_related('department').order_by('department__code', 'number')
     
     # Build semester data for JavaScript
     semesters_by_dept = {}
@@ -745,14 +768,35 @@ def edit_subject(request, subject_id):
     
     errors = {}
     
+    # Pre-fill form_data with existing subject values
+    form_data = {
+        'code': subject.code, 'name': subject.name,
+        'department_id': str(subject.department_id),
+        'semester_id': str(subject.semester_id),
+        'subject_type': subject.subject_type,
+        'lecture_hours': str(subject.lecture_hours),
+        'tutorial_hours': str(subject.tutorial_hours),
+        'practical_hours': str(subject.practical_hours),
+        'credits': str(subject.credits)
+    }
+    
     if request.method == 'POST':
         code = request.POST.get('code', '').strip().upper()
         name = request.POST.get('name', '').strip()
         department_id = request.POST.get('department_id', '')
         semester_id = request.POST.get('semester_id', '')
         subject_type = request.POST.get('subject_type', 'THEORY')
-        hours_per_week = request.POST.get('hours_per_week', '3')
+        lecture_hours = request.POST.get('lecture_hours', '3')
+        tutorial_hours = request.POST.get('tutorial_hours', '0')
+        practical_hours = request.POST.get('practical_hours', '0')
         credits = request.POST.get('credits', '3')
+        
+        form_data = {
+            'code': code, 'name': name, 'department_id': department_id,
+            'semester_id': semester_id, 'subject_type': subject_type,
+            'lecture_hours': lecture_hours, 'tutorial_hours': tutorial_hours,
+            'practical_hours': practical_hours, 'credits': credits
+        }
         
         if not code:
             errors['code'] = 'Subject code is required'
@@ -767,20 +811,45 @@ def edit_subject(request, subject_id):
             subject.department_id = department_id
             subject.semester_id = semester_id
             subject.subject_type = subject_type
-            subject.hours_per_week = int(hours_per_week)
+            subject.lecture_hours = int(lecture_hours)
+            subject.tutorial_hours = int(tutorial_hours)
+            subject.practical_hours = int(practical_hours)
             subject.credits = int(credits)
             subject.save()
             messages.success(request, f'Subject "{code}" updated!')
             return redirect('manage_subjects')
     
+    # Prepare department options with selected attribute
+    department_options = []
+    for dept in departments:
+        department_options.append({
+            'id': dept.id,
+            'code': dept.code,
+            'name': dept.name,
+            'selected': 'selected' if str(dept.id) == form_data['department_id'] else ''
+        })
+    
+    # Prepare type options with checked attribute
+    current_type = form_data.get('subject_type', 'THEORY')
+    type_options = [
+        {'value': 'THEORY', 'label': 'Theory', 'icon': 'bi bi-journal-text text-info me-1', 'checked': 'checked' if current_type == 'THEORY' else ''},
+        {'value': 'LAB', 'label': 'Lab', 'icon': 'bi bi-pc-display text-success me-1', 'checked': 'checked' if current_type == 'LAB' else ''},
+        {'value': 'ELECTIVE', 'label': 'Elective', 'icon': 'bi bi-bookmark-star text-warning me-1', 'checked': 'checked' if current_type == 'ELECTIVE' else ''},
+    ]
+    
     return render(request, 'admin/add_subject.html', {
+        'page_title': 'Edit Subject',
+        'submit_label': 'Update Subject',
         'subject': subject,
-        'departments': departments,
-        'semesters': semesters,
+        'department_options': department_options,
         'semesters_by_dept': json.dumps(semesters_by_dept),
-        'subject_types': Subject.SUBJECT_TYPE_CHOICES,
+        'type_options': type_options,
         'errors': errors,
-        'form_data': {},
+        'form_data': form_data,
+        'show_dept_dropdown': True,
+        'show_sem_dropdown': True,
+        'current_dept_id': form_data['department_id'],
+        'current_sem_id': form_data['semester_id'],
     })
 
 

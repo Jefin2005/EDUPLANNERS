@@ -106,9 +106,10 @@
                                 </div>
                                 <h6 class="card-title">{{ subject.name }}</h6>
                                 <p class="card-text small text-muted mb-2">
-                                    <i class="bi bi-clock me-1"></i>{{ subject.hours_per_week }} hrs/week
-                                    <span class="ms-2"><i class="bi bi-award me-1"></i>{{ subject.credits }}
-                                        credits</span>
+                                    <i class="bi bi-grid-3x3 me-1"></i>L-T-P: {{ subject.ltp_string }}
+                                    <span class="ms-2"><i class="bi bi-clock me-1"></i>{{ subject.hours_per_week }}
+                                        hrs</span>
+                                    <span class="ms-2"><i class="bi bi-award me-1"></i>{{ subject.credits }} cr</span>
                                 </p>
                                 <div class="d-flex gap-2">
                                     <a href="{% url 'edit_subject' subject.id %}"

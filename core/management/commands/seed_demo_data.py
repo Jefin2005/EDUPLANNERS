@@ -154,23 +154,24 @@ class Command(BaseCommand):
 
     def create_subjects(self, semesters):
         """Create demo subjects for semesters"""
+        # Template: (name, code_prefix, type, L, T, P, credits)
         subjects_template = [
-            # Theory subjects
-            ('Data Structures', 'DST', 'THEORY', 3, 4),
-            ('Database Management', 'DBM', 'THEORY', 3, 4),
-            ('Computer Networks', 'CNW', 'THEORY', 3, 4),
-            ('Operating Systems', 'OST', 'THEORY', 3, 4),
+            # Theory subjects (L-T-P format)
+            ('Data Structures', 'DST', 'THEORY', 3, 1, 0, 4),
+            ('Database Management', 'DBM', 'THEORY', 3, 0, 0, 3),
+            ('Computer Networks', 'CNW', 'THEORY', 3, 1, 0, 4),
+            ('Operating Systems', 'OST', 'THEORY', 3, 0, 0, 3),
             
             # Lab subjects
-            ('Data Structures Lab', 'DSL', 'LAB', 3, 2),
-            ('DBMS Lab', 'DBL', 'LAB', 3, 2),
+            ('Data Structures Lab', 'DSL', 'LAB', 0, 0, 3, 2),
+            ('DBMS Lab', 'DBL', 'LAB', 0, 0, 3, 2),
         ]
         
         # Create subjects for CS department semesters
         cs_semesters = [s for s in semesters if s.department.code == 'CS']
         
         for semester in cs_semesters:
-            for idx, (name, code_prefix, sub_type, hours, credits) in enumerate(subjects_template, 1):
+            for idx, (name, code_prefix, sub_type, L, T, P, credits) in enumerate(subjects_template, 1):
                 # Create unique code: CS201, CS202, etc.
                 unique_code = f'{semester.department.code}{semester.number}{idx:02d}'
                 full_name = f'{name} - S{semester.number}'
@@ -182,7 +183,9 @@ class Command(BaseCommand):
                         'department': semester.department,
                         'semester': semester,
                         'subject_type': sub_type,
-                        'hours_per_week': hours,
+                        'lecture_hours': L,
+                        'tutorial_hours': T,
+                        'practical_hours': P,
                         'credits': credits
                     }
                 )

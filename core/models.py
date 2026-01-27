@@ -140,7 +140,7 @@ class Faculty(models.Model):
 
 
 class Subject(models.Model):
-    """Subject model for theory and lab subjects"""
+    """Subject model for theory and lab subjects - KTU B.Tech 2019 Scheme L-T-P structure"""
     SUBJECT_TYPE_CHOICES = [
         ('THEORY', 'Theory'),
         ('LAB', 'Lab'),
@@ -152,8 +152,23 @@ class Subject(models.Model):
     department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='subjects')
     semester = models.ForeignKey(Semester, on_delete=models.CASCADE, related_name='subjects')
     subject_type = models.CharField(max_length=10, choices=SUBJECT_TYPE_CHOICES)
-    hours_per_week = models.IntegerField(default=3)
+    
+    # L-T-P structure (KTU B.Tech 2019 Scheme)
+    lecture_hours = models.IntegerField(default=3, help_text="Lecture hours per week (L)")
+    tutorial_hours = models.IntegerField(default=0, help_text="Tutorial hours per week (T)")
+    practical_hours = models.IntegerField(default=0, help_text="Practical/Lab hours per week (P)")
+    
     credits = models.IntegerField(default=3)
+    
+    @property
+    def hours_per_week(self):
+        """Total hours per week (L + T + P) - backward compatible computed property"""
+        return self.lecture_hours + self.tutorial_hours + self.practical_hours
+    
+    @property
+    def ltp_string(self):
+        """Returns L-T-P format string, e.g., '3-1-0'"""
+        return f"{self.lecture_hours}-{self.tutorial_hours}-{self.practical_hours}"
     
     def __str__(self):
         return f"{self.code} - {self.name}"

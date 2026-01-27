@@ -47,7 +47,7 @@ class FacultyAdmin(admin.ModelAdmin):
 
 @admin.register(Subject)
 class SubjectAdmin(admin.ModelAdmin):
-    list_display = ['code', 'name', 'department', 'semester', 'subject_type', 'hours_per_week', 'credits']
+    list_display = ['code', 'name', 'department', 'semester', 'subject_type', 'ltp_string', 'hours_per_week', 'credits']
     list_filter = ['department', 'semester', 'subject_type']
     search_fields = ['name', 'code']
     ordering = ['semester', 'code']
