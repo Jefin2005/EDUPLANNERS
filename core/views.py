@@ -915,7 +915,7 @@ def initialize_time_slots(request):
                 return redirect('init_time_slots')
             
             _create_time_slots()
-            messages.success(request, f'Time slots initialized successfully! Created {TimeSlot.objects.count()} slots (35 teaching + 5 lunch breaks).')
+            messages.success(request, f'Time slots initialized successfully! Created {TimeSlot.objects.count()} slots (35 teaching + 15 non-teaching).')
             return redirect('admin_dashboard')
         
         elif action == 'reinitialize':
@@ -927,7 +927,7 @@ def initialize_time_slots(request):
             # Delete existing slots
             TimeSlot.objects.all().delete()
             _create_time_slots()
-            messages.success(request, f'Time slots re-initialized successfully! Created {TimeSlot.objects.count()} slots.')
+            messages.success(request, f'Time slots re-initialized successfully! Created {TimeSlot.objects.count()} slots (35 teaching + 15 non-teaching).')
             return redirect('admin_dashboard')
     
     # PRE-PROCESS ALL DATA IN BACKEND - NO LOGIC IN TEMPLATE
@@ -935,12 +935,21 @@ def initialize_time_slots(request):
     
     if slots_count > 0:
         # Get first day's slots to show structure (all days have same structure)
-        first_day_slots = TimeSlot.objects.filter(day='MON').order_by('period')
+        # Order by start_time to display in chronological order
+        first_day_slots = TimeSlot.objects.filter(day='MON').order_by('start_time')
         
         for slot in first_day_slots:
             # Pre-calculate all display properties
+            # Determine period display label
+            if slot.slot_type == 'LUNCH':
+                period_label = 'Lunch Break'
+            elif slot.slot_type == 'RECESS':
+                period_label = 'Recess Break'
+            else:
+                period_label = str(slot.period)
+            
             slot_data = {
-                'period_display': 'Lunch Break' if slot.slot_type == 'LUNCH' else str(slot.period),
+                'period_display': period_label,
                 'start_time': slot.start_time,
                 'end_time': slot.end_time,
                 'duration_minutes': slot.duration_minutes,
@@ -972,6 +981,8 @@ def _get_badge_class(slot_type):
         return 'bg-warning text-dark'
     elif slot_type == 'LUNCH':
         return 'bg-secondary'
+    elif slot_type == 'RECESS':
+        return 'bg-primary'
     return 'bg-primary'
 
 
@@ -983,6 +994,8 @@ def _get_type_display(slot_type):
         return 'Afternoon'
     elif slot_type == 'LUNCH':
         return 'Non-Teaching'
+    elif slot_type == 'RECESS':
+        return 'Recess'
     return slot_type
 
 
@@ -993,16 +1006,19 @@ def _create_time_slots():
     days = ['MON', 'TUE', 'WED', 'THU', 'FRI']
     
     # Define slot structure: (period, start, end, type)
+    # Use negative period numbers for breaks to avoid conflicts with teaching periods
+    # Teaching periods: 1-7
     slot_structure = [
-        (1, time(9, 0), time(9, 50), 'MORNING'),
-        (2, time(9, 50), time(10, 40), 'MORNING'),
-        (3, time(10, 50), time(11, 40), 'MORNING'),
-        (4, time(11, 40), time(12, 30), 'MORNING'),
-        # Lunch break - period=0 indicates non-teaching slot
-        (0, time(12, 30), time(13, 30), 'LUNCH'),
-        (5, time(13, 30), time(14, 20), 'AFTERNOON'),
-        (6, time(14, 20), time(15, 10), 'AFTERNOON'),
-        (7, time(15, 20), time(16, 10), 'AFTERNOON'),
+        (1, time(8, 45), time(9, 30), 'MORNING'),      # Period 1: 45 min
+        (2, time(9, 30), time(10, 25), 'MORNING'),     # Period 2: 55 min
+        (-1, time(10, 25), time(10, 35), 'RECESS'),    # Recess 1: 10 min
+        (3, time(10, 35), time(11, 30), 'MORNING'),    # Period 3: 55 min
+        (4, time(11, 30), time(12, 20), 'MORNING'),    # Period 4: 50 min
+        (0, time(12, 20), time(13, 5), 'LUNCH'),       # Lunch: 45 min (period 0)
+        (5, time(13, 5), time(13, 55), 'AFTERNOON'),   # Period 5: 50 min
+        (-2, time(13, 55), time(14, 5), 'RECESS'),     # Recess 2: 10 min
+        (6, time(14, 5), time(14, 55), 'AFTERNOON'),   # Period 6: 50 min
+        (7, time(14, 55), time(15, 45), 'AFTERNOON'),  # Period 7: 50 min
     ]
     
     for day in days:
