@@ -207,10 +207,11 @@ class TimeSlot(models.Model):
         ('MORNING', 'Morning Period'),
         ('AFTERNOON', 'Afternoon Period'),
         ('LUNCH', 'Lunch Break'),
+        ('RECESS', 'Recess Break'),
     ]
     
     day = models.CharField(max_length=3, choices=DAY_CHOICES)
-    period = models.IntegerField()  # 1-7 for teaching, 0 for lunch
+    period = models.IntegerField()  # 1-7 for teaching, 0 for lunch/recess
     start_time = models.TimeField()  # Made required (no null/blank)
     end_time = models.TimeField()    # Made required (no null/blank)
     slot_type = models.CharField(max_length=10, choices=SLOT_TYPE_CHOICES, default='MORNING')
