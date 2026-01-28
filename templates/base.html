@@ -16,49 +16,115 @@
     <style>
         /* ========== THEME VARIABLES ========== */
         :root {
-            /* Light Theme (Default) */
+            /* Light Theme (Default) - EDUPLANNER Color System */
+            /* Backgrounds */
             --bg-primary: #FFFFFF;
-            --bg-secondary: #F8FAFC;
+            --bg-secondary: #F5F3F0;
+            --bg-tertiary: #D9CEBF;
             --bg-card: #FFFFFF;
-            --border-color: #E5E7EB;
-            --text-heading: #0F172A;
-            --text-body: #334155;
-            --text-muted: #64748B;
-            --primary-color: #6366F1;
-            --primary-hover: #4F46E5;
-            --primary-light: rgba(99, 102, 241, 0.1);
-            --success-color: #10B981;
-            --danger-color: #EF4444;
-            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            --bg-hover: #F5F3F0;
+
+            /* Text - WCAG AAA Compliant */
+            --text-heading: #13273F;
+            --text-body: #4A4A4A;
+            --text-muted: #888888;
+            --text-inverse: #FFFFFF;
+
+            /* Brand Colors - Mystic Navy Primary */
+            --primary-color: #13273F;
+            --primary-hover: #0D1F2F;
+            --primary-active: #09182A;
+            --primary-light: rgba(19, 39, 63, 0.1);
+
+            /* Secondary - Mother of Pearl */
+            --secondary-color: #D9CEBF;
+            --secondary-hover: #C9B8A8;
+            --secondary-light: rgba(217, 206, 191, 0.3);
+
+            /* Status Colors */
+            --success-color: #2D5016;
+            --success-light: rgba(45, 80, 22, 0.1);
+            --warning-color: #CC8800;
+            --warning-light: rgba(204, 136, 0, 0.1);
+            --danger-color: #4E0000;
+            --danger-light: rgba(78, 0, 0, 0.1);
+            --info-color: #13273F;
+            --info-light: rgba(19, 39, 63, 0.1);
+
+            /* Borders */
+            --border-color: #E0DCD5;
+            --border-medium: #C9B8A8;
+            --border-strong: #13273F;
+            --input-border: #13273F;
+
+            /* Shadows */
+            --shadow-sm: 0 1px 2px rgba(19, 39, 63, 0.05);
+            --shadow-md: 0 4px 6px rgba(19, 39, 63, 0.1);
+            --shadow-lg: 0 10px 15px rgba(19, 39, 63, 0.15);
+
+            /* Component Backgrounds */
             --navbar-bg: #FFFFFF;
             --input-bg: #FFFFFF;
-            --input-border: #D1D5DB;
             --modal-overlay: rgba(0, 0, 0, 0.5);
+
+            /* Gradients */
+            --primary-gradient: linear-gradient(135deg, #13273F, #1E3A5F);
         }
 
         [data-theme="dark"] {
-            /* Dark Theme */
-            --bg-primary: #0F172A;
-            --bg-secondary: #1E293B;
-            --bg-card: #1E293B;
-            --border-color: rgba(255, 255, 255, 0.1);
-            --text-heading: #F8FAFC;
-            --text-body: #CBD5E1;
-            --text-muted: #94A3B8;
-            --primary-color: #818CF8;
-            --primary-hover: #6366F1;
-            --primary-light: rgba(129, 140, 248, 0.15);
-            --success-color: #34D399;
-            --danger-color: #F87171;
+            /* Dark Theme - EDUPLANNER Color System */
+            /* Backgrounds */
+            --bg-primary: #0F1619;
+            --bg-secondary: #1A2332;
+            --bg-tertiary: #2A3F5F;
+            --bg-card: #1A2332;
+            --bg-hover: #2A3F5F;
+
+            /* Text - WCAG AAA Compliant */
+            --text-heading: #F5F3F0;
+            --text-body: #D9CEBF;
+            --text-muted: #A8A8A8;
+            --text-inverse: #13273F;
+
+            /* Brand Colors - Mother of Pearl Primary in Dark Mode */
+            --primary-color: #D9CEBF;
+            --primary-hover: #E8E3DB;
+            --primary-active: #D0C0B0;
+            --primary-light: rgba(217, 206, 191, 0.15);
+
+            /* Secondary - Mystic Navy */
+            --secondary-color: #13273F;
+            --secondary-hover: #1E3A5F;
+            --secondary-light: rgba(19, 39, 63, 0.3);
+
+            /* Status Colors - Adjusted for dark mode visibility */
+            --success-color: #5FA86C;
+            --success-light: rgba(95, 168, 108, 0.15);
+            --warning-color: #E6A820;
+            --warning-light: rgba(230, 168, 32, 0.15);
+            --danger-color: #E85050;
+            --danger-light: rgba(232, 80, 80, 0.15);
+            --info-color: #D9CEBF;
+            --info-light: rgba(217, 206, 191, 0.15);
+
+            /* Borders */
+            --border-color: #2A3F5F;
+            --border-medium: #3D5580;
+            --border-strong: #D9CEBF;
+            --input-border: #3D5580;
+
+            /* Shadows */
             --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
-            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
-            --navbar-bg: #1E293B;
-            --input-bg: #0F172A;
-            --input-border: rgba(255, 255, 255, 0.15);
+            --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+
+            /* Component Backgrounds */
+            --navbar-bg: #1A2332;
+            --input-bg: #1A2332;
             --modal-overlay: rgba(0, 0, 0, 0.7);
+
+            /* Gradients */
+            --primary-gradient: linear-gradient(135deg, #D9CEBF, #E8E3DB);
         }
 
         /* ========== BASE STYLES ========== */
@@ -171,8 +237,23 @@
         }
 
         .stat-card .icon.success {
-            background: rgba(16, 185, 129, 0.1);
+            background: var(--success-light);
             color: var(--success-color);
+        }
+
+        .stat-card .icon.warning {
+            background: var(--warning-light);
+            color: var(--warning-color);
+        }
+
+        .stat-card .icon.danger {
+            background: var(--danger-light);
+            color: var(--danger-color);
+        }
+
+        .stat-card .icon.secondary {
+            background: var(--secondary-light);
+            color: var(--secondary-color);
         }
 
         .stat-card h3 {
@@ -202,8 +283,73 @@
         .btn-primary-custom:hover {
             background: var(--primary-hover);
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+            box-shadow: 0 4px 12px rgba(19, 39, 63, 0.3);
             color: #fff;
+        }
+
+        .btn-primary-custom:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+
+        .btn-primary-custom:disabled {
+            background: #B0B0B0;
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Dark mode button text color adjustment */
+        [data-theme="dark"] .btn-primary-custom {
+            color: #13273F;
+        }
+
+        /* Danger Button */
+        .btn-danger-custom {
+            background: var(--danger-color);
+            border: none;
+            color: #fff;
+            font-weight: 600;
+            padding: 0.75rem 1.5rem;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-danger-custom:hover {
+            background: #660000;
+            transform: translateY(-1px);
+            color: #fff;
+        }
+
+        [data-theme="dark"] .btn-danger-custom {
+            background: #8B2E2E;
+            color: #F5F3F0;
+        }
+
+        [data-theme="dark"] .btn-danger-custom:hover {
+            background: #A03A3A;
+            color: #F5F3F0;
+        }
+
+        /* Gradient Button */
+        .btn-gradient {
+            background: var(--primary-gradient);
+            border: none;
+            color: #fff;
+            font-weight: 600;
+            padding: 0.75rem 1.5rem;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-gradient:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(19, 39, 63, 0.3);
+            color: #fff;
+        }
+
+        [data-theme="dark"] .btn-gradient {
+            color: #13273F;
         }
 
         .btn-outline-custom {
@@ -220,6 +366,90 @@
             background: var(--bg-secondary);
             border-color: var(--text-muted);
             color: var(--text-heading);
+        }
+
+
+        /* ========== BOOTSTRAP BUTTON OVERRIDES ========== */
+        /* Primary Button - Uses theme colors */
+        .btn-primary {
+            background-color: var(--primary-color) !important;
+            border-color: var(--primary-color) !important;
+            color: #FFFFFF !important;
+        }
+
+        .btn-primary:hover,
+        .btn-primary:focus {
+            background-color: var(--primary-hover) !important;
+            border-color: var(--primary-hover) !important;
+            color: #FFFFFF !important;
+        }
+
+        [data-theme="dark"] .btn-primary {
+            color: #13273F !important;
+        }
+
+        /* Danger Button - Uses theme danger colors */
+        .btn-danger {
+            background-color: var(--danger-color) !important;
+            border-color: var(--danger-color) !important;
+            color: #FFFFFF !important;
+        }
+
+        .btn-danger:hover,
+        .btn-danger:focus {
+            background-color: #660000 !important;
+            border-color: #660000 !important;
+            color: #FFFFFF !important;
+        }
+
+        [data-theme="dark"] .btn-danger {
+            background-color: #8B2E2E !important;
+            border-color: #8B2E2E !important;
+            color: #F5F3F0 !important;
+        }
+
+        [data-theme="dark"] .btn-danger:hover,
+        [data-theme="dark"] .btn-danger:focus {
+            background-color: #A03A3A !important;
+            color: #F5F3F0 !important;
+        }
+
+        /* Outline Primary Button */
+        .btn-outline-primary {
+            border-color: var(--primary-color) !important;
+            color: var(--primary-color) !important;
+        }
+
+        .btn-outline-primary:hover {
+            background-color: var(--primary-color) !important;
+            color: #FFFFFF !important;
+        }
+
+        [data-theme="dark"] .btn-outline-primary:hover {
+            color: #13273F !important;
+        }
+
+        /* Outline Light Button - Invert for dark mode */
+        .btn-outline-light {
+            border-color: var(--border-color) !important;
+            color: var(--text-heading) !important;
+        }
+
+        .btn-outline-light:hover {
+            background-color: var(--bg-hover) !important;
+            border-color: var(--text-muted) !important;
+            color: var(--text-heading) !important;
+        }
+
+        [data-theme="dark"] .btn-outline-light {
+            border-color: #3D5580 !important;
+            color: #F5F3F0 !important;
+        }
+
+        [data-theme="dark"] .btn-outline-light:hover {
+            background-color: #2A3F5F !important;
+            border-color: #D9CEBF !important;
+            color: #F5F3F0 !important;
         }
 
         /* ========== FORM CONTROLS ========== */
@@ -310,6 +540,43 @@
             font-size: 1.2rem;
         }
 
+        /* ========== LIST GROUP OVERRIDES ========== */
+        .list-group-item {
+            background: var(--bg-card);
+            color: var(--text-heading);
+            border-color: var(--border-color);
+        }
+
+        .list-group-item-action:hover,
+        .list-group-item-action:focus {
+            background: var(--bg-hover) !important;
+            color: var(--text-heading) !important;
+        }
+
+        .list-group-item.active {
+            background: var(--primary-light) !important;
+            color: var(--primary-color) !important;
+            border-color: var(--primary-color) !important;
+        }
+
+        [data-theme="dark"] .list-group-item {
+            background: var(--bg-card);
+            color: var(--text-heading);
+            border-color: var(--border-color);
+        }
+
+        [data-theme="dark"] .list-group-item-action:hover,
+        [data-theme="dark"] .list-group-item-action:focus {
+            background: var(--bg-hover) !important;
+            color: var(--text-heading) !important;
+        }
+
+        [data-theme="dark"] .list-group-item.active {
+            background: var(--primary-light) !important;
+            color: var(--primary-color) !important;
+            border-color: var(--primary-color) !important;
+        }
+
         /* ========== BADGES ========== */
         .badge-primary {
             background: var(--primary-light);
@@ -320,7 +587,7 @@
         }
 
         .badge-success {
-            background: rgba(16, 185, 129, 0.1);
+            background: var(--success-light);
             color: var(--success-color);
             font-weight: 500;
             padding: 0.35rem 0.75rem;
@@ -328,11 +595,94 @@
         }
 
         .badge-danger {
-            background: rgba(239, 68, 68, 0.1);
+            background: var(--danger-light);
             color: var(--danger-color);
             font-weight: 500;
             padding: 0.35rem 0.75rem;
             border-radius: 20px;
+        }
+
+        .badge-warning {
+            background: var(--warning-light);
+            color: var(--warning-color);
+            font-weight: 500;
+            padding: 0.35rem 0.75rem;
+            border-radius: 20px;
+        }
+
+        /* Subject Type Badges */
+        .badge-theory {
+            background: #E8F0FF;
+            color: #13273F;
+            font-weight: 500;
+            padding: 0.35rem 0.75rem;
+            border-radius: 6px;
+            border: 1px solid #13273F;
+        }
+
+        [data-theme="dark"] .badge-theory {
+            background: #1A3A6B;
+            color: #D9CEBF;
+            border-color: #4A6FB5;
+        }
+
+        .badge-lab {
+            background: #F0F8F0;
+            color: #2D5016;
+            font-weight: 500;
+            padding: 0.35rem 0.75rem;
+            border-radius: 6px;
+            border: 1px solid #2D5016;
+        }
+
+        [data-theme="dark"] .badge-lab {
+            background: #1A3A1A;
+            color: #5FA86C;
+            border-color: #5FA86C;
+        }
+
+        .badge-elective {
+            background: #FFF8E8;
+            color: #CC8800;
+            font-weight: 500;
+            padding: 0.35rem 0.75rem;
+            border-radius: 6px;
+            border: 1px solid #CC8800;
+        }
+
+        [data-theme="dark"] .badge-elective {
+            background: #3A3A1A;
+            color: #E6A820;
+            border-color: #E6A820;
+        }
+
+        /* Gradient Badge */
+        .badge-gradient {
+            background: var(--primary-gradient);
+            color: #fff;
+            font-weight: 500;
+            padding: 0.35rem 0.75rem;
+            border-radius: 6px;
+        }
+
+        [data-theme="dark"] .badge-gradient {
+            color: #13273F;
+        }
+
+        /* ========== BOOTSTRAP UTILITY OVERRIDES ========== */
+        /* Override text-dark in dark mode for visibility */
+        [data-theme="dark"] .text-dark {
+            color: var(--text-heading) !important;
+        }
+
+        /* Override bg-light in dark mode */
+        [data-theme="dark"] .bg-light {
+            background-color: var(--bg-secondary) !important;
+        }
+
+        /* Override text-muted to use theme variable */
+        .text-muted {
+            color: var(--text-muted) !important;
         }
 
         /* ========== MODALS ========== */
@@ -387,7 +737,15 @@
         }
 
         .timetable-cell.lab {
-            background: rgba(16, 185, 129, 0.1);
+            background: var(--success-light);
+        }
+
+        [data-theme="dark"] .timetable-cell.theory {
+            background: rgba(217, 206, 191, 0.15);
+        }
+
+        [data-theme="dark"] .timetable-cell.lab {
+            background: rgba(95, 168, 108, 0.15);
         }
 
         /* ========== LOADING SPINNER ========== */
@@ -440,6 +798,30 @@
         .semester-toggle .btn.active {
             background: var(--primary-color);
             color: #fff;
+        }
+
+        [data-theme="dark"] .semester-toggle .btn.active {
+            color: #13273F;
+        }
+
+        .semester-toggle .btn:not(.active):hover {
+            background: var(--bg-hover);
+            color: var(--text-heading);
+        }
+
+        /* ========== SPINNER GRADIENT ========== */
+        .spinner-gradient {
+            width: 2rem;
+            height: 2rem;
+            border: 3px solid var(--primary-light);
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        /* ========== BG GRADIENT ========== */
+        .bg-gradient {
+            background: var(--primary-gradient) !important;
         }
     </style>
 

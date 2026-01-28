@@ -31,8 +31,8 @@
                 <div class="list-group list-group-flush">
                     {% for dept in departments %}
                     <a href="?mode=department&id={{ dept.id }}"
-                        class="list-group-item list-group-item-action bg-transparent border-0 text-white {% if dept.is_selected %}active{% endif %}"
-                        style="{% if dept.is_selected %}background: rgba(102, 126, 234, 0.2) !important;{% endif %}">
+                        class="list-group-item list-group-item-action border-0 {% if dept.is_selected %}active{% endif %}"
+                        style="background: {% if dept.is_selected %}var(--primary-light){% else %}transparent{% endif %};color: var(--text-heading);">
                         <i class="bi bi-building me-2"></i>
                         {{ dept.full_name }}
                     </a>
@@ -45,11 +45,11 @@
                 <div class="list-group list-group-flush" style="max-height: 400px; overflow-y: auto;">
                     {% for faculty in faculties %}
                     <a href="?mode=faculty&id={{ faculty.id }}"
-                        class="list-group-item list-group-item-action bg-transparent border-0 text-white {% if faculty.is_selected %}active{% endif %}"
-                        style="{% if faculty.is_selected %}background: rgba(102, 126, 234, 0.2) !important;{% endif %}">
+                        class="list-group-item list-group-item-action border-0 {% if faculty.is_selected %}active{% endif %}"
+                        style="background: {% if faculty.is_selected %}var(--primary-light){% else %}transparent{% endif %};color: var(--text-heading);">
                         <i class="bi bi-person me-2"></i>
                         {{ faculty.name }}<br>
-                        <small class="text-muted">{{ faculty.designation }}</small>
+                        <small style="color: var(--text-muted);">{{ faculty.designation }}</small>
                     </a>
                     {% empty %}
                     <p class="text-muted text-center py-3">No faculty available</p>

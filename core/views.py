@@ -556,11 +556,11 @@ def manage_subjects(request):
     
     subjects = subjects.order_by('department__code', 'semester__number', 'code')
     
-    # Type badge mapping
+    # Type badge mapping - using custom EDUPLANNER theme classes
     type_badges = {
-        'THEORY': 'bg-info',
-        'LAB': 'bg-success',
-        'ELECTIVE': 'bg-warning text-dark'
+        'THEORY': 'badge-theory',
+        'LAB': 'badge-lab',
+        'ELECTIVE': 'badge-elective'
     }
     type_displays = {
         'THEORY': 'Theory',
