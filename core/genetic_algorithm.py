@@ -554,7 +554,23 @@ def generate_timetable(semester_id: int, semester_instance: str):
     
     subjects = list(Subject.objects.filter(
         semester_id=semester_id
-    ).values('id', 'name', 'code', 'subject_type', 'hours_per_week', 'semester_id'))
+    ).values('id', 'name', 'code', 'subject_type', 'lecture_hours', 'tutorial_hours', 'practical_hours', 'semester_id'))
+    
+    # Compute hours_per_week in Python (cannot use @property in .values())
+    valid_subjects = []
+    for subject in subjects:
+        total_hours = subject['lecture_hours'] + subject['tutorial_hours'] + subject['practical_hours']
+        subject['hours_per_week'] = total_hours
+        
+        if total_hours == 0:
+            print(f"WARNING: Subject {subject['code']} ({subject['name']}) has zero total hours - skipping from timetable generation")
+        else:
+            valid_subjects.append(subject)
+    
+    # Replace subjects list with filtered valid subjects
+    if len(valid_subjects) < len(subjects):
+        print(f"Skipped {len(subjects) - len(valid_subjects)} subject(s) with zero hours")
+    subjects = valid_subjects
     
     faculties = list(Faculty.objects.filter(
         is_active=True
@@ -723,7 +739,23 @@ def generate_department_timetable(department_id: int, semester_instance: str):
     # Get ALL subjects across all semesters in this department
     subjects = list(Subject.objects.filter(
         semester_id__in=semester_ids
-    ).values('id', 'name', 'code', 'subject_type', 'hours_per_week', 'semester_id'))
+    ).values('id', 'name', 'code', 'subject_type', 'lecture_hours', 'tutorial_hours', 'practical_hours', 'semester_id'))
+    
+    # Compute hours_per_week in Python (cannot use @property in .values())
+    valid_subjects = []
+    for subject in subjects:
+        total_hours = subject['lecture_hours'] + subject['tutorial_hours'] + subject['practical_hours']
+        subject['hours_per_week'] = total_hours
+        
+        if total_hours == 0:
+            print(f"WARNING: Subject {subject['code']} ({subject['name']}) has zero total hours - skipping from timetable generation")
+        else:
+            valid_subjects.append(subject)
+    
+    # Replace subjects list with filtered valid subjects
+    if len(valid_subjects) < len(subjects):
+        print(f"Skipped {len(subjects) - len(valid_subjects)} subject(s) with zero hours")
+    subjects = valid_subjects
     
     if not subjects:
         return {
