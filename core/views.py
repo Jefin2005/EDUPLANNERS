@@ -935,12 +935,21 @@ def initialize_time_slots(request):
     
     if slots_count > 0:
         # Get first day's slots to show structure (all days have same structure)
-        first_day_slots = TimeSlot.objects.filter(day='MON').order_by('period')
+        # Order by start_time to display in chronological order
+        first_day_slots = TimeSlot.objects.filter(day='MON').order_by('start_time')
         
         for slot in first_day_slots:
             # Pre-calculate all display properties
+            # Determine period display label
+            if slot.slot_type == 'LUNCH':
+                period_label = 'Lunch Break'
+            elif slot.slot_type == 'RECESS':
+                period_label = 'Recess Break'
+            else:
+                period_label = str(slot.period)
+            
             slot_data = {
-                'period_display': 'Lunch Break' if slot.slot_type == 'LUNCH' else str(slot.period),
+                'period_display': period_label,
                 'start_time': slot.start_time,
                 'end_time': slot.end_time,
                 'duration_minutes': slot.duration_minutes,
@@ -972,6 +981,8 @@ def _get_badge_class(slot_type):
         return 'bg-warning text-dark'
     elif slot_type == 'LUNCH':
         return 'bg-secondary'
+    elif slot_type == 'RECESS':
+        return 'bg-primary'
     return 'bg-primary'
 
 
