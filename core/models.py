@@ -149,6 +149,7 @@ class Subject(models.Model):
     
     name = models.CharField(max_length=150)
     code = models.CharField(max_length=20, unique=True)
+    short_code = models.CharField(max_length=10, blank=True, null=True, help_text="Abbreviation (e.g., CD for Compiler Design)")
     department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='subjects')
     semester = models.ForeignKey(Semester, on_delete=models.CASCADE, related_name='subjects')
     subject_type = models.CharField(max_length=10, choices=SUBJECT_TYPE_CHOICES)

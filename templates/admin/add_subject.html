@@ -15,14 +15,21 @@
             {% csrf_token %}
 
             <div class="row mb-3">
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
                     <label class="form-label">Subject Code <span class="text-danger">*</span></label>
                     <input type="text" name="code" class="form-control" placeholder="e.g., CS401"
                         value="{{ form_data.code }}" required>
                     {% if errors.code %}<div class="text-danger small">{{ errors.code }}</div>{% endif %}
-                    <small class="text-muted">Unique code like CS401, ME302</small>
+                    <small class="text-muted">Unique code e.g. CS401</small>
                 </div>
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Abbreviation <span class="text-danger">*</span></label>
+                    <input type="text" name="short_code" class="form-control" placeholder="e.g., ML"
+                        value="{{ form_data.short_code }}" required>
+                    {% if errors.short_code %}<div class="text-danger small">{{ errors.short_code }}</div>{% endif %}
+                    <small class="text-muted">Short name e.g. CD, ML</small>
+                </div>
+                <div class="col-md-4 mb-3">
                     <label class="form-label">Subject Name <span class="text-danger">*</span></label>
                     <input type="text" name="name" class="form-control" placeholder="e.g., Machine Learning"
                         value="{{ form_data.name }}" required>
@@ -101,7 +108,7 @@
                             </button>
                             <input type="number" name="lecture_hours" id="lecture_hours"
                                 class="form-control text-center ltp-input" value="{{ form_data.lecture_hours }}" min="0"
-                                max="6" required onchange="updateLTP()">
+                                max="15" required onchange="updateLTP()">
                             <button class="btn btn-outline-secondary" type="button"
                                 onclick="incrementValue('lecture_hours')">
                                 <i class="bi bi-plus"></i>
@@ -119,7 +126,7 @@
                             </button>
                             <input type="number" name="tutorial_hours" id="tutorial_hours"
                                 class="form-control text-center ltp-input" value="{{ form_data.tutorial_hours }}"
-                                min="0" max="6" required onchange="updateLTP()">
+                                min="0" max="15" required onchange="updateLTP()">
                             <button class="btn btn-outline-secondary" type="button"
                                 onclick="incrementValue('tutorial_hours')">
                                 <i class="bi bi-plus"></i>
@@ -137,7 +144,7 @@
                             </button>
                             <input type="number" name="practical_hours" id="practical_hours"
                                 class="form-control text-center ltp-input" value="{{ form_data.practical_hours }}"
-                                min="0" max="6" required onchange="updateLTP()">
+                                min="0" max="15" required onchange="updateLTP()">
                             <button class="btn btn-outline-secondary" type="button"
                                 onclick="incrementValue('practical_hours')">
                                 <i class="bi bi-plus"></i>
@@ -164,7 +171,7 @@
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Credits <span class="text-danger">*</span></label>
                     <input type="number" name="credits" id="credits" class="form-control"
-                        value="{{ form_data.credits }}" min="0" max="6" required>
+                        value="{{ form_data.credits }}" min="0" max="15" required>
                     <small class="text-muted">Enter credits as per syllabus</small>
                 </div>
             </div>
@@ -208,7 +215,7 @@
     function incrementValue(fieldId) {
         const input = document.getElementById(fieldId);
         const currentValue = parseInt(input.value) || 0;
-        if (currentValue < 6) {
+        if (currentValue < 15) {
             input.value = currentValue + 1;
             updateLTP();
         }

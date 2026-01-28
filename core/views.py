@@ -471,13 +471,42 @@ def manage_faculty(request):
     # Fetch departments for dropdown
     departments = list(Department.objects.filter(is_active=True).order_by('code'))
     
+    # Pre-build designation options
+    designation_options = [
+        {'value': 'PROFESSOR', 'label': 'Professor'},
+        {'value': 'ASSOCIATE_PROFESSOR', 'label': 'Associate Professor'},
+        {'value': 'ASSISTANT_PROFESSOR', 'label': 'Assistant Professor'},
+    ]
+    
+    # Group faculty by department
+    from collections import OrderedDict
+    faculty_by_dept = OrderedDict()
+    
+    # Initialize with all departments
+    for dept in departments:
+        faculty_by_dept[dept.code] = {
+            'department_name': dept.name,
+            'department_code': dept.code,
+            'department_id': dept.id,
+            'faculty_list': []
+        }
+    
+    # Add unassigned category
+    faculty_by_dept['UNASSIGNED'] = {
+        'department_name': 'Unassigned',
+        'department_code': 'UNASSIGNED',
+        'department_id': None,
+        'faculty_list': []
+    }
+    
+    # Flat list for modals
     faculty_list = []
-    for f in Faculty.objects.select_related('department').order_by('designation', 'name'):
+    
+    for f in Faculty.objects.select_related('department').order_by('department__code', 'designation', 'name'):
         # Build designation options with selected flag
         desig_options = [
-            {'value': 'PROFESSOR', 'label': 'Professor', 'selected': f.designation == 'PROFESSOR'},
-            {'value': 'ASSOCIATE_PROFESSOR', 'label': 'Associate Professor', 'selected': f.designation == 'ASSOCIATE_PROFESSOR'},
-            {'value': 'ASSISTANT_PROFESSOR', 'label': 'Assistant Professor', 'selected': f.designation == 'ASSISTANT_PROFESSOR'},
+            {'value': opt['value'], 'label': opt['label'], 'selected': f.designation == opt['value']}
+            for opt in designation_options
         ]
         
         # Build department options with selected flag for this faculty
@@ -490,19 +519,33 @@ def manage_faculty(request):
                 'selected': f.department_id == dept.id if f.department_id else False
             })
         
-        faculty_list.append({
+        faculty_data = {
             'id': f.id,
             'name': f.name,
             'email': f.email,
             'designation_display': designation_labels.get(f.designation, f.designation),
-            'department_display': f.department.name if f.department else '',
+            'department_display': f.department.name if f.department else 'Unassigned',
+            'department_code': f.department.code if f.department else 'UNASSIGNED',
             'status_display': 'Active' if f.is_active else 'Inactive',
+            'is_active': f.is_active,
             'desig_options': desig_options,
             'dept_options': dept_options,
-        })
+        }
+        
+        # Add to grouped structure
+        dept_key = f.department.code if f.department else 'UNASSIGNED'
+        if dept_key in faculty_by_dept:
+            faculty_by_dept[dept_key]['faculty_list'].append(faculty_data)
+        
+        # Also add to flat list for modals
+        faculty_list.append(faculty_data)
+    
+    # Remove empty departments from display
+    faculty_by_dept = {k: v for k, v in faculty_by_dept.items() if v['faculty_list']}
     
     return render(request, 'admin/faculty.html', {
         'faculty_list': faculty_list,
+        'faculty_by_dept': faculty_by_dept,
         'departments': departments
     })
 
@@ -665,6 +708,7 @@ def add_subject(request):
     
     if request.method == 'POST':
         code = request.POST.get('code', '').strip().upper()
+        short_code = request.POST.get('short_code', '').strip().upper()
         name = request.POST.get('name', '').strip()
         department_id = request.POST.get('department_id', '')
         semester_id = request.POST.get('semester_id', '')
@@ -675,7 +719,7 @@ def add_subject(request):
         credits = request.POST.get('credits', '3')
         
         form_data = {
-            'code': code, 'name': name, 'department_id': department_id,
+            'code': code, 'short_code': short_code, 'name': name, 'department_id': department_id,
             'semester_id': semester_id, 'subject_type': subject_type,
             'lecture_hours': lecture_hours, 'tutorial_hours': tutorial_hours,
             'practical_hours': practical_hours, 'credits': credits
@@ -685,6 +729,8 @@ def add_subject(request):
             errors['code'] = 'Subject code is required'
         elif Subject.objects.filter(code=code).exists():
             errors['code'] = 'Subject code already exists'
+        if not short_code:
+            errors['short_code'] = 'Abbreviation is required'
         if not name:
             errors['name'] = 'Subject name is required'
         if not department_id:
@@ -694,7 +740,7 @@ def add_subject(request):
         
         if not errors:
             Subject.objects.create(
-                code=code, name=name, department_id=department_id,
+                code=code, short_code=short_code, name=name, department_id=department_id,
                 semester_id=semester_id, subject_type=subject_type,
                 lecture_hours=int(lecture_hours), tutorial_hours=int(tutorial_hours),
                 practical_hours=int(practical_hours), credits=int(credits)
@@ -770,7 +816,7 @@ def edit_subject(request, subject_id):
     
     # Pre-fill form_data with existing subject values
     form_data = {
-        'code': subject.code, 'name': subject.name,
+        'code': subject.code, 'short_code': subject.short_code or '', 'name': subject.name,
         'department_id': str(subject.department_id),
         'semester_id': str(subject.semester_id),
         'subject_type': subject.subject_type,
@@ -782,6 +828,7 @@ def edit_subject(request, subject_id):
     
     if request.method == 'POST':
         code = request.POST.get('code', '').strip().upper()
+        short_code = request.POST.get('short_code', '').strip().upper()
         name = request.POST.get('name', '').strip()
         department_id = request.POST.get('department_id', '')
         semester_id = request.POST.get('semester_id', '')
@@ -792,7 +839,7 @@ def edit_subject(request, subject_id):
         credits = request.POST.get('credits', '3')
         
         form_data = {
-            'code': code, 'name': name, 'department_id': department_id,
+            'code': code, 'short_code': short_code, 'name': name, 'department_id': department_id,
             'semester_id': semester_id, 'subject_type': subject_type,
             'lecture_hours': lecture_hours, 'tutorial_hours': tutorial_hours,
             'practical_hours': practical_hours, 'credits': credits
@@ -802,11 +849,14 @@ def edit_subject(request, subject_id):
             errors['code'] = 'Subject code is required'
         elif Subject.objects.filter(code=code).exclude(id=subject_id).exists():
             errors['code'] = 'Subject code already exists'
+        if not short_code:
+            errors['short_code'] = 'Abbreviation is required'
         if not name:
             errors['name'] = 'Subject name is required'
         
         if not errors:
             subject.code = code
+            subject.short_code = short_code
             subject.name = name
             subject.department_id = department_id
             subject.semester_id = semester_id
@@ -1207,14 +1257,15 @@ def _prepare_department_view(department_id, config):
                 continue  # Skip classes with no timetable generated yet
             
             # Build timetable grid with pre-processed data
-            grid = _build_timetable_grid(entries, 'class')
+            grid_result = _build_timetable_grid(entries, 'class')
             
             class_data = {
                 'class_id': class_section.id,
                 'class_name': class_section.name,
                 'class_display': f'{semester}-{class_section.name}',
                 'full_name': f'{semester} - Section {class_section.name}',
-                'timetable_grid': grid,
+                'timetable_grid': grid_result['grid'],
+                'legend': grid_result['legend'],
                 'entry_count': entries.count()
             }
             semester_data['classes'].append(class_data)
@@ -1235,20 +1286,53 @@ def _prepare_faculty_view(faculty_id, config):
     """
     semester_instance = config.get_semester_instance() if config else '2024-ODD'
     
-    # Get all active faculty for selection
-    faculties = Faculty.objects.filter(is_active=True).order_by('name')
-    faculties_list = []
-    for fac in faculties:
-        faculties_list.append({
-            'id': fac.id,
-            'name': fac.name,
-            'designation': fac.get_designation_display(),
-            'full_display': f'{fac.name} ({fac.get_designation_display()})',
-            'is_selected': str(fac.id) == str(faculty_id) if faculty_id else False
+    # Get all active faculty for selection, grouped by department
+    departments = Department.objects.filter(is_active=True).order_by('code')
+    grouped_faculties = []
+    
+    for dept in departments:
+        dept_faculties = Faculty.objects.filter(department=dept, is_active=True).order_by('name')
+        if not dept_faculties.exists():
+            continue
+            
+        fac_list = []
+        for fac in dept_faculties:
+            fac_list.append({
+                'id': fac.id,
+                'name': fac.name,
+                'designation': fac.get_designation_display(),
+                'full_display': f'{fac.name} ({fac.get_designation_display()})',
+                'is_selected': str(fac.id) == str(faculty_id) if faculty_id else False
+            })
+            
+        grouped_faculties.append({
+            'department_id': dept.id,
+            'department_name': dept.name,
+            'department_code': dept.code,
+            'faculties': fac_list
+        })
+        
+    # Also handle faculty without departments (if any)
+    unassigned_faculties = Faculty.objects.filter(department__isnull=True, is_active=True).order_by('name')
+    if unassigned_faculties.exists():
+        fac_list = []
+        for fac in unassigned_faculties:
+            fac_list.append({
+                'id': fac.id,
+                'name': fac.name,
+                'designation': fac.get_designation_display(),
+                'full_display': f'{fac.name} ({fac.get_designation_display()})',
+                'is_selected': str(fac.id) == str(faculty_id) if faculty_id else False
+            })
+        grouped_faculties.append({
+            'department_id': 'unassigned',
+            'department_name': 'Unassigned',
+            'department_code': 'None',
+            'faculties': fac_list
         })
     
     result = {
-        'faculties': faculties_list,
+        'grouped_faculties': grouped_faculties,
         'selected_faculty': None,
         'timetable_grid': [],
         'has_data': False
@@ -1275,48 +1359,43 @@ def _prepare_faculty_view(faculty_id, config):
     ).select_related('class_section', 'subject', 'time_slot', 'faculty', 'assistant_faculty')
     
     if entries.exists():
-        result['timetable_grid'] = _build_timetable_grid(entries, 'faculty', faculty_id)
+        grid_result = _build_timetable_grid(entries, 'faculty', faculty_id)
+        result['timetable_grid'] = grid_result['grid']
+        result['legend'] = grid_result['legend']
         result['has_data'] = True
     
     return result
 
 
+def _get_faculty_initials(name):
+    """Generate initials from faculty name (e.g. Meera V M -> MVM)"""
+    if not name:
+        return ""
+    # Filter out titles like Dr., Mr., Ms., Mrs.
+    cleaned = name
+    for title in ["Dr.", "Mr.", "Ms.", "Mrs.", "Prof."]:
+        cleaned = cleaned.replace(title, "")
+    
+    parts = cleaned.strip().split()
+    initials = "".join([p[0].upper() for p in parts if p])
+    return initials
+
 def _build_timetable_grid(entries, view_type, faculty_id=None):
     """
     Build timetable grid structure with pre-processed, ready-to-display data.
-    Returns list of periods, each containing list of days with cell data.
-    
-    Args:
-        entries: QuerySet of TimetableEntry objects
-        view_type: 'class' or 'faculty'
-        faculty_id: Required for faculty view to determine assistant role
-    
-    Returns:
-        List of dicts with structure:
-        [{
-            'period_number': 1,
-            'period_time': '09:00',
-            'days': [
-                {
-                    'day_code': 'MON',
-                    'has_entry': True/False,
-                    'display_line1': 'CS201',
-                    'display_line2': 'Dr. Kumar',
-                    'display_line3': '+ Asst',
-                    'css_class': 'theory-cell' or 'lab-cell' or 'empty-cell'
-                },
-                ...
-            ]
-        }, ...]
+    Returns dict with grid AND legend data.
     """
     days = ['MON', 'TUE', 'WED', 'THU', 'FRI']
     periods = range(1, 8)
     
-    # Get period times from database (no hardcoding)
+    # Get period times from database
     period_times = _get_period_times()
     
     # Build grid data
     grid_data = []
+    
+    # Track subjects/faculty for legend
+    legend_map = {} # code -> {name, abbreviation, faculty_list}
     
     for period in periods:
         period_row = {
@@ -1327,18 +1406,16 @@ def _build_timetable_grid(entries, view_type, faculty_id=None):
         }
         
         for day in days:
-            # Initialize empty cell
             cell = {
                 'day_code': day,
                 'has_entry': False,
-                'display_line1': '',
-                'display_line2': '',
-                'display_line3': '',
+                'display_line1': '', # Abbreviation
+                'display_line2': '', # Faculty Initials
+                'display_line3': '', # Assistant Initials
                 'tooltip': '',
                 'css_class': 'empty-cell'
             }
             
-            # Find entry for this day/period
             matching_entry = None
             for entry in entries:
                 if entry.time_slot.day == day and entry.time_slot.period == period:
@@ -1346,25 +1423,44 @@ def _build_timetable_grid(entries, view_type, faculty_id=None):
                     break
             
             if matching_entry:
+                subj = matching_entry.subject
+                abbr = subj.short_code or subj.code
+                fac_name = matching_entry.faculty.name
+                
+                # Update legend map (keeping it for reference)
+                if subj.code not in legend_map:
+                    legend_map[subj.code] = {
+                        'code': subj.code,
+                        'name': subj.name,
+                        'abbr': abbr,
+                        'faculty_data': []
+                    }
+                
+                if fac_name not in [f['name'] for f in legend_map[subj.code]['faculty_data']]:
+                    legend_map[subj.code]['faculty_data'].append({'name': fac_name, 'initials': _get_faculty_initials(fac_name)})
+                
+                if matching_entry.assistant_faculty:
+                    asst_name = matching_entry.assistant_faculty.name
+                    if asst_name not in [f['name'] for f in legend_map[subj.code]['faculty_data']]:
+                        legend_map[subj.code]['faculty_data'].append({'name': asst_name, 'initials': _get_faculty_initials(asst_name)})
+
                 if view_type == 'class':
-                    # Class view: Show subject + faculty
                     cell.update({
                         'has_entry': True,
-                        'display_line1': matching_entry.subject.code,
-                        'display_line2': matching_entry.faculty.name,
-                        'display_line3': f'+ {matching_entry.assistant_faculty.name}' if matching_entry.assistant_faculty else '',
-                        'tooltip': matching_entry.subject.name,
+                        'display_line1': subj.name,
+                        'display_line2': fac_name,
+                        'display_line3': f"& {matching_entry.assistant_faculty.name}" if matching_entry.assistant_faculty else "",
+                        'tooltip': f"{subj.code}: {subj.name}",
                         'css_class': 'lab-cell' if matching_entry.is_lab_session else 'theory-cell'
                     })
                 else:
-                    # Faculty view: Show subject + class they're teaching
                     is_assistant = matching_entry.assistant_faculty_id and str(matching_entry.assistant_faculty_id) == str(faculty_id)
                     cell.update({
                         'has_entry': True,
-                        'display_line1': matching_entry.subject.code,
+                        'display_line1': subj.name,
                         'display_line2': str(matching_entry.class_section),
-                        'display_line3': '(Assistant)' if is_assistant else '',
-                        'tooltip': f'{matching_entry.subject.name} - {matching_entry.class_section}',
+                        'display_line3': '(Asst)' if is_assistant else '',
+                        'tooltip': f"{subj.code}: {subj.name}",
                         'css_class': 'lab-cell' if matching_entry.is_lab_session else 'theory-cell'
                     })
             
@@ -1372,7 +1468,25 @@ def _build_timetable_grid(entries, view_type, faculty_id=None):
         
         grid_data.append(period_row)
     
-    return grid_data
+    # Format legend for template
+    legend_list = []
+    for code, data in sorted(legend_map.items()):
+        # Join multiple faculty with comma or slash
+        fac_init_str = "/".join([f['initials'] for f in data['faculty_data']])
+        fac_name_str = ", ".join([f['name'] for f in data['faculty_data']])
+        
+        legend_list.append({
+            'code': code,
+            'name': data['name'],
+            'abbr': data['abbr'],
+            'fac_initials': fac_init_str,
+            'fac_names': fac_name_str
+        })
+    
+    return {
+        'grid': grid_data,
+        'legend': legend_list
+    }
 
 
 def _get_period_times():
