@@ -995,17 +995,17 @@ def _create_time_slots():
     days = ['MON', 'TUE', 'WED', 'THU', 'FRI']
     
     # Define slot structure: (period, start, end, type)
-    # period=0 for non-teaching slots (lunch, recess)
+    # Use negative period numbers for breaks to avoid conflicts with teaching periods
     # Teaching periods: 1-7
     slot_structure = [
         (1, time(8, 45), time(9, 30), 'MORNING'),      # Period 1: 45 min
         (2, time(9, 30), time(10, 25), 'MORNING'),     # Period 2: 55 min
-        (0, time(10, 25), time(10, 35), 'RECESS'),     # Recess 1: 10 min
+        (-1, time(10, 25), time(10, 35), 'RECESS'),    # Recess 1: 10 min
         (3, time(10, 35), time(11, 30), 'MORNING'),    # Period 3: 55 min
         (4, time(11, 30), time(12, 20), 'MORNING'),    # Period 4: 50 min
-        (0, time(12, 20), time(13, 5), 'LUNCH'),       # Lunch: 45 min (Non-teaching)
+        (0, time(12, 20), time(13, 5), 'LUNCH'),       # Lunch: 45 min (period 0)
         (5, time(13, 5), time(13, 55), 'AFTERNOON'),   # Period 5: 50 min
-        (0, time(13, 55), time(14, 5), 'RECESS'),      # Recess 2: 10 min
+        (-2, time(13, 55), time(14, 5), 'RECESS'),     # Recess 2: 10 min
         (6, time(14, 5), time(14, 55), 'AFTERNOON'),   # Period 6: 50 min
         (7, time(14, 55), time(15, 45), 'AFTERNOON'),  # Period 7: 50 min
     ]
