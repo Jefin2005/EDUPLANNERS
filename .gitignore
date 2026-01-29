@@ -4,3 +4,4 @@ __pycache__/
 
 # Django database
 db.sqlite3
+
