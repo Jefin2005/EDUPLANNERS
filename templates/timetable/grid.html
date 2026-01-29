@@ -20,12 +20,16 @@
                 {% for cell in period_row.days %}
                 <td class="{{ cell.css_class }}" title="{{ cell.tooltip }}">
                     {% if cell.has_entry %}
-                    <div class="timetable-cell">
-                        <span class="subject-code">{{ cell.display_line1 }}</span>
-                        <span class="faculty-name">{{ cell.display_line2 }}</span>
-                        {% if cell.display_line3 %}
-                        <small class="text-warning">{{ cell.display_line3 }}</small>
-                        {% endif %}
+                    <div class="timetable-cell text-center py-1">
+                        <div class="fw-bold"
+                            style="font-size: 0.95rem; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
+                            {{ cell.display_line1 }}</div>
+                        <div class="text-muted small mt-1" style="font-size: 0.8rem; line-height: 1.1;">
+                            {{ cell.display_line2 }}
+                            {% if cell.display_line3 %}
+                            <br><span class="text-primary">{{ cell.display_line3 }}</span>
+                            {% endif %}
+                        </div>
                     </div>
                     {% endif %}
                 </td>
@@ -36,16 +40,47 @@
     </table>
 </div>
 
-<!-- Legend -->
+<!-- Legend Table -->
+{% if legend %}
+<div class="mt-5">
+    <h5 class="fw-bold mb-3">Course & Faculty Details</h5>
+    <div class="table-responsive">
+        <table class="table table-sm table-bordered bg-white shadow-sm" style="font-size: 0.9rem;">
+            <thead class="bg-light">
+                <tr>
+                    <th class="py-2 px-3 text-center" style="width: 100px;">Abbreviation</th>
+                    <th class="py-2 px-3" style="width: 120px;">Course Code</th>
+                    <th class="py-2 px-3">Course Name</th>
+                    <th class="py-2 px-3 text-center" style="width: 100px;">Initials</th>
+                    <th class="py-2 px-3">Name of Faculty</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in legend %}
+                <tr>
+                    <td class="py-2 px-3 fw-bold text-center text-primary">{{ item.abbr }}</td>
+                    <td class="py-2 px-3 text-nowrap">{{ item.code }}</td>
+                    <td class="py-2 px-3">{{ item.name }}</td>
+                    <td class="py-2 px-3 text-center fw-bold">{{ item.fac_initials }}</td>
+                    <td class="py-2 px-3 text-muted">{{ item.fac_names }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Legend Color Guide -->
 <div class="mt-4 d-flex gap-4 flex-wrap">
     <div class="d-flex align-items-center">
         <div style="width: 24px; height: 24px; background: rgba(102, 126, 234, 0.15); border-radius: 6px;" class="me-2">
         </div>
-        <span class="text-muted">Theory Subject</span>
+        <span class="text-muted small">Theory Subject</span>
     </div>
     <div class="d-flex align-items-center">
         <div style="width: 24px; height: 24px; background: rgba(17, 153, 142, 0.2); border-radius: 6px;" class="me-2">
         </div>
-        <span class="text-muted">Lab Session</span>
+        <span class="text-muted small">Lab Session</span>
     </div>
 </div>

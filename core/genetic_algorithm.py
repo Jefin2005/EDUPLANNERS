@@ -259,17 +259,23 @@ class GeneticAlgorithm:
     def _get_eligible_faculty_for_subject(self, subject_id: int) -> List[int]:
         """Get faculty IDs who can teach a subject based on preferences and capacity"""
         subject = self.subject_info.get(subject_id, {})
-        eligible = []
+        subject_code = subject.get('code', '')
         
+        # First priority: faculty who explicitly prefer this subject
+        preferred_faculty = []
         for faculty in self.faculties:
-            # Check if faculty prefers this subject
             preferences = self.faculty_preferences.get(faculty['id'], [])
-            subject_code = subject.get('code', '')
-            
-            if subject_code in preferences or not preferences:
-                eligible.append(faculty['id'])
+            if subject_code in preferences:
+                preferred_faculty.append(faculty['id'])
         
-        return eligible if eligible else [f['id'] for f in self.faculties]
+        # If any faculty explicitly prefers this subject, use only them
+        if preferred_faculty:
+            return preferred_faculty
+        
+        # Otherwise, ALL faculty are eligible (allows even distribution)
+        # This ensures subjects without specific preferences get assigned
+        # to different faculty members rather than just one
+        return [f['id'] for f in self.faculties]
     
     def calculate_fitness(self, chromosome: Chromosome) -> float:
         """Calculate fitness score for a chromosome"""
@@ -554,7 +560,23 @@ def generate_timetable(semester_id: int, semester_instance: str):
     
     subjects = list(Subject.objects.filter(
         semester_id=semester_id
-    ).values('id', 'name', 'code', 'subject_type', 'hours_per_week', 'semester_id'))
+    ).values('id', 'name', 'code', 'subject_type', 'lecture_hours', 'tutorial_hours', 'practical_hours', 'semester_id'))
+    
+    # Compute hours_per_week in Python (cannot use @property in .values())
+    valid_subjects = []
+    for subject in subjects:
+        total_hours = subject['lecture_hours'] + subject['tutorial_hours'] + subject['practical_hours']
+        subject['hours_per_week'] = total_hours
+        
+        if total_hours == 0:
+            print(f"WARNING: Subject {subject['code']} ({subject['name']}) has zero total hours - skipping from timetable generation")
+        else:
+            valid_subjects.append(subject)
+    
+    # Replace subjects list with filtered valid subjects
+    if len(valid_subjects) < len(subjects):
+        print(f"Skipped {len(subjects) - len(valid_subjects)} subject(s) with zero hours")
+    subjects = valid_subjects
     
     faculties = list(Faculty.objects.filter(
         is_active=True
@@ -723,7 +745,23 @@ def generate_department_timetable(department_id: int, semester_instance: str):
     # Get ALL subjects across all semesters in this department
     subjects = list(Subject.objects.filter(
         semester_id__in=semester_ids
-    ).values('id', 'name', 'code', 'subject_type', 'hours_per_week', 'semester_id'))
+    ).values('id', 'name', 'code', 'subject_type', 'lecture_hours', 'tutorial_hours', 'practical_hours', 'semester_id'))
+    
+    # Compute hours_per_week in Python (cannot use @property in .values())
+    valid_subjects = []
+    for subject in subjects:
+        total_hours = subject['lecture_hours'] + subject['tutorial_hours'] + subject['practical_hours']
+        subject['hours_per_week'] = total_hours
+        
+        if total_hours == 0:
+            print(f"WARNING: Subject {subject['code']} ({subject['name']}) has zero total hours - skipping from timetable generation")
+        else:
+            valid_subjects.append(subject)
+    
+    # Replace subjects list with filtered valid subjects
+    if len(valid_subjects) < len(subjects):
+        print(f"Skipped {len(subjects) - len(valid_subjects)} subject(s) with zero hours")
+    subjects = valid_subjects
     
     if not subjects:
         return {
