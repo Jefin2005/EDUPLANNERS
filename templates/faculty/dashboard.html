@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Faculty Dashboard - EDUPLANNER{% endblock %}
+{% block title %}Teacher Dashboard - EDUPLANNER{% endblock %}
 
 {% block content %}
 <div class="container py-4">
@@ -11,14 +11,14 @@
             <div class="card card-custom p-4 mb-4">
                 <div class="text-center mb-3">
                     <div class="rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3"
-                        style="width: 80px; height: 80px; background: var(--primary-gradient); font-size: 2rem;">
+                        style="width: 80px; height: 80px; background: var(--primary-gradient); font-size: 2rem; color: #fff;">
                         {{ faculty.name|slice:":1" }}
                     </div>
                     <h4 class="fw-bold mb-1">{{ faculty.name }}</h4>
                     <p class="text-muted mb-0">{{ faculty.get_designation_display }}</p>
                 </div>
 
-                <hr style="border-color: rgba(255,255,255,0.1);">
+                <hr style="border-color: var(--border-color);">
 
                 <div class="mb-3">
                     <small class="text-muted d-block">Email</small>
@@ -26,7 +26,7 @@
                 </div>
 
                 <div class="mb-3">
-                    <small class="text-muted d-block">Semester</small>
+                    <small class="text-muted d-block">Current Semester</small>
                     <span class="badge badge-gradient">{{ config.get_semester_instance }}</span>
                 </div>
             </div>
@@ -42,7 +42,7 @@
                         <span>Current Load</span>
                         <span class="fw-bold">{{ faculty.current_workload }} / {{ faculty.max_hours }} hrs</span>
                     </div>
-                    <div class="progress" style="height: 10px; background: rgba(255,255,255,0.1);">
+                    <div class="progress" style="height: 10px; background: var(--bg-secondary);">
                         {% widthratio faculty.current_workload faculty.max_hours 100 as pct %}
                         <div class="progress-bar"
                             style="width: {{ pct|default:0 }}%; background: var(--primary-gradient);"></div>
@@ -51,13 +51,13 @@
 
                 <div class="row text-center">
                     <div class="col-6">
-                        <div class="p-2" style="background: rgba(255,255,255,0.05); border-radius: 8px;">
+                        <div class="p-2" style="background: var(--bg-secondary); border-radius: 8px;">
                             <h4 class="mb-0">{{ faculty.max_hours }}</h4>
                             <small class="text-muted">Max Hours</small>
                         </div>
                     </div>
                     <div class="col-6">
-                        <div class="p-2" style="background: rgba(255,255,255,0.05); border-radius: 8px;">
+                        <div class="p-2" style="background: var(--bg-secondary); border-radius: 8px;">
                             <h4 class="mb-0">{{ faculty.available_hours }}</h4>
                             <small class="text-muted">Available</small>
                         </div>
@@ -90,7 +90,7 @@
             <div class="card card-custom p-4">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h4 class="fw-bold mb-0">
-                        <i class="bi bi-calendar-week me-2"></i>My Timetable
+                        <i class="bi bi-calendar-week me-2"></i>My Weekly Timetable
                     </h4>
                     <a href="{% url 'export_timetable_pdf' %}?type=faculty&id={{ faculty.id }}"
                         class="btn btn-outline-light">
@@ -98,6 +98,7 @@
                     </a>
                 </div>
 
+                {% if has_timetable %}
                 <div class="table-responsive">
                     <table class="table timetable-grid mb-0">
                         <thead>
@@ -109,53 +110,22 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for period in periods %}
+                            {% for row in timetable_rows %}
                             <tr>
-                                <td class="fw-bold">P{{ period }}</td>
-                                {% for day in days %}
+                                <td class="fw-bold">P{{ row.period }}</td>
+                                {% for cell in row.cells %}
                                 <td>
-                                    {% with cell=timetable_grid|default:dict %}
-                                    {% if cell %}
-                                    {% with entry=cell|default:dict %}
-                                    {% if entry %}
-                                    {% with slot_entry=entry|default:dict %}
-                                    {% if slot_entry %}
-                                    <div
-                                        class="timetable-cell {% if slot_entry.is_lab %}lab{% else %}theory{% endif %}">
-                                        <span class="subject-code">
-                                            {% if timetable_grid %}
-                                            {% for d, periods_dict in timetable_grid.items %}
-                                            {% if d == day %}
-                                            {% for p, slot in periods_dict.items %}
-                                            {% if p == period and slot %}
-                                            {{ slot.subject }}
-                                            {% if slot.type == 'assistant' %}
-                                            <small class="text-warning">(Asst.)</small>
-                                            {% endif %}
-                                            {% endif %}
-                                            {% endfor %}
-                                            {% endif %}
-                                            {% endfor %}
-                                            {% endif %}
-                                        </span>
-                                        <span class="faculty-name">
-                                            {% for d, periods_dict in timetable_grid.items %}
-                                            {% if d == day %}
-                                            {% for p, slot in periods_dict.items %}
-                                            {% if p == period and slot %}
-                                            {{ slot.class }}
-                                            {% endif %}
-                                            {% endfor %}
-                                            {% endif %}
-                                            {% endfor %}
-                                        </span>
+                                    {% if cell.has_class %}
+                                    <div class="timetable-cell {% if cell.is_lab %}lab{% else %}theory{% endif %}">
+                                        <div class="fw-bold">{{ cell.subject }}</div>
+                                        <small>{{ cell.class_name }}</small>
+                                        {% if cell.is_assistant %}
+                                        <small class="text-warning d-block">(Assistant)</small>
+                                        {% endif %}
                                     </div>
+                                    {% else %}
+                                    <span class="text-muted">—</span>
                                     {% endif %}
-                                    {% endwith %}
-                                    {% endif %}
-                                    {% endwith %}
-                                    {% endif %}
-                                    {% endwith %}
                                 </td>
                                 {% endfor %}
                             </tr>
@@ -166,16 +136,23 @@
 
                 <div class="mt-3 d-flex gap-3">
                     <div class="d-flex align-items-center">
-                        <div style="width: 20px; height: 20px; background: rgba(102, 126, 234, 0.15); border-radius: 4px;"
+                        <div style="width: 20px; height: 20px; background: var(--primary-light); border-radius: 4px;"
                             class="me-2"></div>
                         <small class="text-muted">Theory</small>
                     </div>
                     <div class="d-flex align-items-center">
-                        <div style="width: 20px; height: 20px; background: rgba(17, 153, 142, 0.2); border-radius: 4px;"
+                        <div style="width: 20px; height: 20px; background: var(--success-light); border-radius: 4px;"
                             class="me-2"></div>
                         <small class="text-muted">Lab</small>
                     </div>
                 </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-calendar-x display-3 text-muted d-block mb-3"></i>
+                    <h5 class="text-muted">No timetable generated yet</h5>
+                    <p class="text-muted">Your timetable will appear here once the admin generates it.</p>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>

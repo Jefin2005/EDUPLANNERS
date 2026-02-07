@@ -25,9 +25,12 @@ urlpatterns = [
     path('manage/generate-timetable/', views.generate_timetable_view, name='generate_timetable'),
     path('manage/init-slots/', views.initialize_time_slots, name='init_time_slots'),
     
-    # Faculty Dashboard
-    path('faculty/', views.faculty_dashboard, name='faculty_dashboard'),
-    path('faculty/preferences/', views.update_preferences, name='update_preferences'),
+    # Teacher Dashboard
+    path('teacher/', views.teacher_dashboard, name='teacher_dashboard'),
+    path('teacher/preferences/', views.update_preferences, name='update_preferences'),
+    
+    # Student Dashboard
+    path('student/', views.student_dashboard, name='student_dashboard'),
     
     # Timetable Views
     path('timetable/', views.timetable_view, name='timetable_view'),

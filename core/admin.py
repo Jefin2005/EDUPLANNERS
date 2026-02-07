@@ -1,8 +1,31 @@
 from django.contrib import admin
 from .models import (
-    Department, Semester, ClassSection, Faculty, Subject,
+    UserProfile, Department, Semester, ClassSection, Faculty, Subject,
     FacultySubjectAssignment, TimeSlot, TimetableEntry, SystemConfiguration
 )
+
+
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    """Admin interface for managing user profiles and roles"""
+    list_display = ['user', 'role', 'created_at', 'updated_at']
+    list_filter = ['role', 'created_at']
+    search_fields = ['user__username', 'user__email', 'user__first_name', 'user__last_name']
+    raw_id_fields = ['user']
+    readonly_fields = ['created_at', 'updated_at']
+    
+    fieldsets = (
+        ('User Information', {
+            'fields': ('user',)
+        }),
+        ('Role', {
+            'fields': ('role',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
 
 
 @admin.register(Department)

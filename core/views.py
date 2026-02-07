@@ -28,22 +28,57 @@ def home(request):
 # ============ AUTHENTICATION ============
 
 def login_view(request):
-    """Login page for faculty"""
+    """Login page with role-based authentication"""
     if request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
+        role = request.POST.get('role')  # Get selected role from login form
+        
+        # Validate that role was selected
+        if not role:
+            messages.error(request, 'Please select a role to login.')
+            return render(request, 'login.html')
+        
         user = authenticate(request, username=username, password=password)
         
         if user is not None:
-            login(request, user)
-            # Check if admin or faculty
-            if user.is_staff:
+            # Handle superuser login
+            if user.is_superuser:
+                # Superuser can only login as ADMIN
+                if role != 'ADMIN':
+                    messages.error(request, 'Superuser accounts can only login as Admin.')
+                    return render(request, 'login.html')
+                login(request, user)
                 return redirect('admin_dashboard')
-            return redirect('faculty_dashboard')
+            
+            # Check if user has profile
+            if not hasattr(user, 'profile'):
+                messages.error(request, 'User profile not found. Please contact administrator.')
+                return render(request, 'login.html')
+            
+            # Verify selected role matches user's actual role
+            if user.profile.role != role:
+                role_display = dict(user.profile.ROLE_CHOICES).get(user.profile.role, 'Unknown')
+                messages.error(request, f'Invalid role selection. You are registered as {role_display}.')
+                return render(request, 'login.html')
+            
+            # Login successful - redirect based on role
+            login(request, user)
+            
+            if role == 'ADMIN':
+                return redirect('admin_dashboard')
+            elif role == 'TEACHER':
+                return redirect('teacher_dashboard')
+            elif role == 'STUDENT':
+                return redirect('student_dashboard')
+            else:
+                messages.error(request, 'Invalid role.')
+                return render(request, 'login.html')
         else:
-            messages.error(request, 'Invalid username or password')
+            messages.error(request, 'Invalid username or password.')
     
     return render(request, 'login.html')
+
 
 
 def logout_view(request):
@@ -52,15 +87,13 @@ def logout_view(request):
     return redirect('home')
 
 
+from .decorators import role_required
+
 # ============ ADMIN DASHBOARD ============
 
-@login_required
+@role_required('ADMIN')
 def admin_dashboard(request):
     """Main admin dashboard"""
-    if not request.user.is_staff:
-        messages.error(request, 'Access denied. Admin privileges required.')
-        return redirect('home')
-    
     config = SystemConfiguration.objects.first()
     if not config:
         config = SystemConfiguration.objects.create()
@@ -87,11 +120,9 @@ def admin_dashboard(request):
     return render(request, 'admin/dashboard.html', context)
 
 
-@login_required
+@role_required('ADMIN')
 def manage_departments(request):
     """Manage departments"""
-    if not request.user.is_staff:
-        return redirect('home')
     
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -150,11 +181,9 @@ def get_department_choices(request):
     })
 
 
-@login_required
+@role_required('ADMIN')
 def add_department(request):
     """Add or edit a department - dedicated page with fixed department selection"""
-    if not request.user.is_staff:
-        return redirect('home')
     
     errors = {}
     form_data = {}
@@ -227,11 +256,9 @@ def add_department(request):
     })
 
 
-@login_required
+@role_required('ADMIN')
 def manage_semesters(request):
     """Manage semesters and classes"""
-    if not request.user.is_staff:
-        return redirect('home')
     
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -268,13 +295,10 @@ def manage_semesters(request):
     return render(request, 'admin/semesters.html', {'departments': departments})
 
 
-@login_required
+@role_required('ADMIN')
 def add_semester(request):
     """Add a new semester with classes - dedicated page"""
     from django.db import transaction
-    
-    if not request.user.is_staff:
-        return redirect('home')
     
     errors = {}
     form_data = {}
@@ -384,11 +408,9 @@ def add_semester(request):
     })
 
 
-@login_required
+@role_required('ADMIN')
 def add_class(request):
     """Add a new class section - dedicated page"""
-    if not request.user.is_staff:
-        return redirect('home')
     
     if request.method == 'POST':
         semester_id = request.POST.get('semester_id')
@@ -418,11 +440,9 @@ def add_class(request):
     })
 
 
-@login_required
+@role_required('ADMIN')
 def manage_faculty(request):
     """Manage faculty members"""
-    if not request.user.is_staff:
-        return redirect('home')
     
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -550,11 +570,9 @@ def manage_faculty(request):
     })
 
 
-@login_required
+@role_required('ADMIN')
 def manage_subjects(request):
     """Manage subjects with department and semester filtering"""
-    if not request.user.is_staff:
-        return redirect('home')
     
     # Handle delete action
     if request.method == 'POST':
@@ -661,11 +679,9 @@ def manage_subjects(request):
     })
 
 
-@login_required
+@role_required('ADMIN')
 def add_subject(request):
     """Add a new subject - supports context-aware pre-filling via query params"""
-    if not request.user.is_staff:
-        return redirect('home')
     
     # Get system configuration to determine active semester type
     config = SystemConfiguration.objects.first()
@@ -786,11 +802,9 @@ def add_subject(request):
     })
 
 
-@login_required
+@role_required('ADMIN')
 def edit_subject(request, subject_id):
     """Edit an existing subject"""
-    if not request.user.is_staff:
-        return redirect('home')
     
     subject = get_object_or_404(Subject, id=subject_id)
     
@@ -1083,11 +1097,11 @@ def _create_time_slots():
             )
 
 
-# ============ FACULTY DASHBOARD ============
+# ============ TEACHER DASHBOARD ============
 
-@login_required
-def faculty_dashboard(request):
-    """Faculty dashboard - view timetable and manage preferences"""
+@role_required('TEACHER')
+def teacher_dashboard(request):
+    """Teacher dashboard - view timetable and manage preferences"""
     try:
         faculty = Faculty.objects.get(user=request.user)
     except Faculty.DoesNotExist:
@@ -1109,16 +1123,16 @@ def faculty_dashboard(request):
         semester_instance=semester_instance
     ).select_related('class_section', 'subject', 'time_slot')
     
-    # Build timetable grid
+    # Build lookup dictionary for fast access
     days = ['MON', 'TUE', 'WED', 'THU', 'FRI']
-    periods = range(1, 8)
+    periods = list(range(1, 8))
     
-    timetable_grid = {day: {p: None for p in periods} for day in days}
+    # Create lookup dictionary: (day, period) -> entry data
+    slot_lookup = {}
     
     for entry in entries:
-        day = entry.time_slot.day
-        period = entry.time_slot.period
-        timetable_grid[day][period] = {
+        key = (entry.time_slot.day, entry.time_slot.period)
+        slot_lookup[key] = {
             'subject': entry.subject.code,
             'class': str(entry.class_section),
             'type': 'main',
@@ -1126,27 +1140,50 @@ def faculty_dashboard(request):
         }
     
     for entry in assistant_entries:
-        day = entry.time_slot.day
-        period = entry.time_slot.period
-        if timetable_grid[day][period] is None:
-            timetable_grid[day][period] = {
+        key = (entry.time_slot.day, entry.time_slot.period)
+        if key not in slot_lookup:  # Only add if not already filled
+            slot_lookup[key] = {
                 'subject': entry.subject.code,
                 'class': str(entry.class_section),
                 'type': 'assistant',
                 'is_lab': entry.is_lab_session
             }
     
+    # Build complete grid as list of rows for easy template iteration
+    timetable_rows = []
+    for period in periods:
+        row = {
+            'period': period,
+            'cells': []
+        }
+        for day in days:
+            cell_data = slot_lookup.get((day, period))
+            if cell_data:
+                row['cells'].append({
+                    'has_class': True,
+                    'subject': cell_data['subject'],
+                    'class_name': cell_data['class'],
+                    'is_lab': cell_data['is_lab'],
+                    'is_assistant': cell_data['type'] == 'assistant'
+                })
+            else:
+                row['cells'].append({
+                    'has_class': False
+                })
+        timetable_rows.append(row)
+    
     context = {
         'faculty': faculty,
-        'timetable_grid': timetable_grid,
+        'timetable_rows': timetable_rows,
         'days': days,
-        'periods': periods,
         'config': config,
+        'has_timetable': bool(slot_lookup),
     }
     return render(request, 'faculty/dashboard.html', context)
 
 
-@login_required
+
+@role_required('TEACHER')
 @require_POST
 def update_preferences(request):
     """Update faculty preferences"""
@@ -1162,7 +1199,25 @@ def update_preferences(request):
     return JsonResponse({'success': True})
 
 
+# ============ STUDENT DASHBOARD ============
+
+@role_required('STUDENT')
+def student_dashboard(request):
+    """Student dashboard - view timetable and announcements"""
+    config = SystemConfiguration.objects.first()
+    
+    # For now, students will see a placeholder dashboard
+    # Future enhancement: Link students to ClassSection model to show their timetable
+    
+    context = {
+        'config': config,
+        'user': request.user,
+    }
+    return render(request, 'student/dashboard.html', context)
+
+
 # ============ TIMETABLE VIEWS ============
+
 
 def timetable_view(request):
     """View timetables - department-wise or faculty-wise (ALL LOGIC IN BACKEND)"""

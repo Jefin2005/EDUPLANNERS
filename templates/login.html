@@ -43,6 +43,28 @@
                         </div>
                     </div>
 
+                    <div class="mb-4">
+                        <label class="form-label">Login As</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="role" id="role-admin" value="ADMIN" required>
+                            <label class="btn btn-outline-primary" for="role-admin">
+                                <i class="bi bi-shield-check me-2"></i>Admin
+                            </label>
+
+                            <input type="radio" class="btn-check" name="role" id="role-teacher" value="TEACHER"
+                                required>
+                            <label class="btn btn-outline-primary" for="role-teacher">
+                                <i class="bi bi-person-badge me-2"></i>Teacher
+                            </label>
+
+                            <input type="radio" class="btn-check" name="role" id="role-student" value="STUDENT"
+                                required>
+                            <label class="btn btn-outline-primary" for="role-student">
+                                <i class="bi bi-person me-2"></i>Student
+                            </label>
+                        </div>
+                    </div>
+
                     <button type="submit" class="btn btn-gradient w-100 py-2">
                         <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
                     </button>
