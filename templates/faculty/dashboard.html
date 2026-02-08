@@ -93,66 +93,69 @@
                         <i class="bi bi-calendar-week me-2"></i>My Weekly Timetable
                     </h4>
                     <a href="{% url 'export_timetable_pdf' %}?type=faculty&id={{ faculty.id }}"
-                        class="btn btn-outline-light">
+                        class="btn btn-outline-light" id="export-btn" style="display: none;">
                         <i class="bi bi-download me-2"></i>Export PDF
                     </a>
                 </div>
 
-                {% if has_timetable %}
-                <div class="table-responsive">
-                    <table class="table timetable-grid mb-0">
-                        <thead>
-                            <tr>
-                                <th style="width: 80px;">Period</th>
-                                {% for day in days %}
-                                <th>{{ day }}</th>
-                                {% endfor %}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for row in timetable_rows %}
-                            <tr>
-                                <td class="fw-bold">P{{ row.period }}</td>
-                                {% for cell in row.cells %}
-                                <td>
-                                    {% if cell.has_class %}
-                                    <div class="timetable-cell {% if cell.is_lab %}lab{% else %}theory{% endif %}">
-                                        <div class="fw-bold">{{ cell.subject }}</div>
-                                        <small>{{ cell.class_name }}</small>
-                                        {% if cell.is_assistant %}
-                                        <small class="text-warning d-block">(Assistant)</small>
-                                        {% endif %}
-                                    </div>
-                                    {% else %}
-                                    <span class="text-muted">—</span>
-                                    {% endif %}
-                                </td>
-                                {% endfor %}
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                <!-- Loading State -->
+                <div id="loading-state" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="text-muted mt-3">Loading your timetable...</p>
                 </div>
 
-                <div class="mt-3 d-flex gap-3">
-                    <div class="d-flex align-items-center">
-                        <div style="width: 20px; height: 20px; background: var(--primary-light); border-radius: 4px;"
-                            class="me-2"></div>
-                        <small class="text-muted">Theory</small>
-                    </div>
-                    <div class="d-flex align-items-center">
-                        <div style="width: 20px; height: 20px; background: var(--success-light); border-radius: 4px;"
-                            class="me-2"></div>
-                        <small class="text-muted">Lab</small>
-                    </div>
+                <!-- Error State -->
+                <div id="error-state" class="text-center py-5" style="display: none;">
+                    <i class="bi bi-exclamation-triangle display-3 text-danger d-block mb-3"></i>
+                    <h5 class="text-muted">Failed to load timetable</h5>
+                    <p class="text-muted" id="error-message">An error occurred while fetching your timetable.</p>
+                    <button class="btn btn-gradient mt-3" onclick="loadTimetable()">
+                        <i class="bi bi-arrow-clockwise me-2"></i>Retry
+                    </button>
                 </div>
-                {% else %}
-                <div class="text-center py-5">
+
+                <!-- Empty State -->
+                <div id="empty-state" class="text-center py-5" style="display: none;">
                     <i class="bi bi-calendar-x display-3 text-muted d-block mb-3"></i>
-                    <h5 class="text-muted">No timetable generated yet</h5>
+                    <h5 class="text-muted">No timetable assigned yet</h5>
                     <p class="text-muted">Your timetable will appear here once the admin generates it.</p>
                 </div>
-                {% endif %}
+
+                <!-- Timetable Grid -->
+                <div id="timetable-container" style="display: none;">
+                    <div class="table-responsive">
+                        <table class="table timetable-grid mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width: 100px;">Period</th>
+                                    <th>MON</th>
+                                    <th>TUE</th>
+                                    <th>WED</th>
+                                    <th>THU</th>
+                                    <th>FRI</th>
+                                </tr>
+                            </thead>
+                            <tbody id="timetable-body">
+                                <!-- Populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="mt-3 d-flex gap-3">
+                        <div class="d-flex align-items-center">
+                            <div style="width: 20px; height: 20px; background: var(--primary-light); border-radius: 4px;"
+                                class="me-2"></div>
+                            <small class="text-muted">Theory</small>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <div style="width: 20px; height: 20px; background: var(--success-light); border-radius: 4px;"
+                                class="me-2"></div>
+                            <small class="text-muted">Lab</small>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -161,6 +164,7 @@
 
 {% block extra_js %}
 <script>
+    // Preferences form handler
     document.getElementById('preferences-form').addEventListener('submit', function (e) {
         e.preventDefault();
 
@@ -175,7 +179,113 @@
                 if (data.success) {
                     alert('Preferences saved successfully!');
                 }
+            })
+            .catch(error => {
+                alert('Failed to save preferences. Please try again.');
             });
     });
+
+    // Load timetable on page load
+    function loadTimetable() {
+        // Show loading state
+        document.getElementById('loading-state').style.display = 'block';
+        document.getElementById('error-state').style.display = 'none';
+        document.getElementById('empty-state').style.display = 'none';
+        document.getElementById('timetable-container').style.display = 'none';
+        document.getElementById('export-btn').style.display = 'none';
+
+        fetch('{% url "faculty_timetable_api" %}', {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to fetch timetable');
+                }
+                return response.json();
+            })
+            .then(data => {
+                document.getElementById('loading-state').style.display = 'none';
+
+                if (!data.success) {
+                    showError(data.error || 'Failed to load timetable');
+                    return;
+                }
+
+                if (!data.has_timetable) {
+                    document.getElementById('empty-state').style.display = 'block';
+                    return;
+                }
+
+                // Render timetable
+                renderTimetable(data);
+                document.getElementById('timetable-container').style.display = 'block';
+                document.getElementById('export-btn').style.display = 'inline-block';
+            })
+            .catch(error => {
+                document.getElementById('loading-state').style.display = 'none';
+                showError(error.message);
+            });
+    }
+
+    function showError(message) {
+        document.getElementById('error-state').style.display = 'block';
+        document.getElementById('error-message').textContent = message;
+    }
+
+    function renderTimetable(data) {
+        const tbody = document.getElementById('timetable-body');
+        tbody.innerHTML = ''; // Clear existing content
+
+        const periodTimes = data.period_times;
+        const timetable = data.timetable;
+
+        timetable.forEach(row => {
+            const tr = document.createElement('tr');
+
+            // Period column with time
+            const periodCell = document.createElement('td');
+            periodCell.className = 'fw-bold';
+            const periodTime = periodTimes[row.period] || '';
+            periodCell.innerHTML = `P${row.period}<br><small class="text-muted">${periodTime}</small>`;
+            tr.appendChild(periodCell);
+
+            // Day cells
+            row.cells.forEach(cell => {
+                const td = document.createElement('td');
+
+                if (cell.has_entry) {
+                    const cellDiv = document.createElement('div');
+                    cellDiv.className = `timetable-cell ${cell.is_lab ? 'lab' : 'theory'}`;
+
+                    let content = `<div class="fw-bold">${cell.subject_name}</div>`;
+                    content += `<small>${cell.class_section}</small>`;
+                    if (cell.room) {
+                        content += `<small class="d-block text-muted">Room: ${cell.room}</small>`;
+                    }
+                    if (cell.is_assistant) {
+                        content += `<small class="text-warning d-block">(Assistant)</small>`;
+                    }
+
+                    cellDiv.innerHTML = content;
+                    td.appendChild(cellDiv);
+                } else {
+                    const span = document.createElement('span');
+                    span.className = 'text-muted';
+                    span.textContent = '—';
+                    td.appendChild(span);
+                }
+
+                tr.appendChild(td);
+            });
+
+            tbody.appendChild(tr);
+        });
+    }
+
+    // Load timetable when page loads
+    document.addEventListener('DOMContentLoaded', loadTimetable);
 </script>
 {% endblock %}

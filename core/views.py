@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login, logout, authenticate
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_http_methods
 from django.db.models import Count, Q
 from collections import defaultdict
 import json
@@ -14,6 +14,7 @@ from .models import (
     FacultySubjectAssignment, TimeSlot, TimetableEntry, SystemConfiguration
 )
 from .genetic_algorithm import generate_timetable
+from .decorators import role_required
 
 
 def home(request):
@@ -1109,75 +1110,12 @@ def teacher_dashboard(request):
         return redirect('home')
     
     config = SystemConfiguration.objects.first()
-    semester_instance = config.get_semester_instance() if config else '2024-ODD'
     
-    # Get faculty's timetable entries
-    entries = TimetableEntry.objects.filter(
-        faculty=faculty,
-        semester_instance=semester_instance
-    ).select_related('class_section', 'subject', 'time_slot').order_by('time_slot')
-    
-    # Also get entries where faculty is assistant
-    assistant_entries = TimetableEntry.objects.filter(
-        assistant_faculty=faculty,
-        semester_instance=semester_instance
-    ).select_related('class_section', 'subject', 'time_slot')
-    
-    # Build lookup dictionary for fast access
-    days = ['MON', 'TUE', 'WED', 'THU', 'FRI']
-    periods = list(range(1, 8))
-    
-    # Create lookup dictionary: (day, period) -> entry data
-    slot_lookup = {}
-    
-    for entry in entries:
-        key = (entry.time_slot.day, entry.time_slot.period)
-        slot_lookup[key] = {
-            'subject': entry.subject.code,
-            'class': str(entry.class_section),
-            'type': 'main',
-            'is_lab': entry.is_lab_session
-        }
-    
-    for entry in assistant_entries:
-        key = (entry.time_slot.day, entry.time_slot.period)
-        if key not in slot_lookup:  # Only add if not already filled
-            slot_lookup[key] = {
-                'subject': entry.subject.code,
-                'class': str(entry.class_section),
-                'type': 'assistant',
-                'is_lab': entry.is_lab_session
-            }
-    
-    # Build complete grid as list of rows for easy template iteration
-    timetable_rows = []
-    for period in periods:
-        row = {
-            'period': period,
-            'cells': []
-        }
-        for day in days:
-            cell_data = slot_lookup.get((day, period))
-            if cell_data:
-                row['cells'].append({
-                    'has_class': True,
-                    'subject': cell_data['subject'],
-                    'class_name': cell_data['class'],
-                    'is_lab': cell_data['is_lab'],
-                    'is_assistant': cell_data['type'] == 'assistant'
-                })
-            else:
-                row['cells'].append({
-                    'has_class': False
-                })
-        timetable_rows.append(row)
-    
+    # Pass only faculty profile data
+    # Timetable is now fetched via API in the frontend
     context = {
         'faculty': faculty,
-        'timetable_rows': timetable_rows,
-        'days': days,
         'config': config,
-        'has_timetable': bool(slot_lookup),
     }
     return render(request, 'faculty/dashboard.html', context)
 
@@ -1197,6 +1135,163 @@ def update_preferences(request):
     faculty.save()
     
     return JsonResponse({'success': True})
+
+
+@role_required('TEACHER')
+def faculty_timetable_api(request):
+    """
+    API endpoint: GET /api/faculty/timetable/
+    
+    Returns the timetable for the authenticated faculty member.
+    Access control: Only TEACHER role can access, and faculty can only see their own timetable.
+    
+    Response format:
+    {
+        "success": true,
+        "faculty": {
+            "id": 1,
+            "name": "Dr. John Doe",
+            "designation": "Assistant Professor",
+            "department": "CS"
+        },
+        "period_times": {
+            "1": "08:45",
+            "2": "09:30",
+            ...
+        },
+        "timetable": [
+            {
+                "period": 1,
+                "cells": [
+                    {
+                        "day": "MON",
+                        "has_entry": true,
+                        "subject_code": "CS301",
+                        "subject_name": "Compiler Design",
+                        "class_section": "S5-A",
+                        "room": "101",
+                        "is_lab": false,
+                        "is_assistant": false
+                    },
+                    ...
+                ]
+            },
+            ...
+        ]
+    }
+    """
+    # Get faculty linked to authenticated user
+    try:
+        faculty = Faculty.objects.get(user=request.user)
+    except Faculty.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'No faculty profile linked to this account.'
+        }, status=404)
+    
+    # Get current semester instance
+    config = SystemConfiguration.objects.first()
+    semester_instance = config.get_semester_instance() if config else '2024-ODD'
+    
+    # Get faculty's timetable entries (both main and assistant)
+    main_entries = TimetableEntry.objects.filter(
+        faculty=faculty,
+        semester_instance=semester_instance
+    ).select_related('class_section', 'subject', 'time_slot', 'assistant_faculty')
+    
+    assistant_entries = TimetableEntry.objects.filter(
+        assistant_faculty=faculty,
+        semester_instance=semester_instance
+    ).select_related('class_section', 'subject', 'time_slot', 'faculty')
+    
+    # Build lookup dictionary: (day, period) -> entry data
+    days = ['MON', 'TUE', 'WED', 'THU', 'FRI']
+    periods = list(range(1, 8))
+    
+    slot_lookup = {}
+    
+    # Add main entries
+    for entry in main_entries:
+        key = (entry.time_slot.day, entry.time_slot.period)
+        slot_lookup[key] = {
+            'subject_code': entry.subject.code,
+            'subject_name': entry.subject.name,
+            'class_section': str(entry.class_section),
+            'room': entry.room or '',
+            'is_lab': entry.is_lab_session,
+            'is_assistant': False
+        }
+    
+    # Add assistant entries (if not already filled)
+    for entry in assistant_entries:
+        key = (entry.time_slot.day, entry.time_slot.period)
+        if key not in slot_lookup:
+            slot_lookup[key] = {
+                'subject_code': entry.subject.code,
+                'subject_name': entry.subject.name,
+                'class_section': str(entry.class_section),
+                'room': entry.room or '',
+                'is_lab': entry.is_lab_session,
+                'is_assistant': True
+            }
+    
+    # Get period times from database
+    period_times = {}
+    for period in periods:
+        try:
+            # Get first slot for this period (all days have same time)
+            time_slot = TimeSlot.objects.filter(period=period, is_teaching_slot=True).first()
+            if time_slot:
+                period_times[str(period)] = time_slot.start_time.strftime('%H:%M')
+        except TimeSlot.DoesNotExist:
+            period_times[str(period)] = ''
+    
+    # Build timetable grid structure
+    timetable_rows = []
+    for period in periods:
+        row = {
+            'period': period,
+            'cells': []
+        }
+        
+        for day in days:
+            cell_data = slot_lookup.get((day, period))
+            
+            if cell_data:
+                row['cells'].append({
+                    'day': day,
+                    'has_entry': True,
+                    'subject_code': cell_data['subject_code'],
+                    'subject_name': cell_data['subject_name'],
+                    'class_section': cell_data['class_section'],
+                    'room': cell_data['room'],
+                    'is_lab': cell_data['is_lab'],
+                    'is_assistant': cell_data['is_assistant']
+                })
+            else:
+                row['cells'].append({
+                    'day': day,
+                    'has_entry': False
+                })
+        
+        timetable_rows.append(row)
+    
+    # Build response
+    response_data = {
+        'success': True,
+        'faculty': {
+            'id': faculty.id,
+            'name': faculty.name,
+            'designation': faculty.get_designation_display(),
+            'department': faculty.department.code if faculty.department else 'N/A'
+        },
+        'period_times': period_times,
+        'timetable': timetable_rows,
+        'has_timetable': bool(slot_lookup)
+    }
+    
+    return JsonResponse(response_data)
+
 
 
 # ============ STUDENT DASHBOARD ============

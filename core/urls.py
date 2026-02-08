@@ -28,6 +28,7 @@ urlpatterns = [
     # Teacher Dashboard
     path('teacher/', views.teacher_dashboard, name='teacher_dashboard'),
     path('teacher/preferences/', views.update_preferences, name='update_preferences'),
+    path('api/faculty/timetable/', views.faculty_timetable_api, name='faculty_timetable_api'),
     
     # Student Dashboard
     path('student/', views.student_dashboard, name='student_dashboard'),
