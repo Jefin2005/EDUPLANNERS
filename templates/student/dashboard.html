@@ -12,7 +12,16 @@
             </h2>
             <p class="text-muted">Welcome back, {{ user.get_full_name|default:user.username }}!</p>
         </div>
-        <div class="col-auto">
+        <div class="col-auto d-flex gap-2">
+            {% if not student_profile.class_section %}
+            <button class="btn btn-primary-custom" data-bs-toggle="modal" data-bs-target="#classSetupModal">
+                <i class="bi bi-gear me-2"></i>Setup My Class
+            </button>
+            {% else %}
+            <button class="btn btn-outline-custom" data-bs-toggle="modal" data-bs-target="#classSetupModal">
+                <i class="bi bi-pencil me-2"></i>Change Class
+            </button>
+            {% endif %}
             <a href="{% url 'logout' %}" class="btn btn-outline-danger">
                 <i class="bi bi-box-arrow-right me-2"></i>Logout
             </a>
@@ -30,7 +39,7 @@
                         </div>
                         <div>
                             <h6 class="text-muted mb-1">Current Semester</h6>
-                            <h4 class="fw-bold mb-0">{{ config.active_semester_type }}</h4>
+                            <h4 class="fw-bold mb-0">{{ config.active_semester_type|default:"-" }}</h4>
                         </div>
                     </div>
                 </div>
@@ -46,7 +55,7 @@
                         </div>
                         <div>
                             <h6 class="text-muted mb-1">My Subjects</h6>
-                            <h4 class="fw-bold mb-0">-</h4>
+                            <h4 class="fw-bold mb-0">{{ subjects_count|default:"-" }}</h4>
                         </div>
                     </div>
                 </div>
@@ -78,7 +87,7 @@
                         </div>
                         <div>
                             <h6 class="text-muted mb-1">My Class</h6>
-                            <h4 class="fw-bold mb-0">-</h4>
+                            <h4 class="fw-bold mb-0" id="myClassDisplay">{{ class_display|default:"-" }}</h4>
                         </div>
                     </div>
                 </div>
@@ -86,7 +95,7 @@
         </div>
     </div>
 
-    <!-- Main Content -->
+    <!-- Main Content: Timetable -->
     <div class="row">
         <div class="col-md-12">
             <div class="card card-custom">
@@ -95,92 +104,313 @@
                         <i class="bi bi-calendar-week me-2"></i>My Timetable
                     </h5>
                 </div>
-                <div class="card-body text-center py-5">
-                    <div class="mb-4">
-                        <i class="bi bi-calendar3 display-3 text-primary d-block mb-3"></i>
-                        <h4 class="fw-bold">Timetable Coming Soon</h4>
+                <div class="card-body">
+                    {% if timetable_data %}
+                    <!-- Timetable Grid - Transposed: Days as rows, Periods as columns -->
+                    <div class="table-responsive">
+                        <table class="table table-bordered timetable-grid mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width: 100px;">Day</th>
+                                    {% for period in timetable_data.period_headers %}
+                                    <th class="text-center">
+                                        <div>{{ period.display }}</div>
+                                        <small class="text-muted">{{ period.time }}</small>
+                                    </th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in timetable_data.grid %}
+                                <tr>
+                                    <td class="text-center fw-bold align-middle">
+                                        {{ row.day_name }}
+                                    </td>
+                                    {% for cell in row.periods %}
+                                    <td class="timetable-cell {{ cell.css_class }}" title="{{ cell.tooltip }}">
+                                        {% if cell.has_entry %}
+                                        <div class="fw-semibold" style="font-size: 0.85rem;">{{ cell.display_line1 }}
+                                        </div>
+                                        <div class="text-muted" style="font-size: 0.75rem;">{{ cell.display_line2 }}
+                                        </div>
+                                        {% if cell.display_line3 %}
+                                        <div class="text-muted" style="font-size: 0.7rem;">{{ cell.display_line3 }}
+                                        </div>
+                                        {% endif %}
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Legend -->
+                    {% if timetable_data.legend %}
+                    <div class="mt-4">
+                        <h6 class="fw-bold mb-3"><i class="bi bi-info-circle me-2"></i>Subject Legend</h6>
+                        <div class="row g-2">
+                            {% for item in timetable_data.legend %}
+                            <div class="col-md-4 col-lg-3">
+                                <div class="p-2 rounded" style="background: var(--bg-secondary); font-size: 0.85rem;">
+                                    <strong>{{ item.abbr }}</strong>: {{ item.name }}
+                                    <div class="text-muted" style="font-size: 0.75rem;">{{ item.fac_names }}</div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% elif student_profile.class_section %}
+                    <!-- Class assigned but no timetable entries -->
+                    <div class="text-center py-5">
+                        <i class="bi bi-calendar-x display-3 text-warning d-block mb-3"></i>
+                        <h4 class="fw-bold">Timetable Not Generated Yet</h4>
                         <p class="text-muted">
-                            Your class timetable will be available here once you're assigned to a class section.
+                            You're assigned to <strong>{{ class_display }}</strong>, but the timetable hasn't been
+                            generated yet.<br>
+                            Please check back later or contact your administrator.
                         </p>
                     </div>
-
-                    <!-- Placeholder for future features -->
-                    <div class="row justify-content-center mt-4">
-                        <div class="col-md-8">
-                            <div class="alert"
-                                style="background: var(--bg-secondary); border: 1px solid var(--border-color);">
-                                <h6 class="fw-bold mb-2">
-                                    <i class="bi bi-info-circle me-2"></i>Coming Soon
-                                </h6>
-                                <ul class="text-start mb-0" style="list-style: none; padding-left: 0;">
-                                    <li class="mb-2">
-                                        <i class="bi bi-check2-circle text-success me-2"></i>
-                                        View your weekly timetable
-                                    </li>
-                                    <li class="mb-2">
-                                        <i class="bi bi-check2-circle text-success me-2"></i>
-                                        Check subject schedules and room assignments
-                                    </li>
-                                    <li class="mb-2">
-                                        <i class="bi bi-check2-circle text-success me-2"></i>
-                                        Access course materials and announcements
-                                    </li>
-                                    <li>
-                                        <i class="bi bi-check2-circle text-success me-2"></i>
-                                        Track attendance and grades
-                                    </li>
-                                </ul>
-                            </div>
+                    {% else %}
+                    <!-- No class assigned -->
+                    <div class="text-center py-5">
+                        <div class="mb-4">
+                            <i class="bi bi-calendar3 display-3 text-primary d-block mb-3"></i>
+                            <h4 class="fw-bold">Setup Your Class to View Timetable</h4>
+                            <p class="text-muted">
+                                Click the "Setup My Class" button above to select your department, semester, and class
+                                section.
+                            </p>
                         </div>
+                        <button class="btn btn-primary-custom btn-lg" data-bs-toggle="modal"
+                            data-bs-target="#classSetupModal">
+                            <i class="bi bi-gear me-2"></i>Setup My Class Now
+                        </button>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Quick Links -->
-    <div class="row mt-4">
-        <div class="col-md-12">
-            <div class="card card-custom">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-link-45deg me-2"></i>Quick Links
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-3 mb-3">
-                            <div class="d-grid">
-                                <button class="btn btn-outline-primary" disabled>
-                                    <i class="bi bi-calendar3 me-2"></i>View Timetable
-                                </button>
-                            </div>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <div class="d-grid">
-                                <button class="btn btn-outline-primary" disabled>
-                                    <i class="bi bi-file-earmark-text me-2"></i>Course Materials
-                                </button>
-                            </div>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <div class="d-grid">
-                                <button class="btn btn-outline-primary" disabled>
-                                    <i class="bi bi-clipboard-check me-2"></i>Attendance
-                                </button>
-                            </div>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <div class="d-grid">
-                                <button class="btn btn-outline-primary" disabled>
-                                    <i class="bi bi-trophy me-2"></i>Grades
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Class Setup Modal -->
+<div class="modal fade" id="classSetupModal" tabindex="-1" aria-labelledby="classSetupModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="classSetupModalLabel">
+                    <i class="bi bi-gear me-2"></i>Setup My Class
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="classSetupForm">
+                    <!-- Department Selection -->
+                    <div class="mb-4">
+                        <label for="departmentSelect" class="form-label fw-semibold">
+                            <i class="bi bi-building me-1"></i>Department
+                        </label>
+                        <select class="form-select" id="departmentSelect" required>
+                            <option value="">Select your department...</option>
+                            {% for dept in departments %}
+                            <option value="{{ dept.id }}" data-code="{{ dept.code }}">{{ dept.code }} - {{ dept.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Semester Selection -->
+                    <div class="mb-4">
+                        <label for="semesterSelect" class="form-label fw-semibold">
+                            <i class="bi bi-calendar3 me-1"></i>Semester
+                        </label>
+                        <select class="form-select" id="semesterSelect" required disabled>
+                            <option value="">Select department first...</option>
+                        </select>
+                        <div class="form-text">Only {{ config.active_semester_type }} semesters are shown.</div>
+                    </div>
+
+                    <!-- Class Section Selection -->
+                    <div class="mb-4">
+                        <label for="classSectionSelect" class="form-label fw-semibold">
+                            <i class="bi bi-people me-1"></i>Class Section
+                        </label>
+                        <select class="form-select" id="classSectionSelect" required disabled>
+                            <option value="">Select semester first...</option>
+                        </select>
+                    </div>
+
+                    <!-- Preview -->
+                    <div class="alert mb-0"
+                        style="background: var(--bg-secondary); border: 1px solid var(--border-color);"
+                        id="selectionPreview">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-info-circle me-2 text-primary"></i>
+                            <span id="previewText">Select your department, semester, and class section above.</span>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-custom" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary-custom" id="saveClassBtn" disabled>
+                    <i class="bi bi-check2 me-2"></i>Save Selection
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const departmentSelect = document.getElementById('departmentSelect');
+        const semesterSelect = document.getElementById('semesterSelect');
+        const classSectionSelect = document.getElementById('classSectionSelect');
+        const saveClassBtn = document.getElementById('saveClassBtn');
+        const previewText = document.getElementById('previewText');
+
+        // Load semesters when department changes
+        departmentSelect.addEventListener('change', async function () {
+            const deptId = this.value;
+
+            // Reset downstream selects
+            semesterSelect.innerHTML = '<option value="">Loading...</option>';
+            semesterSelect.disabled = true;
+            classSectionSelect.innerHTML = '<option value="">Select semester first...</option>';
+            classSectionSelect.disabled = true;
+            saveClassBtn.disabled = true;
+            previewText.textContent = 'Select your department, semester, and class section above.';
+
+            if (!deptId) {
+                semesterSelect.innerHTML = '<option value="">Select department first...</option>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/student/semesters/${deptId}/`);
+                const data = await response.json();
+
+                if (data.success && data.semesters.length > 0) {
+                    semesterSelect.innerHTML = '<option value="">Select semester...</option>';
+                    data.semesters.forEach(sem => {
+                        semesterSelect.innerHTML += `<option value="${sem.number}">Semester ${sem.number}</option>`;
+                    });
+                    semesterSelect.disabled = false;
+                } else {
+                    semesterSelect.innerHTML = '<option value="">No semesters available</option>';
+                }
+            } catch (error) {
+                console.error('Error loading semesters:', error);
+                semesterSelect.innerHTML = '<option value="">Error loading semesters</option>';
+            }
+        });
+
+        // Load class sections when semester changes
+        semesterSelect.addEventListener('change', async function () {
+            const deptId = departmentSelect.value;
+            const semNum = this.value;
+
+            // Reset class select
+            classSectionSelect.innerHTML = '<option value="">Loading...</option>';
+            classSectionSelect.disabled = true;
+            saveClassBtn.disabled = true;
+            previewText.textContent = 'Select your class section.';
+
+            if (!semNum || !deptId) {
+                classSectionSelect.innerHTML = '<option value="">Select semester first...</option>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/student/classes/${deptId}/${semNum}/`);
+                const data = await response.json();
+
+                if (data.success && data.sections.length > 0) {
+                    classSectionSelect.innerHTML = '<option value="">Select class section...</option>';
+                    data.sections.forEach(section => {
+                        classSectionSelect.innerHTML += `<option value="${section.id}" data-display="${section.display_name}">${section.display_name}</option>`;
+                    });
+                    classSectionSelect.disabled = false;
+                } else {
+                    classSectionSelect.innerHTML = '<option value="">No class sections available</option>';
+                }
+            } catch (error) {
+                console.error('Error loading class sections:', error);
+                classSectionSelect.innerHTML = '<option value="">Error loading classes</option>';
+            }
+        });
+
+        // Enable save button and update preview when class is selected
+        classSectionSelect.addEventListener('change', function () {
+            const selectedOption = this.options[this.selectedIndex];
+            if (this.value) {
+                const displayName = selectedOption.dataset.display;
+                previewText.innerHTML = `You will be assigned to: <strong>${displayName}</strong>`;
+                saveClassBtn.disabled = false;
+            } else {
+                previewText.textContent = 'Select your class section.';
+                saveClassBtn.disabled = true;
+            }
+        });
+
+        // Save class selection
+        saveClassBtn.addEventListener('click', async function () {
+            const classSectionId = classSectionSelect.value;
+            if (!classSectionId) return;
+
+            this.disabled = true;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+
+            try {
+                const response = await fetch('/student/update-class/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({ class_section_id: classSectionId })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Update the display and reload page to show timetable
+                    document.getElementById('myClassDisplay').textContent = data.class_display;
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + (data.error || 'Failed to save selection'));
+                    this.disabled = false;
+                    this.innerHTML = '<i class="bi bi-check2 me-2"></i>Save Selection';
+                }
+            } catch (error) {
+                console.error('Error saving class:', error);
+                alert('Error saving class selection. Please try again.');
+                this.disabled = false;
+                this.innerHTML = '<i class="bi bi-check2 me-2"></i>Save Selection';
+            }
+        });
+
+        // Helper function to get CSRF token from cookie
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    });
+</script>
 {% endblock %}

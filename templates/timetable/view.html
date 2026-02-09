@@ -85,7 +85,7 @@
                     </div>
 
                     <!-- Timetable Grid -->
-                    {% include 'timetable/grid.html' with grid=class.timetable_grid %}
+                    {% include "timetable/grid.html" with grid=class.timetable_grid period_headers=class.period_headers legend=class.legend %}
                 </div>
                 {% endfor %}
             </div>
@@ -114,7 +114,7 @@
                 </div>
 
                 <!-- Timetable Grid -->
-                {% include 'timetable/grid.html' with grid=timetable_grid %}
+                {% include 'timetable/grid.html' with grid=timetable_grid period_headers=period_headers legend=legend %}
             </div>
             {% else %}
             <div class="card card-custom p-5 text-center">

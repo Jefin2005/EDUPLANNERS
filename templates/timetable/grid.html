@@ -2,22 +2,22 @@
     <table class="table timetable-grid mb-0">
         <thead>
             <tr>
-                <th style="width: 80px;">Period</th>
-                <th>MON</th>
-                <th>TUE</th>
-                <th>WED</th>
-                <th>THU</th>
-                <th>FRI</th>
+                <th style="width: 100px;">Day</th>
+                {% for period in period_headers %}
+                <th class="text-center">
+                    <div>{{ period.display }}</div>
+                    <small class="text-muted">{{ period.time }}</small>
+                </th>
+                {% endfor %}
             </tr>
         </thead>
         <tbody>
-            {% for period_row in grid %}
+            {% for day_row in grid %}
             <tr>
-                <td class="fw-bold">
-                    {{ period_row.period_display }}<br>
-                    <small class="text-muted">{{ period_row.period_time }}</small>
+                <td class="fw-bold align-middle text-center">
+                    {{ day_row.day_name }}
                 </td>
-                {% for cell in period_row.days %}
+                {% for cell in day_row.periods %}
                 <td class="{{ cell.css_class }}" title="{{ cell.tooltip }}">
                     {% if cell.has_entry %}
                     <div class="timetable-cell text-center py-1">

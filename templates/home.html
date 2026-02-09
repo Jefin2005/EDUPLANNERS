@@ -8,8 +8,8 @@
     <section class="py-5"
         style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);">
         <div class="container py-5">
-            <div class="row align-items-center">
-                <div class="col-lg-6">
+            <div class="row justify-content-center">
+                <div class="col-lg-8 text-center">
                     <span class="badge badge-gradient mb-3">
                         <i class="bi bi-mortarboard me-1"></i>KTU University
                     </span>
@@ -24,68 +24,16 @@
                         Generate conflict-free, workload-balanced academic timetables for B.Tech CSE and MCA departments
                         using advanced Genetic Algorithm optimization.
                     </p>
-                    <div class="d-flex gap-3 flex-wrap">
-                        <a href="{% url 'timetable_view' %}" class="btn btn-gradient btn-lg">
-                            <i class="bi bi-table me-2"></i>View Timetables
-                        </a>
+                    <div class="d-flex gap-3 justify-content-center">
                         {% if user.is_authenticated and user.is_staff %}
-                        <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-light btn-lg">
+                        <a href="{% url 'admin_dashboard' %}" class="btn btn-primary-custom btn-lg">
                             <i class="bi bi-speedometer2 me-2"></i>Admin Dashboard
                         </a>
                         {% else %}
-                        <a href="{% url 'login' %}" class="btn btn-outline-light btn-lg">
+                        <a href="{% url 'login' %}" class="btn btn-primary-custom btn-lg">
                             <i class="bi bi-box-arrow-in-right me-2"></i>Login
                         </a>
                         {% endif %}
-                    </div>
-                </div>
-                <div class="col-lg-6 text-center mt-5 mt-lg-0">
-                    <div class="position-relative">
-                        <div class="card card-custom p-4" style="transform: rotate(-3deg);">
-                            <table class="table table-sm mb-0" style="font-size: 0.8rem;">
-                                <thead>
-                                    <tr>
-                                        <th></th>
-                                        <th>MON</th>
-                                        <th>TUE</th>
-                                        <th>WED</th>
-                                        <th>THU</th>
-                                        <th>FRI</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td>P1</td>
-                                        <td style="background: rgba(102, 126, 234, 0.3);">DBMS</td>
-                                        <td style="background: rgba(17, 153, 142, 0.3);">Lab</td>
-                                        <td>OS</td>
-                                        <td>CN</td>
-                                        <td style="background: rgba(102, 126, 234, 0.3);">DBMS</td>
-                                    </tr>
-                                    <tr>
-                                        <td>P2</td>
-                                        <td>OS</td>
-                                        <td style="background: rgba(17, 153, 142, 0.3);">Lab</td>
-                                        <td>CN</td>
-                                        <td style="background: rgba(102, 126, 234, 0.3);">DBMS</td>
-                                        <td>OS</td>
-                                    </tr>
-                                    <tr>
-                                        <td>P3</td>
-                                        <td>CN</td>
-                                        <td style="background: rgba(17, 153, 142, 0.3);">Lab</td>
-                                        <td style="background: rgba(102, 126, 234, 0.3);">DBMS</td>
-                                        <td>OS</td>
-                                        <td>CN</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="position-absolute" style="top: 20px; right: -20px; transform: rotate(6deg);">
-                            <span class="badge bg-success p-2">
-                                <i class="bi bi-check-circle me-1"></i>Conflict Free
-                            </span>
-                        </div>
                     </div>
                 </div>
             </div>

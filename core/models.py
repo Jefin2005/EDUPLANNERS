@@ -23,6 +23,29 @@ class UserProfile(models.Model):
         verbose_name_plural = "User Profiles"
 
 
+class StudentProfile(models.Model):
+    """Store student-specific data: selected class section for timetable display"""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='student_profile')
+    class_section = models.ForeignKey(
+        'ClassSection',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='students'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        if self.class_section:
+            return f"{self.user.username} - {self.class_section}"
+        return f"{self.user.username} - No class assigned"
+
+    class Meta:
+        verbose_name = "Student Profile"
+        verbose_name_plural = "Student Profiles"
+
+
 class Department(models.Model):
     """Department model with fixed list of valid departments"""
     

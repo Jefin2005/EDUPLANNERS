@@ -11,7 +11,8 @@ import json
 
 from .models import (
     Department, Semester, ClassSection, Faculty, Subject,
-    FacultySubjectAssignment, TimeSlot, TimetableEntry, SystemConfiguration
+    FacultySubjectAssignment, TimeSlot, TimetableEntry, SystemConfiguration,
+    StudentProfile
 )
 from .genetic_algorithm import generate_timetable
 
@@ -1203,17 +1204,150 @@ def update_preferences(request):
 
 @role_required('STUDENT')
 def student_dashboard(request):
-    """Student dashboard - view timetable and announcements"""
+    """Student dashboard - view timetable and manage class assignment"""
     config = SystemConfiguration.objects.first()
     
-    # For now, students will see a placeholder dashboard
-    # Future enhancement: Link students to ClassSection model to show their timetable
+    # Get or create student profile
+    student_profile, created = StudentProfile.objects.get_or_create(user=request.user)
+    
+    # Initialize timetable and subjects data
+    timetable_data = None
+    subjects_count = 0
+    class_display = None
+    
+    # If student has class assigned, fetch timetable
+    if student_profile.class_section:
+        class_section = student_profile.class_section
+        semester = class_section.semester
+        department = semester.department
+        
+        # Build class display name like 'S5-CS1'
+        class_display = f"S{semester.number}-{department.code}{class_section.name}"
+        
+        # Fetch timetable entries for this class
+        entries = TimetableEntry.objects.filter(
+            class_section=class_section,
+            semester_instance=config.get_semester_instance() if config else None
+        ).select_related('subject', 'faculty', 'time_slot', 'assistant_faculty')
+        
+        if entries.exists():
+            timetable_data = _build_timetable_grid(entries, 'class')
+            subjects_count = entries.values('subject').distinct().count()
+    
+    # Fetch available departments for selection form
+    departments = Department.objects.filter(is_active=True).order_by('code')
     
     context = {
         'config': config,
         'user': request.user,
+        'student_profile': student_profile,
+        'departments': departments,
+        'timetable_data': timetable_data,
+        'subjects_count': subjects_count,
+        'class_display': class_display,
     }
     return render(request, 'student/dashboard.html', context)
+
+
+@login_required
+def get_class_sections(request, department_id, semester_num):
+    """API: Get class sections for a department and semester number"""
+    try:
+        # Find the semester for this department and number
+        semester = Semester.objects.filter(
+            department_id=department_id,
+            number=semester_num
+        ).first()
+        
+        if not semester:
+            return JsonResponse({'success': False, 'error': 'Semester not found'}, status=404)
+        
+        # Get all class sections for this semester
+        sections = ClassSection.objects.filter(semester=semester).order_by('name')
+        
+        department = Department.objects.get(id=department_id)
+        
+        sections_data = []
+        for section in sections:
+            # Build display name like 'S5-CS1'
+            display_name = f"S{semester_num}-{department.code}{section.name}"
+            sections_data.append({
+                'id': section.id,
+                'name': section.name,
+                'display_name': display_name,
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'sections': sections_data,
+            'semester_id': semester.id,
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def update_student_class(request):
+    """API: Save student's class selection"""
+    try:
+        data = json.loads(request.body) if request.content_type == 'application/json' else request.POST
+        class_section_id = data.get('class_section_id')
+        
+        if not class_section_id:
+            return JsonResponse({'success': False, 'error': 'Class section is required'}, status=400)
+        
+        # Validate class section exists
+        class_section = ClassSection.objects.select_related('semester__department').filter(id=class_section_id).first()
+        if not class_section:
+            return JsonResponse({'success': False, 'error': 'Invalid class section'}, status=404)
+        
+        # Get or create student profile and update
+        student_profile, created = StudentProfile.objects.get_or_create(user=request.user)
+        student_profile.class_section = class_section
+        student_profile.save()
+        
+        # Build display name
+        semester = class_section.semester
+        department = semester.department
+        class_display = f"S{semester.number}-{department.code}{class_section.name}"
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Successfully assigned to {class_display}',
+            'class_display': class_display,
+            'semester_type': semester.semester_type,
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+def get_semesters_for_department(request, department_id):
+    """API: Get available semesters for a department based on active semester type"""
+    try:
+        config = SystemConfiguration.objects.first()
+        
+        # Determine which semester numbers to show based on ODD/EVEN mode
+        if config and config.active_semester_type == 'ODD':
+            valid_numbers = [1, 3, 5, 7]
+        else:
+            valid_numbers = [2, 4, 6, 8]
+        
+        semesters = Semester.objects.filter(
+            department_id=department_id,
+            number__in=valid_numbers
+        ).order_by('number')
+        
+        semesters_data = [{'number': s.number, 'id': s.id} for s in semesters]
+        
+        return JsonResponse({
+            'success': True,
+            'semesters': semesters_data,
+            'active_type': config.active_semester_type if config else 'ODD'
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
 # ============ TIMETABLE VIEWS ============
@@ -1320,6 +1454,7 @@ def _prepare_department_view(department_id, config):
                 'class_display': f'{semester}-{class_section.name}',
                 'full_name': f'{semester} - Section {class_section.name}',
                 'timetable_grid': grid_result['grid'],
+                'period_headers': grid_result['period_headers'],
                 'legend': grid_result['legend'],
                 'entry_count': entries.count()
             }
@@ -1416,6 +1551,7 @@ def _prepare_faculty_view(faculty_id, config):
     if entries.exists():
         grid_result = _build_timetable_grid(entries, 'faculty', faculty_id)
         result['timetable_grid'] = grid_result['grid']
+        result['period_headers'] = grid_result['period_headers']
         result['legend'] = grid_result['legend']
         result['has_data'] = True
     
@@ -1439,34 +1575,50 @@ def _build_timetable_grid(entries, view_type, faculty_id=None):
     """
     Build timetable grid structure with pre-processed, ready-to-display data.
     Returns dict with grid AND legend data.
+    Transposed layout: Days as rows, Periods as columns.
     """
     days = ['MON', 'TUE', 'WED', 'THU', 'FRI']
+    day_names = {
+        'MON': 'Monday',
+        'TUE': 'Tuesday', 
+        'WED': 'Wednesday',
+        'THU': 'Thursday',
+        'FRI': 'Friday'
+    }
     periods = range(1, 8)
     
     # Get period times from database
     period_times = _get_period_times()
     
-    # Build grid data
+    # Build period headers for columns
+    period_headers = []
+    for period in periods:
+        period_headers.append({
+            'number': period,
+            'display': f'P{period}',
+            'time': period_times.get(period, '')
+        })
+    
+    # Build grid data - now with DAYS as rows and PERIODS as columns
     grid_data = []
     
     # Track subjects/faculty for legend
     legend_map = {} # code -> {name, abbreviation, faculty_list}
     
-    for period in periods:
-        period_row = {
-            'period_number': period,
-            'period_time': period_times.get(period, ''),
-            'period_display': f'P{period}',
-            'days': []
+    for day in days:
+        day_row = {
+            'day_code': day,
+            'day_name': day_names[day],
+            'periods': []
         }
         
-        for day in days:
+        for period in periods:
             cell = {
-                'day_code': day,
+                'period_number': period,
                 'has_entry': False,
-                'display_line1': '', # Abbreviation
-                'display_line2': '', # Faculty Initials
-                'display_line3': '', # Assistant Initials
+                'display_line1': '', # Subject name
+                'display_line2': '', # Faculty name
+                'display_line3': '', # Assistant name
                 'tooltip': '',
                 'css_class': 'empty-cell'
             }
@@ -1519,9 +1671,9 @@ def _build_timetable_grid(entries, view_type, faculty_id=None):
                         'css_class': 'lab-cell' if matching_entry.is_lab_session else 'theory-cell'
                     })
             
-            period_row['days'].append(cell)
+            day_row['periods'].append(cell)
         
-        grid_data.append(period_row)
+        grid_data.append(day_row)
     
     # Format legend for template
     legend_list = []
@@ -1540,6 +1692,7 @@ def _build_timetable_grid(entries, view_type, faculty_id=None):
     
     return {
         'grid': grid_data,
+        'period_headers': period_headers,
         'legend': legend_list
     }
 
@@ -1629,3 +1782,152 @@ def export_timetable_pdf(request):
     response = HttpResponse(result.getvalue(), content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="{title.replace(" ", "_")}.pdf"'
     return response
+
+
+# ============ TIMETABLE REST API ENDPOINTS ============
+
+def api_timetable_departments(request):
+    """API: Get all active departments"""
+    departments = Department.objects.filter(is_active=True).order_by('code')
+    data = [{'id': d.id, 'code': d.code, 'name': d.name, 'full_name': f'{d.code} - {d.name}'} for d in departments]
+    return JsonResponse({'success': True, 'departments': data})
+
+
+def api_timetable_semesters(request):
+    """API: Get available semesters based on active semester type"""
+    config = SystemConfiguration.objects.first()
+    active_type = config.active_semester_type if config else 'ODD'
+    
+    # ODD = 1,3,5,7; EVEN = 2,4,6,8
+    semester_numbers = [1, 3, 5, 7] if active_type == 'ODD' else [2, 4, 6, 8]
+    
+    data = [{'number': n, 'display': f'Semester {n}'} for n in semester_numbers]
+    return JsonResponse({'success': True, 'semesters': data, 'active_type': active_type})
+
+
+def api_timetable_sections(request):
+    """API: Get sections for a department and semester"""
+    department_id = request.GET.get('department')
+    semester_num = request.GET.get('semester')
+    
+    if not department_id or not semester_num:
+        return JsonResponse({'success': False, 'error': 'Missing department or semester parameter'})
+    
+    try:
+        department = Department.objects.get(id=department_id)
+        semester = Semester.objects.filter(department_id=department_id, number=semester_num).first()
+        
+        if not semester:
+            return JsonResponse({'success': True, 'sections': []})
+        
+        sections = ClassSection.objects.filter(semester=semester).order_by('name')
+        data = [{
+            'id': s.id,
+            'name': s.name,
+            'display': f'S{semester_num}-{department.code}{s.name}'
+        } for s in sections]
+        
+        return JsonResponse({'success': True, 'sections': data, 'semester_id': semester.id})
+    except Department.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Department not found'})
+
+
+def api_timetable_grid(request):
+    """API: Get timetable grid data for a section"""
+    section_id = request.GET.get('section')
+    
+    if not section_id:
+        return JsonResponse({'success': False, 'error': 'Missing section parameter'})
+    
+    try:
+        class_section = ClassSection.objects.select_related('semester__department').get(id=section_id)
+        config = SystemConfiguration.objects.first()
+        semester_instance = config.get_semester_instance() if config else '2024-ODD'
+        
+        entries = TimetableEntry.objects.filter(
+            class_section=class_section,
+            semester_instance=semester_instance
+        ).select_related('subject', 'faculty', 'time_slot', 'assistant_faculty')
+        
+        if not entries.exists():
+            return JsonResponse({'success': True, 'has_data': False, 'message': 'No timetable generated for this section'})
+        
+        # Build the grid data
+        grid_result = _build_timetable_grid(entries, 'class')
+        
+        semester = class_section.semester
+        department = semester.department
+        
+        return JsonResponse({
+            'success': True,
+            'has_data': True,
+            'section_display': f'S{semester.number}-{department.code}{class_section.name}',
+            'section_full_name': f'{semester} - Section {class_section.name}',
+            'period_headers': grid_result['period_headers'],
+            'grid': grid_result['grid'],
+            'legend': grid_result['legend'],
+            'entry_count': entries.count()
+        })
+    except ClassSection.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Section not found'})
+
+
+def api_timetable_faculty_list(request):
+    """API: Get all faculty grouped by department"""
+    departments = Department.objects.filter(is_active=True).order_by('code')
+    grouped_faculties = []
+    
+    for dept in departments:
+        faculties = Faculty.objects.filter(department=dept, is_active=True).order_by('name')
+        if not faculties.exists():
+            continue
+        
+        fac_list = [{
+            'id': f.id,
+            'name': f.name,
+            'designation': f.get_designation_display()
+        } for f in faculties]
+        
+        grouped_faculties.append({
+            'department_code': dept.code,
+            'department_name': dept.name,
+            'faculties': fac_list
+        })
+    
+    return JsonResponse({'success': True, 'grouped_faculties': grouped_faculties})
+
+
+def api_timetable_faculty_grid(request):
+    """API: Get timetable grid for a specific faculty"""
+    faculty_id = request.GET.get('faculty')
+    
+    if not faculty_id:
+        return JsonResponse({'success': False, 'error': 'Missing faculty parameter'})
+    
+    try:
+        faculty = Faculty.objects.select_related('department').get(id=faculty_id)
+        config = SystemConfiguration.objects.first()
+        semester_instance = config.get_semester_instance() if config else '2024-ODD'
+        
+        entries = TimetableEntry.objects.filter(
+            Q(faculty_id=faculty_id) | Q(assistant_faculty_id=faculty_id),
+            semester_instance=semester_instance
+        ).select_related('class_section', 'subject', 'time_slot', 'faculty', 'assistant_faculty')
+        
+        if not entries.exists():
+            return JsonResponse({'success': True, 'has_data': False, 'message': 'No schedule for this faculty'})
+        
+        grid_result = _build_timetable_grid(entries, 'faculty', faculty_id)
+        
+        return JsonResponse({
+            'success': True,
+            'has_data': True,
+            'faculty_name': faculty.name,
+            'faculty_designation': faculty.get_designation_display(),
+            'faculty_department': faculty.department.code if faculty.department else 'N/A',
+            'period_headers': grid_result['period_headers'],
+            'grid': grid_result['grid'],
+            'legend': grid_result['legend']
+        })
+    except Faculty.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Faculty not found'})

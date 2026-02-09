@@ -31,8 +31,19 @@ urlpatterns = [
     
     # Student Dashboard
     path('student/', views.student_dashboard, name='student_dashboard'),
+    path('student/semesters/<int:department_id>/', views.get_semesters_for_department, name='get_semesters_for_department'),
+    path('student/classes/<int:department_id>/<int:semester_num>/', views.get_class_sections, name='get_class_sections'),
+    path('student/update-class/', views.update_student_class, name='update_student_class'),
     
     # Timetable Views
     path('timetable/', views.timetable_view, name='timetable_view'),
     path('timetable/export/', views.export_timetable_pdf, name='export_timetable_pdf'),
+    
+    # Timetable REST API
+    path('api/timetable/departments/', views.api_timetable_departments, name='api_timetable_departments'),
+    path('api/timetable/semesters/', views.api_timetable_semesters, name='api_timetable_semesters'),
+    path('api/timetable/sections/', views.api_timetable_sections, name='api_timetable_sections'),
+    path('api/timetable/grid/', views.api_timetable_grid, name='api_timetable_grid'),
+    path('api/timetable/faculty-list/', views.api_timetable_faculty_list, name='api_timetable_faculty_list'),
+    path('api/timetable/faculty-grid/', views.api_timetable_faculty_grid, name='api_timetable_faculty_grid'),
 ]
