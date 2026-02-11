@@ -550,6 +550,8 @@ def manage_faculty(request):
             'department_code': f.department.code if f.department else 'UNASSIGNED',
             'status_display': 'Active' if f.is_active else 'Inactive',
             'is_active': f.is_active,
+            'preferences': f.preferences or '',
+            'preferences_list': [p.strip() for p in f.preferences.split(',') if p.strip()] if f.preferences else [],
             'desig_options': desig_options,
             'dept_options': dept_options,
         }
@@ -1103,19 +1105,10 @@ def _create_time_slots():
 
 @role_required('TEACHER')
 def teacher_dashboard(request):
-    """Teacher dashboard - view timetable and manage preferences"""
-    try:
-        faculty = Faculty.objects.get(user=request.user)
-    except Faculty.DoesNotExist:
-        messages.error(request, 'No faculty profile linked to this account.')
-        return redirect('home')
-    
+    """Teacher dashboard - multi-faculty timetable lookup"""
     config = SystemConfiguration.objects.first()
-    
-    # Pass only faculty profile data
-    # Timetable is now fetched via API in the frontend
+
     context = {
-        'faculty': faculty,
         'config': config,
     }
     return render(request, 'faculty/dashboard.html', context)
@@ -1132,6 +1125,31 @@ def update_preferences(request):
         return JsonResponse({'error': 'Faculty not found'}, status=404)
     
     preferences = request.POST.get('preferences', '')
+    faculty.preferences = preferences
+    faculty.save()
+    
+    return JsonResponse({'success': True})
+
+
+@role_required('TEACHER', 'ADMIN')
+@require_POST
+def update_faculty_preferences_api(request):
+    """API to update a specific faculty's preferences (Admin or Owner only)"""
+    faculty_id = request.POST.get('faculty_id')
+    preferences = request.POST.get('preferences', '')
+    
+    try:
+        faculty = Faculty.objects.get(id=faculty_id)
+    except Faculty.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Faculty not found'})
+
+    # Permission check: Admin or Teacher role (shared accounts)
+    is_admin = hasattr(request.user, 'profile') and request.user.profile.role == 'ADMIN'
+    is_teacher = hasattr(request.user, 'profile') and request.user.profile.role == 'TEACHER'
+    
+    if not is_admin and not is_teacher:
+        return JsonResponse({'success': False, 'error': 'Permission denied'})
+
     faculty.preferences = preferences
     faculty.save()
     
@@ -1241,7 +1259,7 @@ def faculty_timetable_api(request):
     for period in periods:
         try:
             # Get first slot for this period (all days have same time)
-            time_slot = TimeSlot.objects.filter(period=period, is_teaching_slot=True).first()
+            time_slot = TimeSlot.objects.filter(period=period, slot_type__in=['MORNING', 'AFTERNOON']).first()
             if time_slot:
                 period_times[str(period)] = time_slot.start_time.strftime('%H:%M')
         except TimeSlot.DoesNotExist:
@@ -1302,8 +1320,13 @@ def student_dashboard(request):
     """Student dashboard - view timetable and manage class assignment"""
     config = SystemConfiguration.objects.first()
     
-    # Get or create student profile
-    student_profile, created = StudentProfile.objects.get_or_create(user=request.user)
+    # Try to get student profile (may not exist for shared accounts)
+    student_profile = None
+    try:
+        student_profile = StudentProfile.objects.get(user=request.user)
+    except StudentProfile.DoesNotExist:
+        # Create one so the class selection form works
+        student_profile = StudentProfile.objects.create(user=request.user)
     
     # Initialize timetable and subjects data
     timetable_data = None
@@ -1311,7 +1334,7 @@ def student_dashboard(request):
     class_display = None
     
     # If student has class assigned, fetch timetable
-    if student_profile.class_section:
+    if student_profile and student_profile.class_section:
         class_section = student_profile.class_section
         semester = class_section.semester
         department = semester.department
@@ -1443,6 +1466,113 @@ def get_semesters_for_department(request, department_id):
         })
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+# ============ TEACHER TIMETABLE LOOKUP ============
+
+@login_required
+@role_required('ADMIN')
+def teacher_timetable_lookup(request):
+    """
+    Admin-facing teacher timetable lookup.
+    3-step flow via query params: Department → Teacher → Timetable Grid.
+    """
+    selected_dept_id = request.GET.get('department')
+    selected_teacher_id = request.GET.get('teacher')
+
+    config = SystemConfiguration.objects.first()
+    semester_instance = config.get_semester_instance() if config else '2024-ODD'
+
+    # Step 1: All departments
+    departments = Department.objects.filter(is_active=True).order_by('code')
+    dept_list = []
+    for dept in departments:
+        dept_list.append({
+            'id': dept.id,
+            'code': dept.code,
+            'name': dept.name,
+            'full_name': f'{dept.code} - {dept.name}',
+            'is_selected': str(dept.id) == str(selected_dept_id) if selected_dept_id else False,
+        })
+
+    context = {
+        'departments': dept_list,
+        'config': config,
+        'teachers': [],
+        'selected_department': None,
+        'selected_teacher': None,
+        'timetable_grid': None,
+        'period_headers': None,
+        'legend': None,
+        'has_timetable': False,
+        'step': 1,
+    }
+
+    if not selected_dept_id:
+        return render(request, 'admin/teacher_lookup.html', context)
+
+    # Step 2: Teachers in selected department
+    try:
+        department = Department.objects.get(id=selected_dept_id)
+    except Department.DoesNotExist:
+        return render(request, 'admin/teacher_lookup.html', context)
+
+    context['selected_department'] = {
+        'id': department.id,
+        'code': department.code,
+        'name': department.name,
+        'full_name': f'{department.code} - {department.name}',
+    }
+    context['step'] = 2
+
+    teachers = Faculty.objects.filter(department=department, is_active=True).order_by('name')
+    teacher_list = []
+    for t in teachers:
+        teacher_list.append({
+            'id': t.id,
+            'name': t.name,
+            'designation': t.get_designation_display(),
+            'email': t.email,
+            'is_selected': str(t.id) == str(selected_teacher_id) if selected_teacher_id else False,
+        })
+    context['teachers'] = teacher_list
+
+    if not selected_teacher_id:
+        return render(request, 'admin/teacher_lookup.html', context)
+
+    # Step 3: Timetable for selected teacher
+    try:
+        faculty = Faculty.objects.select_related('department').get(id=selected_teacher_id)
+    except Faculty.DoesNotExist:
+        return render(request, 'admin/teacher_lookup.html', context)
+
+    context['selected_teacher'] = {
+        'id': faculty.id,
+        'name': faculty.name,
+        'designation': faculty.get_designation_display(),
+        'email': faculty.email,
+        'department': faculty.department.code if faculty.department else 'N/A',
+        'current_workload': faculty.current_workload,
+        'max_hours': faculty.max_hours,
+        'available_hours': faculty.available_hours,
+        'workload_pct': round((faculty.current_workload / faculty.max_hours) * 100) if faculty.max_hours > 0 else 0,
+    }
+    context['step'] = 3
+
+    # Build timetable grid using existing helper
+    entries = TimetableEntry.objects.filter(
+        Q(faculty_id=selected_teacher_id) | Q(assistant_faculty_id=selected_teacher_id),
+        semester_instance=semester_instance
+    ).select_related('class_section', 'subject', 'time_slot', 'faculty', 'assistant_faculty')
+
+    if entries.exists():
+        grid_result = _build_timetable_grid(entries, 'faculty', selected_teacher_id)
+        context['timetable_grid'] = grid_result['grid']
+        context['period_headers'] = grid_result['period_headers']
+        context['legend'] = grid_result['legend']
+        context['has_timetable'] = True
+
+    return render(request, 'admin/teacher_lookup.html', context)
 
 
 # ============ TIMETABLE VIEWS ============
@@ -2026,3 +2156,177 @@ def api_timetable_faculty_grid(request):
         })
     except Faculty.DoesNotExist:
         return JsonResponse({'success': False, 'error': 'Faculty not found'})
+
+
+# ============ TEACHER TIMETABLE LOOKUP (AJAX) ============
+
+@login_required
+def teacher_timetable_page(request):
+    """Page view for the department → teacher → timetable AJAX workflow"""
+    config = SystemConfiguration.objects.first()
+    return render(request, 'timetable/teacher_timetable.html', {'config': config})
+
+
+@login_required
+def api_departments(request):
+    """API: GET /api/departments/ — Return all active departments"""
+    departments = Department.objects.filter(is_active=True).order_by('code')
+    data = [{
+        'id': d.id,
+        'code': d.code,
+        'name': d.name,
+        'full_name': f'{d.code} - {d.name}'
+    } for d in departments]
+    return JsonResponse({'success': True, 'departments': data})
+
+
+@login_required
+def api_teachers_by_department(request):
+    """API: GET /api/teachers/?department_id=<id> — Return teachers in a department"""
+    department_id = request.GET.get('department_id')
+
+    if not department_id:
+        return JsonResponse({'success': False, 'error': 'Missing department_id parameter'}, status=400)
+
+    try:
+        department = Department.objects.get(id=department_id, is_active=True)
+    except Department.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Department not found'}, status=404)
+
+    teachers = Faculty.objects.filter(department=department, is_active=True).order_by('name')
+
+    # Optional search filter
+    q = request.GET.get('q', '').strip()
+    if q:
+        teachers = teachers.filter(
+            Q(name__icontains=q) | Q(email__icontains=q)
+        )
+
+    data = [{
+        'id': t.id,
+        'name': t.name,
+        'email': t.email,
+        'designation': t.get_designation_display(),
+        'current_workload': t.current_workload,
+        'max_hours': t.max_hours,
+        'available_hours': t.available_hours,
+    } for t in teachers]
+
+    return JsonResponse({
+        'success': True,
+        'department': {'id': department.id, 'code': department.code, 'name': department.name},
+        'teachers': data,
+    })
+
+
+@login_required
+def api_teacher_timetable(request):
+    """API: GET /api/timetable/?teacher_id=<id> — Return weekly timetable for a teacher"""
+    teacher_id = request.GET.get('teacher_id')
+
+    if not teacher_id:
+        return JsonResponse({'success': False, 'error': 'Missing teacher_id parameter'}, status=400)
+
+    try:
+        faculty = Faculty.objects.select_related('department').get(id=teacher_id)
+    except Faculty.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Teacher not found'}, status=404)
+
+    config = SystemConfiguration.objects.first()
+    semester_instance = config.get_semester_instance() if config else '2024-ODD'
+
+    # Build timetable using same approach as faculty_timetable_api
+    days = ['MON', 'TUE', 'WED', 'THU', 'FRI']
+    periods = list(range(1, 8))
+
+    main_entries = TimetableEntry.objects.filter(
+        faculty=faculty,
+        semester_instance=semester_instance
+    ).select_related('class_section', 'subject', 'time_slot', 'assistant_faculty')
+
+    assistant_entries = TimetableEntry.objects.filter(
+        assistant_faculty=faculty,
+        semester_instance=semester_instance
+    ).select_related('class_section', 'subject', 'time_slot', 'faculty')
+
+    slot_lookup = {}
+
+    for entry in main_entries:
+        key = (entry.time_slot.day, entry.time_slot.period)
+        slot_lookup[key] = {
+            'subject_code': entry.subject.code,
+            'subject_name': entry.subject.name,
+            'class_section': str(entry.class_section),
+            'room': entry.room or '',
+            'is_lab': entry.is_lab_session,
+            'is_assistant': False,
+        }
+
+    for entry in assistant_entries:
+        key = (entry.time_slot.day, entry.time_slot.period)
+        if key not in slot_lookup:
+            slot_lookup[key] = {
+                'subject_code': entry.subject.code,
+                'subject_name': entry.subject.name,
+                'class_section': str(entry.class_section),
+                'room': entry.room or '',
+                'is_lab': entry.is_lab_session,
+                'is_assistant': True,
+            }
+
+    # Get period times
+    period_times = {}
+    for period in periods:
+        time_slot = TimeSlot.objects.filter(period=period, slot_type__in=['MORNING', 'AFTERNOON']).first()
+        if time_slot:
+            period_times[str(period)] = time_slot.start_time.strftime('%H:%M')
+
+    # Build grid
+    timetable_rows = []
+    for period in periods:
+        row = {'period': period, 'cells': []}
+        for day in days:
+            cell_data = slot_lookup.get((day, period))
+            if cell_data:
+                row['cells'].append({'day': day, 'has_entry': True, **cell_data})
+            else:
+                row['cells'].append({'day': day, 'has_entry': False})
+        timetable_rows.append(row)
+
+    has_timetable = bool(slot_lookup)
+
+    # Get subject assignments for this teacher in current semester
+    assigned_subjects = []
+    seen_subjects = set()
+    for entry in list(main_entries) + list(assistant_entries):
+        subj_code = entry.subject.code
+        if subj_code not in seen_subjects:
+            seen_subjects.add(subj_code)
+            assigned_subjects.append({
+                'code': entry.subject.code,
+                'name': entry.subject.name,
+                'class_section': str(entry.class_section),
+                'is_lab': entry.is_lab_session,
+            })
+
+    return JsonResponse({
+        'success': True,
+        'has_timetable': has_timetable,
+        'teacher': {
+            'id': faculty.id,
+            'name': faculty.name,
+            'designation': faculty.get_designation_display(),
+            'department_code': faculty.department.code if faculty.department else 'N/A',
+            'department_name': faculty.department.name if faculty.department else 'N/A',
+            'email': faculty.email,
+            'current_workload': faculty.current_workload,
+            'max_hours': faculty.max_hours,
+            'available_hours': faculty.available_hours,
+            'preferences': faculty.preferences or '',
+            'can_edit_preferences': request.user.profile.role in ('ADMIN', 'TEACHER'),
+        },
+        'semester_instance': semester_instance,
+        'assigned_subjects': assigned_subjects,
+        'period_times': period_times,
+        'timetable': timetable_rows,
+    })

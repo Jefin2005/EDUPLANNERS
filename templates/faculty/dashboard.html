@@ -2,157 +2,502 @@
 
 {% block title %}Teacher Dashboard - EDUPLANNER{% endblock %}
 
+{% block extra_css %}
+<style>
+    .mf-teacher-card {
+        background: var(--bg-card);
+        border: 2px solid var(--border-color);
+        border-radius: 12px;
+        padding: 1.25rem;
+        cursor: pointer;
+        transition: all 0.25s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .mf-teacher-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: transparent;
+        transition: background 0.25s ease;
+    }
+
+    .mf-teacher-card:hover {
+        border-color: var(--primary-color);
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+    }
+
+    .mf-teacher-card:hover::before {
+        background: var(--primary-color);
+    }
+
+    .mf-teacher-card.selected {
+        border-color: var(--primary-color);
+        background: var(--primary-light);
+    }
+
+    .mf-teacher-card.selected::before {
+        background: var(--primary-color);
+    }
+
+    .mf-teacher-card.selected .mf-checkmark {
+        display: flex;
+    }
+
+    .mf-checkmark {
+        display: none;
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: var(--primary-color);
+        color: #fff;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        z-index: 3;
+    }
+
+    /* Selected teacher bar */
+    .mf-selected-bar {
+        display: none;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem 1.25rem;
+        background: var(--primary-light);
+        border: 2px solid var(--primary-color);
+        border-radius: 12px;
+        margin-bottom: 1rem;
+        animation: mfFadeInUp 0.3s ease-out;
+    }
+
+    .mf-selected-bar .mf-avatar {
+        width: 44px;
+        height: 44px;
+        font-size: 1rem;
+    }
+
+    .mf-back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        border: 2px solid var(--border-color);
+        background: var(--bg-card);
+        color: var(--text-body);
+        font-weight: 600;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .mf-back-btn:hover {
+        border-color: var(--primary-color);
+        color: var(--primary-color);
+        background: var(--primary-light);
+    }
+
+    .mf-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: var(--primary-gradient);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+    }
+
+    [data-theme="dark"] .mf-avatar {
+        color: #13273F;
+    }
+
+    .mf-highlight {
+        background: rgba(255, 200, 50, 0.35);
+        border-radius: 2px;
+    }
+
+    @keyframes mfFadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(12px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .mf-fade-in {
+        animation: mfFadeInUp 0.35s ease-out;
+    }
+
+    /* Pin button */
+    .mf-pin-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: none;
+        background: var(--bg-secondary);
+        color: var(--text-muted);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+        z-index: 2;
+        opacity: 0;
+    }
+
+    .mf-teacher-card:hover .mf-pin-btn,
+    .mf-pin-btn.pinned {
+        opacity: 1;
+    }
+
+    .mf-pin-btn:hover {
+        background: var(--warning-light, rgba(255, 193, 7, 0.15));
+        color: var(--warning-color, #FFC107);
+        transform: scale(1.15);
+    }
+
+    .mf-pin-btn.pinned {
+        background: var(--warning-light, rgba(255, 193, 7, 0.15));
+        color: var(--warning-color, #FFC107);
+    }
+
+    /* Pinned section */
+    .mf-pinned-card {
+        background: var(--bg-card);
+        border: 2px solid var(--warning-color, #FFC107);
+        border-radius: 12px;
+        padding: 1rem 1.25rem;
+        cursor: pointer;
+        transition: all 0.25s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .mf-pinned-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: var(--warning-color, #FFC107);
+    }
+
+    .mf-pinned-card:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+    }
+
+    .mf-unpin-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        border: none;
+        background: var(--warning-light, rgba(255, 193, 7, 0.15));
+        color: var(--warning-color, #FFC107);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        transition: all 0.2s ease;
+        z-index: 2;
+    }
+
+    .mf-unpin-btn:hover {
+        background: var(--danger-light, rgba(220, 53, 69, 0.15));
+        color: var(--danger-color, #DC3545);
+        transform: scale(1.15);
+    }
+
+    @media (max-width: 768px) {
+
+        #mf-teacher-cards-grid,
+        #mf-pinned-grid {
+            grid-template-columns: 1fr !important;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container py-4">
-    <div class="row">
-        <!-- Left Column - Info -->
-        <div class="col-lg-4 mb-4">
-            <!-- Profile Card -->
-            <div class="card card-custom p-4 mb-4">
-                <div class="text-center mb-3">
-                    <div class="rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3"
-                        style="width: 80px; height: 80px; background: var(--primary-gradient); font-size: 2rem; color: #fff;">
-                        {{ faculty.name|slice:":1" }}
-                    </div>
-                    <h4 class="fw-bold mb-1">{{ faculty.name }}</h4>
-                    <p class="text-muted mb-0">{{ faculty.get_designation_display }}</p>
-                </div>
 
-                <hr style="border-color: var(--border-color);">
+    <div class="mb-4">
+        <h3 class="fw-bold mb-1"><i class="bi bi-people me-2"></i>Faculty Timetable Lookup</h3>
+        <p class="text-muted mb-0">Browse and view timetables of faculty members</p>
+    </div>
 
-                <div class="mb-3">
-                    <small class="text-muted d-block">Email</small>
-                    <span>{{ faculty.email }}</span>
-                </div>
+    <!-- Pinned Teachers Section -->
+    <div id="mf-pinned-section" style="display: none;">
+        <div class="card card-custom p-4 mb-4">
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <i class="bi bi-pin-angle-fill" style="font-size: 1.2rem; color: var(--warning-color, #FFC107);"></i>
+                <h5 class="fw-bold mb-0">Pinned Teachers</h5>
+                <span class="badge" id="mf-pinned-count"
+                    style="background: var(--warning-color, #FFC107); color: #000;"></span>
+            </div>
+            <div id="mf-pinned-grid"
+                style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.75rem;">
+            </div>
+        </div>
+    </div>
 
-                <div class="mb-3">
-                    <small class="text-muted d-block">Current Semester</small>
-                    <span class="badge badge-gradient">{{ config.get_semester_instance }}</span>
-                </div>
+    <!-- Department Selector -->
+    <div class="card card-custom p-4 mb-4">
+        <div class="d-flex align-items-center gap-2 mb-3">
+            <i class="bi bi-building" style="font-size: 1.2rem; color: var(--primary-color);"></i>
+            <h5 class="fw-bold mb-0">Select Department</h5>
+        </div>
+        <div style="max-width: 480px;">
+            <select class="form-select" id="mf-department-select"
+                style="font-size: 1rem; padding: 0.85rem 1.25rem; font-weight: 500;">
+                <option value="">— Choose a department —</option>
+            </select>
+        </div>
+        <div id="mf-dept-loading" class="mt-3" style="display: none;">
+            <div class="d-flex align-items-center gap-2 text-muted">
+                <div class="spinner-border spinner-border-sm" role="status"></div>
+                <span>Loading departments...</span>
+            </div>
+        </div>
+        <div id="mf-dept-error" class="mt-3" style="display: none;">
+            <div class="alert alert-danger mb-0 d-flex align-items-center gap-2">
+                <i class="bi bi-exclamation-triangle"></i>
+                <span id="mf-dept-error-msg">Failed to load departments.</span>
+                <button class="btn btn-sm btn-outline-danger ms-auto" onclick="mfLoadDepartments()">Retry</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Teachers List with Search -->
+    <div id="mf-teachers-section" style="display: none;">
+        <div class="card card-custom p-4 mb-4">
+            <!-- Header row -->
+            <div id="mf-list-header" class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                <h5 class="fw-bold mb-0"><i class="bi bi-people me-2"></i>Teachers in <span
+                        id="mf-dept-name-display"></span></h5>
+                <span class="badge badge-gradient" id="mf-teacher-count"></span>
             </div>
 
-            <!-- Workload Card -->
-            <div class="card card-custom p-4 mb-4">
-                <h5 class="fw-bold mb-3">
-                    <i class="bi bi-graph-up me-2"></i>Workload Summary
-                </h5>
-
-                <div class="mb-3">
-                    <div class="d-flex justify-content-between mb-1">
-                        <span>Current Load</span>
-                        <span class="fw-bold">{{ faculty.current_workload }} / {{ faculty.max_hours }} hrs</span>
-                    </div>
-                    <div class="progress" style="height: 10px; background: var(--bg-secondary);">
-                        {% widthratio faculty.current_workload faculty.max_hours 100 as pct %}
-                        <div class="progress-bar"
-                            style="width: {{ pct|default:0 }}%; background: var(--primary-gradient);"></div>
-                    </div>
-                </div>
-
-                <div class="row text-center">
-                    <div class="col-6">
-                        <div class="p-2" style="background: var(--bg-secondary); border-radius: 8px;">
-                            <h4 class="mb-0">{{ faculty.max_hours }}</h4>
-                            <small class="text-muted">Max Hours</small>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="p-2" style="background: var(--bg-secondary); border-radius: 8px;">
-                            <h4 class="mb-0">{{ faculty.available_hours }}</h4>
-                            <small class="text-muted">Available</small>
-                        </div>
-                    </div>
-                </div>
+            <!-- Search Bar -->
+            <div id="mf-search-bar" class="position-relative mb-3">
+                <i class="bi bi-search position-absolute"
+                    style="left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+                <input type="text" id="mf-teacher-search" class="form-control" placeholder="Search by name or email..."
+                    style="padding-left: 42px; height: 48px; font-size: 0.95rem; border: 2px solid var(--border-color); border-radius: 12px; background: var(--bg-card); color: var(--text-body);"
+                    autocomplete="off">
+                <button id="mf-search-clear" class="btn position-absolute p-0 border-0"
+                    style="right: 14px; top: 50%; transform: translateY(-50%); display: none; color: var(--text-muted);"
+                    onclick="mfClearSearch()">
+                    <i class="bi bi-x-circle"></i>
+                </button>
             </div>
 
-            <!-- Preferences Card -->
-            <div class="card card-custom p-4">
-                <h5 class="fw-bold mb-3">
-                    <i class="bi bi-heart me-2"></i>Subject Preferences
-                </h5>
+            <!-- Selected teacher bar (shown when a card is clicked) -->
+            <div id="mf-selected-bar" class="mf-selected-bar">
+                <div class="mf-avatar" id="mf-sel-avatar"></div>
+                <div style="flex: 1; min-width: 0;">
+                    <div class="fw-bold" id="mf-sel-name" style="color: var(--text-heading);"></div>
+                    <small class="text-muted" id="mf-sel-detail"></small>
+                </div>
+                <span class="badge badge-gradient" style="font-size: 0.75rem;"><i
+                        class="bi bi-check-circle me-1"></i>Selected</span>
+                <button class="mf-back-btn" onclick="mfBackToList()">
+                    <i class="bi bi-arrow-left"></i> Back to List
+                </button>
+            </div>
 
-                <form id="preferences-form">
-                    {% csrf_token %}
-                    <div class="mb-3">
-                        <textarea name="preferences" class="form-control" rows="3"
-                            placeholder="Enter comma-separated subject codes you prefer to teach...">{{ faculty.preferences }}</textarea>
-                        <small class="text-muted">e.g., CS301, CS302, CS401</small>
-                    </div>
-                    <button type="submit" class="btn btn-gradient w-100">
-                        <i class="bi bi-save me-2"></i>Save Preferences
-                    </button>
-                </form>
+            <!-- States -->
+            <div id="mf-teacher-loading" class="text-center py-5" style="display: none;">
+                <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;"></div>
+                <h5 class="text-muted mt-3">Loading teachers...</h5>
+            </div>
+            <div id="mf-teacher-error" class="text-center py-5" style="display: none;">
+                <i class="bi bi-exclamation-triangle text-danger d-block" style="font-size: 3rem;"></i>
+                <h5>Failed to load teachers</h5>
+                <p class="text-muted" id="mf-teacher-error-msg"></p>
+                <button class="btn btn-gradient mt-2" onclick="mfLoadTeachers()"><i
+                        class="bi bi-arrow-clockwise me-1"></i>Retry</button>
+            </div>
+            <div id="mf-teacher-empty" class="text-center py-5" style="display: none;">
+                <i class="bi bi-person-x text-muted d-block" style="font-size: 3rem;"></i>
+                <h5 class="text-muted">No teachers found</h5>
+                <p class="text-muted">There are no active teachers in this department.</p>
+            </div>
+            <div id="mf-search-empty" class="text-center py-5" style="display: none;">
+                <i class="bi bi-search text-muted d-block" style="font-size: 3rem;"></i>
+                <h5 class="text-muted">No matching teachers</h5>
+                <p class="text-muted">Try a different search term.</p>
+            </div>
+
+            <!-- Teacher Cards Grid -->
+            <div id="mf-teacher-cards-grid"
+                style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem;"></div>
+        </div>
+    </div>
+
+    <!-- Faculty Dashboard Panel -->
+    <div id="mf-dashboard-section" style="display: none;">
+        <!-- Dashboard Loading -->
+        <div id="mf-dashboard-loading" class="card card-custom p-4 mb-4" style="display: none;">
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;"></div>
+                <h5 class="text-muted mt-3">Loading dashboard...</h5>
             </div>
         </div>
 
-        <!-- Right Column - Timetable -->
-        <div class="col-lg-8">
-            <div class="card card-custom p-4">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h4 class="fw-bold mb-0">
-                        <i class="bi bi-calendar-week me-2"></i>My Weekly Timetable
-                    </h4>
-                    <a href="{% url 'export_timetable_pdf' %}?type=faculty&id={{ faculty.id }}"
-                        class="btn btn-outline-light" id="export-btn" style="display: none;">
-                        <i class="bi bi-download me-2"></i>Export PDF
-                    </a>
-                </div>
+        <!-- Dashboard Error -->
+        <div id="mf-dashboard-error" class="card card-custom p-4 mb-4" style="display: none;">
+            <div class="text-center py-5">
+                <i class="bi bi-exclamation-triangle text-danger d-block" style="font-size: 3rem;"></i>
+                <h5>Failed to load dashboard</h5>
+                <p class="text-muted" id="mf-dashboard-error-msg"></p>
+                <button class="btn btn-gradient mt-2" onclick="mfLoadDashboard()"><i
+                        class="bi bi-arrow-clockwise me-1"></i>Retry</button>
+            </div>
+        </div>
 
-                <!-- Loading State -->
-                <div id="loading-state" class="text-center py-5">
-                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                    <p class="text-muted mt-3">Loading your timetable...</p>
-                </div>
-
-                <!-- Error State -->
-                <div id="error-state" class="text-center py-5" style="display: none;">
-                    <i class="bi bi-exclamation-triangle display-3 text-danger d-block mb-3"></i>
-                    <h5 class="text-muted">Failed to load timetable</h5>
-                    <p class="text-muted" id="error-message">An error occurred while fetching your timetable.</p>
-                    <button class="btn btn-gradient mt-3" onclick="loadTimetable()">
-                        <i class="bi bi-arrow-clockwise me-2"></i>Retry
-                    </button>
-                </div>
-
-                <!-- Empty State -->
-                <div id="empty-state" class="text-center py-5" style="display: none;">
-                    <i class="bi bi-calendar-x display-3 text-muted d-block mb-3"></i>
-                    <h5 class="text-muted">No timetable assigned yet</h5>
-                    <p class="text-muted">Your timetable will appear here once the admin generates it.</p>
-                </div>
-
-                <!-- Timetable Grid -->
-                <div id="timetable-container" style="display: none;">
-                    <div class="table-responsive">
-                        <table class="table timetable-grid mb-0">
-                            <thead>
-                                <tr>
-                                    <th style="width: 100px;">Period</th>
-                                    <th>MON</th>
-                                    <th>TUE</th>
-                                    <th>WED</th>
-                                    <th>THU</th>
-                                    <th>FRI</th>
-                                </tr>
-                            </thead>
-                            <tbody id="timetable-body">
-                                <!-- Populated by JavaScript -->
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="mt-3 d-flex gap-3">
-                        <div class="d-flex align-items-center">
-                            <div style="width: 20px; height: 20px; background: var(--primary-light); border-radius: 4px;"
-                                class="me-2"></div>
-                            <small class="text-muted">Theory</small>
+        <!-- Dashboard Content -->
+        <div id="mf-dashboard-content" style="display: none;">
+            <div class="row">
+                <!-- Left Column: Profile -->
+                <div class="col-lg-4 mb-4">
+                    <div class="card card-custom p-4 mb-4">
+                        <div class="text-center mb-3">
+                            <div class="rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3"
+                                id="mf-dash-avatar"
+                                style="width: 80px; height: 80px; background: var(--primary-gradient); font-size: 2rem; color: #fff;">
+                            </div>
+                            <h4 class="fw-bold mb-1" id="mf-dash-name"></h4>
+                            <p class="text-muted mb-0" id="mf-dash-designation"></p>
                         </div>
-                        <div class="d-flex align-items-center">
-                            <div style="width: 20px; height: 20px; background: var(--success-light); border-radius: 4px;"
-                                class="me-2"></div>
-                            <small class="text-muted">Lab</small>
+                        <hr style="border-color: var(--border-color);">
+                        <div class="mb-3">
+                            <small class="text-muted d-block">Email</small>
+                            <span id="mf-dash-email"></span>
+                        </div>
+                        <div class="mb-3">
+                            <small class="text-muted d-block">Department</small>
+                            <span id="mf-dash-department"></span>
+                        </div>
+                        <div>
+                            <small class="text-muted d-block">Current Semester</small>
+                            <span class="badge badge-gradient" id="mf-dash-semester"></span>
+                        </div>
+                    </div>
+
+                    <!-- Workload Card -->
+                    <div class="card card-custom p-4 mb-4">
+                        <h5 class="fw-bold mb-3"><i class="bi bi-graph-up me-2"></i>Workload Summary</h5>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Current Load</span>
+                                <span class="fw-bold" id="mf-dash-workload-text"></span>
+                            </div>
+                            <div class="progress" style="height: 10px; background: var(--bg-secondary);">
+                                <div class="progress-bar" id="mf-dash-workload-bar"
+                                    style="width: 0%; background: var(--primary-gradient);"></div>
+                            </div>
+                        </div>
+                        <div class="row text-center g-2">
+                            <div class="col-6">
+                                <div class="p-2" style="background: var(--bg-secondary); border-radius: 8px;">
+                                    <h4 class="mb-0" id="mf-dash-max-hours"></h4>
+                                    <small class="text-muted">Max Hours</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-2" style="background: var(--bg-secondary); border-radius: 8px;">
+                                    <h4 class="mb-0" id="mf-dash-available"></h4>
+                                    <small class="text-muted">Available</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Preferences Card -->
+                    <div class="card card-custom p-4 mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="fw-bold mb-0"><i class="bi bi-heart me-2"></i>Subject Preferences</h5>
+                            <button id="mf-edit-preferences-btn" class="btn btn-sm btn-outline-primary"
+                                style="display: none;" title="Edit Preferences">
+                                <i class="bi bi-pencil me-1"></i>Edit
+                            </button>
+                        </div>
+                        <div id="mf-dash-preferences"></div>
+                    </div>
+
+                    <!-- Assigned Subjects Card -->
+                    <div class="card card-custom p-4">
+                        <h5 class="fw-bold mb-3"><i class="bi bi-book me-2"></i>Assigned Subjects</h5>
+                        <div id="mf-dash-subjects"></div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Timetable -->
+                <div class="col-lg-8">
+                    <div class="card card-custom p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                            <h4 class="fw-bold mb-0"><i class="bi bi-calendar-week me-2"></i>Weekly Timetable</h4>
+                            <a href="#" id="mf-export-btn" class="btn btn-outline-light btn-sm" style="display: none;">
+                                <i class="bi bi-download me-1"></i>Export PDF
+                            </a>
+                        </div>
+
+                        <div id="mf-timetable-empty" class="text-center py-5" style="display: none;">
+                            <i class="bi bi-calendar-x text-muted d-block" style="font-size: 3rem;"></i>
+                            <h5 class="text-muted">No timetable assigned</h5>
+                            <p class="text-muted">This teacher does not have a timetable for the current semester.</p>
+                        </div>
+
+                        <div id="mf-timetable-container" style="display: none;">
+                            <div class="table-responsive">
+                                <table class="table timetable-grid mb-0">
+                                    <thead>
+                                        <tr id="mf-timetable-header">
+                                            <th style="width: 100px;">Day</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="mf-timetable-body">
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="mt-3 d-flex gap-3">
+                                <div class="d-flex align-items-center">
+                                    <div style="width: 20px; height: 20px; background: var(--primary-light); border-radius: 4px;"
+                                        class="me-2"></div>
+                                    <small class="text-muted">Theory</small>
+                                </div>
+                                <div class="d-flex align-items-center">
+                                    <div style="width: 20px; height: 20px; background: var(--success-light); border-radius: 4px;"
+                                        class="me-2"></div>
+                                    <small class="text-muted">Lab</small>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -164,128 +509,613 @@
 
 {% block extra_js %}
 <script>
-    // Preferences form handler
-    document.getElementById('preferences-form').addEventListener('submit', function (e) {
-        e.preventDefault();
+    // URL constants
+    const MF_URL_API_DEPARTMENTS = "{% url 'api_departments' %}";
+    const MF_URL_API_TEACHERS = "{% url 'api_teachers' %}";
+    const MF_URL_API_TIMETABLE = "{% url 'api_teacher_timetable' %}";
+    const MF_URL_EXPORT_PDF = "{% url 'export_timetable_pdf' %}";
 
-        const formData = new FormData(this);
+    let mfSelectedDeptId = null;
+    let mfSelectedDeptName = '';
+    let mfSelectedTeacherId = null;
+    let mfAllTeachers = [];
+    let mfSearchTimer = null;
 
-        fetch('{% url "update_preferences" %}', {
-            method: 'POST',
-            body: new URLSearchParams(formData)
-        })
-            .then(response => response.json())
+    // Load departments on page load
+    function mfLoadDepartments() {
+        const select = document.getElementById('mf-department-select');
+        const loading = document.getElementById('mf-dept-loading');
+        const error = document.getElementById('mf-dept-error');
+
+        loading.style.display = 'block';
+        error.style.display = 'none';
+        select.disabled = true;
+
+        fetch(MF_URL_API_DEPARTMENTS)
+            .then(r => { if (!r.ok) throw new Error('Server error'); return r.json(); })
             .then(data => {
-                if (data.success) {
-                    alert('Preferences saved successfully!');
-                }
+                loading.style.display = 'none';
+                select.disabled = false;
+                if (!data.success) { mfShowDeptError(data.error || 'Unknown error'); return; }
+                select.innerHTML = '<option value="">— Choose a department —</option>';
+                data.departments.forEach(dept => {
+                    const opt = document.createElement('option');
+                    opt.value = dept.id;
+                    opt.textContent = dept.full_name;
+                    select.appendChild(opt);
+                });
             })
-            .catch(error => {
-                alert('Failed to save preferences. Please try again.');
+            .catch(err => {
+                loading.style.display = 'none';
+                select.disabled = false;
+                mfShowDeptError(err.message);
             });
+    }
+
+    function mfShowDeptError(msg) {
+        document.getElementById('mf-dept-error').style.display = 'block';
+        document.getElementById('mf-dept-error-msg').textContent = msg;
+    }
+
+    // Department change handler
+    document.getElementById('mf-department-select').addEventListener('change', function () {
+        mfSelectedDeptId = this.value;
+        mfSelectedTeacherId = null;
+        document.getElementById('mf-dashboard-section').style.display = 'none';
+        document.getElementById('mf-teacher-search').value = '';
+        document.getElementById('mf-search-clear').style.display = 'none';
+
+        if (!mfSelectedDeptId) {
+            document.getElementById('mf-teachers-section').style.display = 'none';
+            mfSelectedDeptName = '';
+            return;
+        }
+
+        mfSelectedDeptName = this.options[this.selectedIndex].textContent;
+        mfLoadTeachers();
     });
 
-    // Load timetable on page load
-    function loadTimetable() {
-        // Show loading state
-        document.getElementById('loading-state').style.display = 'block';
-        document.getElementById('error-state').style.display = 'none';
-        document.getElementById('empty-state').style.display = 'none';
-        document.getElementById('timetable-container').style.display = 'none';
-        document.getElementById('export-btn').style.display = 'none';
+    // Load teachers
+    function mfLoadTeachers() {
+        const section = document.getElementById('mf-teachers-section');
+        const grid = document.getElementById('mf-teacher-cards-grid');
+        const loading = document.getElementById('mf-teacher-loading');
+        const error = document.getElementById('mf-teacher-error');
+        const empty = document.getElementById('mf-teacher-empty');
+        const searchEmpty = document.getElementById('mf-search-empty');
 
-        fetch('{% url "faculty_timetable_api" %}', {
-            method: 'GET',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Failed to fetch timetable');
-                }
-                return response.json();
-            })
+        section.style.display = 'block';
+        grid.innerHTML = '';
+        loading.style.display = 'block';
+        error.style.display = 'none';
+        empty.style.display = 'none';
+        searchEmpty.style.display = 'none';
+        document.getElementById('mf-dashboard-section').style.display = 'none';
+
+        fetch(`${MF_URL_API_TEACHERS}?department_id=${mfSelectedDeptId}`)
+            .then(r => { if (!r.ok) throw new Error('Server error'); return r.json(); })
             .then(data => {
-                document.getElementById('loading-state').style.display = 'none';
+                loading.style.display = 'none';
+                if (!data.success) { mfShowTeacherError(data.error || 'Unknown error'); return; }
 
-                if (!data.success) {
-                    showError(data.error || 'Failed to load timetable');
+                document.getElementById('mf-dept-name-display').textContent =
+                    data.department ? `${data.department.code} - ${data.department.name}` : '';
+
+                mfAllTeachers = data.teachers;
+                document.getElementById('mf-teacher-count').textContent =
+                    `${mfAllTeachers.length} teacher${mfAllTeachers.length !== 1 ? 's' : ''}`;
+
+                if (mfAllTeachers.length === 0) {
+                    empty.style.display = 'block';
                     return;
                 }
-
-                if (!data.has_timetable) {
-                    document.getElementById('empty-state').style.display = 'block';
-                    return;
-                }
-
-                // Render timetable
-                renderTimetable(data);
-                document.getElementById('timetable-container').style.display = 'block';
-                document.getElementById('export-btn').style.display = 'inline-block';
+                mfRenderTeacherCards(mfAllTeachers, '');
             })
-            .catch(error => {
-                document.getElementById('loading-state').style.display = 'none';
-                showError(error.message);
+            .catch(err => {
+                loading.style.display = 'none';
+                mfShowTeacherError(err.message);
             });
     }
 
-    function showError(message) {
-        document.getElementById('error-state').style.display = 'block';
-        document.getElementById('error-message').textContent = message;
+    function mfShowTeacherError(msg) {
+        document.getElementById('mf-teacher-error').style.display = 'block';
+        document.getElementById('mf-teacher-error-msg').textContent = msg;
     }
 
-    function renderTimetable(data) {
-        const tbody = document.getElementById('timetable-body');
-        tbody.innerHTML = ''; // Clear existing content
+    // Render teacher cards
+    function mfRenderTeacherCards(teachers, query) {
+        const grid = document.getElementById('mf-teacher-cards-grid');
+        grid.innerHTML = '';
 
-        const periodTimes = data.period_times;
-        const timetable = data.timetable;
+        teachers.forEach(t => {
+            const card = document.createElement('div');
+            card.className = 'mf-teacher-card';
+            if (t.id === mfSelectedTeacherId) card.classList.add('selected');
+            card.onclick = function (e) {
+                if (e.target.closest('.mf-pin-btn')) return;
+                mfSelectTeacher(t.id, t.name, this);
+            };
 
-        timetable.forEach(row => {
-            const tr = document.createElement('tr');
+            const initials = t.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 3);
+            const nameHtml = query ? mfHighlight(t.name, query) : t.name;
+            const emailHtml = query ? mfHighlight(t.email || '', query) : (t.email || '');
+            const isPinned = mfIsPinned(t.id);
 
-            // Period column with time
-            const periodCell = document.createElement('td');
-            periodCell.className = 'fw-bold';
-            const periodTime = periodTimes[row.period] || '';
-            periodCell.innerHTML = `P${row.period}<br><small class="text-muted">${periodTime}</small>`;
-            tr.appendChild(periodCell);
+            card.dataset.teacherId = t.id;
+            card.dataset.teacherName = t.name;
+            card.dataset.teacherDesignation = t.designation;
+            card.dataset.teacherEmail = t.email || '';
 
-            // Day cells
-            row.cells.forEach(cell => {
-                const td = document.createElement('td');
-
-                if (cell.has_entry) {
-                    const cellDiv = document.createElement('div');
-                    cellDiv.className = `timetable-cell ${cell.is_lab ? 'lab' : 'theory'}`;
-
-                    let content = `<div class="fw-bold">${cell.subject_name}</div>`;
-                    content += `<small>${cell.class_section}</small>`;
-                    if (cell.room) {
-                        content += `<small class="d-block text-muted">Room: ${cell.room}</small>`;
-                    }
-                    if (cell.is_assistant) {
-                        content += `<small class="text-warning d-block">(Assistant)</small>`;
-                    }
-
-                    cellDiv.innerHTML = content;
-                    td.appendChild(cellDiv);
-                } else {
-                    const span = document.createElement('span');
-                    span.className = 'text-muted';
-                    span.textContent = '—';
-                    td.appendChild(span);
-                }
-
-                tr.appendChild(td);
-            });
-
-            tbody.appendChild(tr);
+            card.innerHTML = `
+                <div class="mf-checkmark"><i class="bi bi-check-lg"></i></div>
+                <button class="mf-pin-btn ${isPinned ? 'pinned' : ''}" onclick="event.stopPropagation(); mfTogglePin(${t.id}, '${t.name.replace(/'/g, "\\'")}', '${(t.email || '').replace(/'/g, "\\\'")}', '${t.designation.replace(/'/g, "\\\'")}', '${t.department_code || mfSelectedDeptName}', ${t.current_workload}, ${t.max_hours}, this)" title="${isPinned ? 'Unpin' : 'Pin'} this teacher">
+                    <i class="bi bi-pin-angle${isPinned ? '-fill' : ''}"></i>
+                </button>
+                <div class="d-flex align-items-center gap-3 mb-2">
+                    <div class="mf-avatar">${initials}</div>
+                    <div style="min-width: 0; flex: 1;">
+                        <div class="fw-bold" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-heading); padding-right: 30px;">${nameHtml}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted);">${t.designation}</div>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <small style="color: var(--text-muted);">${emailHtml}</small>
+                    <span style="font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 20px; background: var(--info-light, rgba(74, 144, 226, 0.1)); color: var(--info-color, #4A90E2); white-space: nowrap;">
+                        ${t.current_workload}/${t.max_hours} hrs
+                    </span>
+                </div>
+            `;
+            grid.appendChild(card);
         });
     }
 
-    // Load timetable when page loads
-    document.addEventListener('DOMContentLoaded', loadTimetable);
+    function mfHighlight(text, query) {
+        if (!query) return text;
+        const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+        return text.replace(regex, '<span class="mf-highlight">$1</span>');
+    }
+
+    // Search
+    document.getElementById('mf-teacher-search').addEventListener('input', function () {
+        const q = this.value.trim();
+        document.getElementById('mf-search-clear').style.display = q ? 'block' : 'none';
+
+        clearTimeout(mfSearchTimer);
+        mfSearchTimer = setTimeout(() => {
+            const filtered = mfAllTeachers.filter(t =>
+                t.name.toLowerCase().includes(q.toLowerCase()) ||
+                (t.email || '').toLowerCase().includes(q.toLowerCase())
+            );
+
+            document.getElementById('mf-teacher-count').textContent =
+                `${filtered.length} teacher${filtered.length !== 1 ? 's' : ''}`;
+            document.getElementById('mf-search-empty').style.display = filtered.length === 0 ? 'block' : 'none';
+            document.getElementById('mf-teacher-cards-grid').style.display = filtered.length === 0 ? 'none' : 'grid';
+
+            mfRenderTeacherCards(filtered, q);
+        }, 200);
+    });
+
+    function mfClearSearch() {
+        document.getElementById('mf-teacher-search').value = '';
+        document.getElementById('mf-search-clear').style.display = 'none';
+        document.getElementById('mf-search-empty').style.display = 'none';
+        document.getElementById('mf-teacher-cards-grid').style.display = 'grid';
+        document.getElementById('mf-teacher-count').textContent =
+            `${mfAllTeachers.length} teacher${mfAllTeachers.length !== 1 ? 's' : ''}`;
+        mfRenderTeacherCards(mfAllTeachers, '');
+    }
+
+    // Select teacher
+    function mfSelectTeacher(id, name, cardEl) {
+        mfSelectedTeacherId = id;
+
+        // Hide the header, search bar, and teacher cards grid
+        document.getElementById('mf-list-header').style.display = 'none';
+        document.getElementById('mf-search-bar').style.display = 'none';
+        document.getElementById('mf-teacher-cards-grid').style.display = 'none';
+
+        // Show the selected teacher bar
+        const selBar = document.getElementById('mf-selected-bar');
+        const teacherName = cardEl.dataset.teacherName || name;
+        const teacherDesignation = cardEl.dataset.teacherDesignation || '';
+        const teacherEmail = cardEl.dataset.teacherEmail || '';
+        const initials = teacherName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 3);
+
+        document.getElementById('mf-sel-avatar').textContent = initials;
+        document.getElementById('mf-sel-name').textContent = teacherName;
+        document.getElementById('mf-sel-detail').textContent = [teacherDesignation, teacherEmail].filter(Boolean).join(' · ');
+        selBar.style.display = 'flex';
+
+        mfLoadDashboard();
+    }
+
+    // Back to faculty list
+    function mfBackToList() {
+        mfSelectedTeacherId = null;
+
+        // Hide selected bar and dashboard
+        document.getElementById('mf-selected-bar').style.display = 'none';
+        document.getElementById('mf-dashboard-section').style.display = 'none';
+
+        // Show the header, search bar, and teacher cards grid
+        document.getElementById('mf-list-header').style.display = 'flex';
+        document.getElementById('mf-search-bar').style.display = 'block';
+        document.getElementById('mf-teacher-cards-grid').style.display = 'grid';
+
+        // Reset card selection
+        document.querySelectorAll('.mf-teacher-card').forEach(c => c.classList.remove('selected'));
+
+        // Scroll back to the teachers section
+        document.getElementById('mf-teachers-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // Load dashboard
+    function mfLoadDashboard() {
+        const section = document.getElementById('mf-dashboard-section');
+        const loading = document.getElementById('mf-dashboard-loading');
+        const error = document.getElementById('mf-dashboard-error');
+        const content = document.getElementById('mf-dashboard-content');
+
+        section.style.display = 'block';
+        loading.style.display = 'block';
+        error.style.display = 'none';
+        content.style.display = 'none';
+
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        fetch(`${MF_URL_API_TIMETABLE}?teacher_id=${mfSelectedTeacherId}`)
+            .then(r => { if (!r.ok) throw new Error('Server error'); return r.json(); })
+            .then(data => {
+                loading.style.display = 'none';
+                if (!data.success) { mfShowDashError(data.error || 'Unknown error'); return; }
+                mfRenderDashboard(data);
+                content.style.display = 'block';
+            })
+            .catch(err => {
+                loading.style.display = 'none';
+                mfShowDashError(err.message);
+            });
+    }
+
+    function mfShowDashError(msg) {
+        document.getElementById('mf-dashboard-error').style.display = 'block';
+        document.getElementById('mf-dashboard-error-msg').textContent = msg;
+    }
+
+    // Render dashboard
+    function mfRenderDashboard(data) {
+        const t = data.teacher;
+
+        // Profile
+        const initials = t.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 3);
+        document.getElementById('mf-dash-avatar').textContent = initials;
+        document.getElementById('mf-dash-name').textContent = t.name;
+        document.getElementById('mf-dash-designation').textContent = t.designation;
+        document.getElementById('mf-dash-email').textContent = t.email || 'N/A';
+        document.getElementById('mf-dash-department').textContent =
+            `${t.department_code} - ${t.department_name || ''}`;
+        document.getElementById('mf-dash-semester').textContent = data.semester_instance || 'N/A';
+
+        // Workload
+        const pct = t.max_hours > 0 ? Math.round((t.current_workload / t.max_hours) * 100) : 0;
+        document.getElementById('mf-dash-workload-text').textContent = `${t.current_workload} / ${t.max_hours} hrs`;
+        document.getElementById('mf-dash-workload-bar').style.width = `${Math.min(pct, 100)}%`;
+        document.getElementById('mf-dash-max-hours').textContent = t.max_hours;
+        document.getElementById('mf-dash-available').textContent = t.available_hours;
+
+        // Preferences
+        const editBtn = document.getElementById('mf-edit-preferences-btn');
+        if (t.can_edit_preferences) {
+            editBtn.style.display = 'inline-block';
+            editBtn.onclick = () => {
+                document.getElementById('mf-pref-input').value = t.preferences || '';
+                document.getElementById('mf-pref-teacher-id').value = t.id;
+                const modal = new bootstrap.Modal(document.getElementById('mf-pref-modal'));
+                modal.show();
+            };
+        } else {
+            editBtn.style.display = 'none';
+        }
+
+        const prefsEl = document.getElementById('mf-dash-preferences');
+        if (t.preferences && t.preferences.trim()) {
+            prefsEl.innerHTML = t.preferences.split(',').map(p =>
+                `<span style="display: inline-block; background: var(--primary-light); color: var(--primary-color); padding: 0.3rem 0.65rem; border-radius: 6px; font-size: 0.8rem; font-weight: 500; margin: 0.2rem;">${p.trim()}</span>`
+            ).join('');
+        } else {
+            prefsEl.innerHTML = '<em class="text-muted">No preferences set</em>';
+        }
+
+        // Assigned Subjects
+        const subjEl = document.getElementById('mf-dash-subjects');
+        const subjects = data.assigned_subjects || [];
+        if (subjects.length > 0) {
+            subjEl.innerHTML = subjects.map(s => {
+                const dotStyle = s.is_lab ? 'background: var(--success-color)' : 'background: var(--primary-color)';
+                return `<div style="display: inline-flex; align-items: center; gap: 0.35rem; background: var(--bg-secondary); border-radius: 8px; padding: 0.45rem 0.75rem; font-size: 0.82rem; margin: 0.2rem;">
+                    <span style="width: 8px; height: 8px; border-radius: 50%; ${dotStyle};"></span>
+                    <strong>${s.code}</strong> — ${s.name} <small class="text-muted">(${s.class_section})</small>
+                </div>`;
+            }).join('');
+        } else {
+            subjEl.innerHTML = '<em class="text-muted">No subjects assigned</em>';
+        }
+
+        // Export button
+        const exportBtn = document.getElementById('mf-export-btn');
+        exportBtn.href = `${MF_URL_EXPORT_PDF}?type=faculty&id=${t.id}`;
+
+        // Timetable
+        const ttContainer = document.getElementById('mf-timetable-container');
+        const ttEmpty = document.getElementById('mf-timetable-empty');
+
+        if (data.has_timetable && data.timetable && data.timetable.length > 0) {
+            ttEmpty.style.display = 'none';
+            ttContainer.style.display = 'block';
+            exportBtn.style.display = 'inline-block';
+
+            const header = document.getElementById('mf-timetable-header');
+            const tbody = document.getElementById('mf-timetable-body');
+
+            // Generate headers for periods
+            header.innerHTML = '<th style="width: 100px;">Day</th>';
+            data.timetable.forEach(pRow => {
+                const th = document.createElement('th');
+                th.className = 'text-center';
+                const periodTime = data.period_times[pRow.period] || '';
+                th.innerHTML = `<div>P${pRow.period}</div><small class="text-muted">${periodTime}</small>`;
+                header.appendChild(th);
+            });
+
+            tbody.innerHTML = '';
+            const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+            days.forEach((dayName, dayIdx) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td class="fw-bold align-middle">${dayName}</td>`;
+
+                // Fill columns for each period
+                data.timetable.forEach(pRow => {
+                    const cell = pRow.cells[dayIdx];
+                    const td = document.createElement('td');
+                    if (cell && cell.has_entry) {
+                        const cls = cell.is_lab ? 'lab' : 'theory';
+                        let content = `<div class="timetable-cell ${cls}">`;
+                        content += `<div class="fw-bold">${cell.subject_name}</div>`;
+                        content += `<small>${cell.class_section}</small>`;
+                        if (cell.room) content += `<small class="d-block text-muted">Room: ${cell.room}</small>`;
+                        if (cell.is_assistant) content += `<small class="text-warning d-block">(Assistant)</small>`;
+                        content += '</div>';
+                        td.innerHTML = content;
+                    } else {
+                        td.innerHTML = '<span class="text-muted">—</span>';
+                    }
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+        } else {
+            ttContainer.style.display = 'none';
+            ttEmpty.style.display = 'block';
+            exportBtn.style.display = 'none';
+        }
+    }
+
+    // =====================
+    // PIN MANAGEMENT
+    // =====================
+    const MF_PIN_STORAGE_KEY = 'mf_pinned_teachers';
+
+    function mfGetPinned() {
+        try {
+            return JSON.parse(localStorage.getItem(MF_PIN_STORAGE_KEY) || '[]');
+        } catch { return []; }
+    }
+
+    function mfSavePinned(pinned) {
+        localStorage.setItem(MF_PIN_STORAGE_KEY, JSON.stringify(pinned));
+    }
+
+    function mfIsPinned(teacherId) {
+        return mfGetPinned().some(p => p.id === teacherId);
+    }
+
+    function mfTogglePin(id, name, email, designation, dept, workload, maxHours, btnEl) {
+        let pinned = mfGetPinned();
+        const idx = pinned.findIndex(p => p.id === id);
+
+        if (idx >= 0) {
+            // Unpin
+            pinned.splice(idx, 1);
+            btnEl.classList.remove('pinned');
+            btnEl.querySelector('i').className = 'bi bi-pin-angle';
+            btnEl.title = 'Pin this teacher';
+        } else {
+            // Pin
+            pinned.push({ id, name, email, designation, dept, workload, maxHours });
+            btnEl.classList.add('pinned');
+            btnEl.querySelector('i').className = 'bi bi-pin-angle-fill';
+            btnEl.title = 'Unpin this teacher';
+        }
+
+        mfSavePinned(pinned);
+        mfRenderPinnedSection();
+    }
+
+    function mfUnpin(teacherId) {
+        let pinned = mfGetPinned();
+        pinned = pinned.filter(p => p.id !== teacherId);
+        mfSavePinned(pinned);
+        mfRenderPinnedSection();
+
+        // Also update the teacher card pin button if visible
+        document.querySelectorAll('.mf-pin-btn').forEach(btn => {
+            const onclickStr = btn.getAttribute('onclick') || '';
+            if (onclickStr.includes(`mfTogglePin(${teacherId},`)) {
+                btn.classList.remove('pinned');
+                btn.querySelector('i').className = 'bi bi-pin-angle';
+                btn.title = 'Pin this teacher';
+            }
+        });
+    }
+
+    function mfRenderPinnedSection() {
+        const pinned = mfGetPinned();
+        const section = document.getElementById('mf-pinned-section');
+        const grid = document.getElementById('mf-pinned-grid');
+        const count = document.getElementById('mf-pinned-count');
+
+        if (pinned.length === 0) {
+            section.style.display = 'none';
+            return;
+        }
+
+        section.style.display = 'block';
+        count.textContent = pinned.length;
+        grid.innerHTML = '';
+
+        pinned.forEach(t => {
+            const card = document.createElement('div');
+            card.className = 'mf-pinned-card mf-fade-in';
+            card.onclick = function (e) {
+                if (e.target.closest('.mf-unpin-btn')) return;
+                mfPinnedTeacherClick(t.id);
+            };
+
+            const initials = t.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 3);
+
+            card.innerHTML = `
+                <button class="mf-unpin-btn" onclick="event.stopPropagation(); mfUnpin(${t.id})" title="Unpin">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+                <div class="d-flex align-items-center gap-3">
+                    <div class="mf-avatar" style="width: 40px; height: 40px; font-size: 0.9rem;">${initials}</div>
+                    <div style="min-width: 0; flex: 1;">
+                        <div class="fw-bold" style="font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-heading); padding-right: 24px;">${t.name}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">${t.designation} · ${t.dept}</div>
+                    </div>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    function mfPinnedTeacherClick(teacherId) {
+        mfSelectedTeacherId = teacherId;
+
+        // Find the pinned teacher data
+        const pinned = mfGetPinned();
+        const t = pinned.find(p => p.id === teacherId);
+
+        // If teachers section is visible, hide cards and show selected bar
+        const teachersSection = document.getElementById('mf-teachers-section');
+        if (teachersSection.style.display !== 'none') {
+            document.getElementById('mf-list-header').style.display = 'none';
+            document.getElementById('mf-search-bar').style.display = 'none';
+            document.getElementById('mf-teacher-cards-grid').style.display = 'none';
+        }
+
+        // Show selected teacher bar
+        if (t) {
+            const initials = t.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 3);
+            document.getElementById('mf-sel-avatar').textContent = initials;
+            document.getElementById('mf-sel-name').textContent = t.name;
+            document.getElementById('mf-sel-detail').textContent = [t.designation, t.email].filter(Boolean).join(' · ');
+            document.getElementById('mf-selected-bar').style.display = 'flex';
+            teachersSection.style.display = 'block';
+        }
+
+        // Update card selection in the teacher grid if visible
+        document.querySelectorAll('.mf-teacher-card').forEach(c => c.classList.remove('selected'));
+
+        // Load that teacher's dashboard directly
+        mfLoadDashboard();
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function () {
+        mfLoadDepartments();
+        mfRenderPinnedSection();
+    });
+</script>
+<!-- Preferences Modal -->
+<div class="modal fade" id="mf-pref-modal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content card-custom"
+            style="background: var(--bg-primary); border: 1px solid var(--border-color);">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">Update Subject Preferences</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                    style="filter: var(--icon-filter);"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="mf-pref-teacher-id">
+                <p class="text-muted small mb-3">Enter subject codes separated by commas (e.g. CST301, CST305)</p>
+                <textarea id="mf-pref-input" class="form-control" rows="4" placeholder="e.g. CST301, CST305"
+                    style="background: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--text-primary);"></textarea>
+                <div id="mf-pref-error" class="text-danger small mt-2" style="display: none;"></div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-gradient" id="mf-save-pref-btn" onclick="mfSavePreferences()">
+                    <span class="spinner-border spinner-border-sm me-1 d-none" id="mf-pref-spinner"></span>
+                    Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function mfSavePreferences() {
+        const id = document.getElementById('mf-pref-teacher-id').value;
+        const preferences = document.getElementById('mf-pref-input').value;
+        const btn = document.getElementById('mf-save-pref-btn');
+        const spinner = document.getElementById('mf-pref-spinner');
+        const errorEl = document.getElementById('mf-pref-error');
+
+        btn.disabled = true;
+        spinner.classList.remove('d-none');
+        errorEl.style.display = 'none';
+
+        try {
+            const formData = new FormData();
+            formData.append('faculty_id', id);
+            formData.append('preferences', preferences);
+
+            const response = await fetch('{% url "update_faculty_preferences_api" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: formData
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                // Close modal
+                bootstrap.Modal.getInstance(document.getElementById('mf-pref-modal')).hide();
+                // Update preferences display directly
+                const prefsEl = document.getElementById('mf-dash-preferences');
+                if (preferences && preferences.trim()) {
+                    prefsEl.innerHTML = preferences.split(',').map(p =>
+                        `<span style="display: inline-block; background: var(--primary-light); color: var(--primary-color); padding: 0.3rem 0.65rem; border-radius: 6px; font-size: 0.8rem; font-weight: 500; margin: 0.2rem;">${p.trim()}</span>`
+                    ).join('');
+                } else {
+                    prefsEl.innerHTML = '<em class="text-muted">No preferences set</em>';
+                }
+            } else {
+                errorEl.textContent = data.error || 'Failed to update preferences';
+                errorEl.style.display = 'block';
+            }
+        } catch (err) {
+            errorEl.textContent = 'Connection error. Please try again.';
+            errorEl.style.display = 'block';
+        } finally {
+            btn.disabled = false;
+            spinner.classList.add('d-none');
+        }
+    }
 </script>
 {% endblock %}

@@ -24,6 +24,7 @@ urlpatterns = [
     path('manage/toggle-semester/', views.toggle_semester_mode, name='toggle_semester_mode'),
     path('manage/generate-timetable/', views.generate_timetable_view, name='generate_timetable'),
     path('manage/init-slots/', views.initialize_time_slots, name='init_time_slots'),
+    path('manage/teacher-lookup/', views.teacher_timetable_lookup, name='teacher_timetable_lookup'),
     
     # Teacher Dashboard
     path('teacher/', views.teacher_dashboard, name='teacher_dashboard'),
@@ -47,4 +48,11 @@ urlpatterns = [
     path('api/timetable/grid/', views.api_timetable_grid, name='api_timetable_grid'),
     path('api/timetable/faculty-list/', views.api_timetable_faculty_list, name='api_timetable_faculty_list'),
     path('api/timetable/faculty-grid/', views.api_timetable_faculty_grid, name='api_timetable_faculty_grid'),
+
+    # Teacher Timetable Lookup (AJAX)
+    path('teacher-timetable/', views.teacher_timetable_page, name='teacher_timetable_page'),
+    path('api/departments/', views.api_departments, name='api_departments'),
+    path('api/teachers/', views.api_teachers_by_department, name='api_teachers'),
+    path('api/timetable/teacher/', views.api_teacher_timetable, name='api_teacher_timetable'),
+    path('api/faculty/preferences/update/', views.update_faculty_preferences_api, name='update_faculty_preferences_api'),
 ]

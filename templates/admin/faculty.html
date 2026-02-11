@@ -42,6 +42,7 @@
                             <th>Name</th>
                             <th>Email</th>
                             <th>Designation</th>
+                            <th>Preferences</th>
                             <th>Status</th>
                             <th>Actions</th>
                         </tr>
@@ -52,6 +53,16 @@
                             <td>{{ faculty.name }}</td>
                             <td>{{ faculty.email }}</td>
                             <td>{{ faculty.designation_display }}</td>
+                            <td>
+                                {% if faculty.preferences %}
+                                {% for pref in faculty.preferences_list %}
+                                <span class="badge bg-primary bg-opacity-10 text-primary me-1 mb-1"
+                                    style="font-weight: 500;">{{ pref }}</span>
+                                {% endfor %}
+                                {% else %}
+                                <em class="text-muted small">None</em>
+                                {% endif %}
+                            </td>
                             <td>
                                 {% if faculty.is_active %}
                                 <span class="badge bg-success">Active</span>
@@ -125,6 +136,12 @@
                             <option value="ASSISTANT_PROFESSOR">Assistant Professor</option>
                         </select>
                     </div>
+
+                    <div class="mb-3">
+                        <label>Preferences</label>
+                        <input type="text" name="preferences" class="form-control" placeholder="e.g. CST301, CST305">
+                        <small class="text-muted">Comma-separated subject codes</small>
+                    </div>
                 </div>
 
                 <div class="modal-footer">
@@ -185,6 +202,13 @@
                             </option>
                             {% endfor %}
                         </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label>Preferences</label>
+                        <input type="text" name="preferences" value="{{ faculty.preferences }}" class="form-control"
+                            placeholder="e.g. CST301, CST305">
+                        <small class="text-muted">Comma-separated subject codes</small>
                     </div>
                 </div>
 

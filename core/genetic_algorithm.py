@@ -769,12 +769,34 @@ def generate_department_timetable(department_id: int, semester_instance: str):
             'error': f'No subjects found for {department.code}'
         }
     
-    # Get all active faculty (department-wide or unassigned)
-    faculties = list(Faculty.objects.filter(
+    # Get all active faculty for this department
+    # Also include faculty from OTHER departments whose preferences match our subjects
+    subject_codes = [s['code'] for s in subjects]
+    
+    # Start with department faculty + unassigned
+    dept_faculty_qs = Faculty.objects.filter(
         is_active=True
     ).filter(
         Q(department_id=department_id) | Q(department_id__isnull=True)
-    ).values('id', 'name', 'designation', 'preferences'))
+    )
+    
+    # Also find cross-department faculty whose preferences match our subjects
+    # This handles BS faculty teaching MAT/PHT/CYT subjects in CS department etc.
+    cross_dept_conditions = Q()
+    for code in subject_codes:
+        cross_dept_conditions |= Q(preferences__contains=code)
+    
+    cross_dept_faculty_qs = Faculty.objects.filter(
+        is_active=True
+    ).exclude(
+        department_id=department_id
+    ).exclude(
+        department_id__isnull=True
+    ).filter(cross_dept_conditions)
+    
+    # Combine both querysets (union removes duplicates)
+    combined_qs = (dept_faculty_qs | cross_dept_faculty_qs).distinct()
+    faculties = list(combined_qs.values('id', 'name', 'designation', 'preferences'))
     
     if not faculties:
         # Fallback to all active faculty

@@ -60,6 +60,7 @@ class Department(models.Model):
         ('EC', 'Electronics & Communication Engineering'),
         ('ME', 'Mechanical Engineering'),
         ('MCA', 'Master of Computer Applications'),
+        ('BS', 'Basic Science'),
     ]
     
     # Dictionary for quick lookup of department names by code
