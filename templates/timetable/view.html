@@ -42,13 +42,30 @@
                 </div>
                 {% else %}
                 <h5 class="fw-bold mb-3">Select Faculty</h5>
-                <div class="list-group list-group-flush" style="max-height: 500px; overflow-y: auto;">
+
+                <!-- Department Filter Dropdown -->
+                <div class="mb-3">
+                    <label class="form-label small text-muted fw-bold text-uppercase">Filter by Department</label>
+                    <select class="form-select" id="facultyDeptFilter" onchange="filterByDepartment(this.value)">
+                        <option value="">-- All Departments --</option>
+                        {% for dept in faculty_departments %}
+                        <option value="{{ dept.id }}" {% if dept.is_selected %}selected{% endif %}>
+                            {{ dept.full_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <hr class="my-2">
+
+                <!-- Faculty List (filtered by selected department) -->
+                <div class="list-group list-group-flush" style="max-height: 450px; overflow-y: auto;">
                     {% for group in grouped_faculties %}
                     <div class="dept-header py-2 px-3 bg-light fw-bold small text-muted text-uppercase mb-1 rounded">
                         {{ group.department_name }}
                     </div>
                     {% for faculty in group.faculties %}
-                    <a href="?mode=faculty&id={{ faculty.id }}"
+                    <a href="?mode=faculty&dept={{ selected_dept_id|default:'' }}&id={{ faculty.id }}"
                         class="list-group-item list-group-item-action border-0 mb-1 rounded {% if faculty.is_selected %}active{% endif %}"
                         style="background: {% if faculty.is_selected %}var(--primary-light){% else %}transparent{% endif %};color: var(--text-heading); padding: 8px 15px;">
                         <i class="bi bi-person me-2"></i>
@@ -57,7 +74,9 @@
                     </a>
                     {% endfor %}
                     {% empty %}
-                    <p class="text-muted text-center py-3">No faculty available</p>
+                    <p class="text-muted text-center py-3">
+                        {% if selected_dept_id %}No faculty in this department{% else %}No faculty available{% endif %}
+                    </p>
                     {% endfor %}
                 </div>
                 {% endif %}
@@ -129,4 +148,14 @@
         </div>
     </div>
 </div>
+
+<script>
+    function filterByDepartment(deptId) {
+        if (deptId) {
+            window.location.href = '?mode=faculty&dept=' + deptId;
+        } else {
+            window.location.href = '?mode=faculty';
+        }
+    }
+</script>
 {% endblock %}

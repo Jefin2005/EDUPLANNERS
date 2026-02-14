@@ -1582,6 +1582,7 @@ def timetable_view(request):
     """View timetables - department-wise or faculty-wise (ALL LOGIC IN BACKEND)"""
     view_mode = request.GET.get('mode', 'department')  # 'department' or 'faculty'
     selected_id = request.GET.get('id')
+    selected_dept_id = request.GET.get('dept')  # Department filter for faculty view
     
     config = SystemConfiguration.objects.first()
     
@@ -1589,7 +1590,7 @@ def timetable_view(request):
     if view_mode == 'department':
         context = _prepare_department_view(selected_id, config)
     else:
-        context = _prepare_faculty_view(selected_id, config)
+        context = _prepare_faculty_view(selected_id, config, selected_dept_id)
     
     context['view_mode'] = view_mode
     context['config'] = config
@@ -1694,18 +1695,36 @@ def _prepare_department_view(department_id, config):
     return result
 
 
-def _prepare_faculty_view(faculty_id, config):
+def _prepare_faculty_view(faculty_id, config, selected_dept_id=None):
     """
     Prepare faculty-wise timetable data.
     Shows consolidated schedule for a faculty member.
+    Filters faculty list by department when selected_dept_id is provided.
     """
     semester_instance = config.get_semester_instance() if config else '2024-ODD'
     
-    # Get all active faculty for selection, grouped by department
+    # Build department list for the dropdown
     departments = Department.objects.filter(is_active=True).order_by('code')
+    department_list = []
+    for dept in departments:
+        department_list.append({
+            'id': dept.id,
+            'code': dept.code,
+            'name': dept.name,
+            'full_name': f'{dept.code} - {dept.name}',
+            'is_selected': str(dept.id) == str(selected_dept_id) if selected_dept_id else False
+        })
+    
+    # Get faculty for selection - filtered by department if one is selected
     grouped_faculties = []
     
-    for dept in departments:
+    if selected_dept_id:
+        # Only show faculty from the selected department
+        filter_depts = departments.filter(id=selected_dept_id)
+    else:
+        filter_depts = departments
+    
+    for dept in filter_depts:
         dept_faculties = Faculty.objects.filter(department=dept, is_active=True).order_by('name')
         if not dept_faculties.exists():
             continue
@@ -1726,27 +1745,30 @@ def _prepare_faculty_view(faculty_id, config):
             'department_code': dept.code,
             'faculties': fac_list
         })
-        
-    # Also handle faculty without departments (if any)
-    unassigned_faculties = Faculty.objects.filter(department__isnull=True, is_active=True).order_by('name')
-    if unassigned_faculties.exists():
-        fac_list = []
-        for fac in unassigned_faculties:
-            fac_list.append({
-                'id': fac.id,
-                'name': fac.name,
-                'designation': fac.get_designation_display(),
-                'full_display': f'{fac.name} ({fac.get_designation_display()})',
-                'is_selected': str(fac.id) == str(faculty_id) if faculty_id else False
+    
+    # Also handle faculty without departments (only when no department filter)
+    if not selected_dept_id:
+        unassigned_faculties = Faculty.objects.filter(department__isnull=True, is_active=True).order_by('name')
+        if unassigned_faculties.exists():
+            fac_list = []
+            for fac in unassigned_faculties:
+                fac_list.append({
+                    'id': fac.id,
+                    'name': fac.name,
+                    'designation': fac.get_designation_display(),
+                    'full_display': f'{fac.name} ({fac.get_designation_display()})',
+                    'is_selected': str(fac.id) == str(faculty_id) if faculty_id else False
+                })
+            grouped_faculties.append({
+                'department_id': 'unassigned',
+                'department_name': 'Unassigned',
+                'department_code': 'None',
+                'faculties': fac_list
             })
-        grouped_faculties.append({
-            'department_id': 'unassigned',
-            'department_name': 'Unassigned',
-            'department_code': 'None',
-            'faculties': fac_list
-        })
     
     result = {
+        'faculty_departments': department_list,
+        'selected_dept_id': selected_dept_id,
         'grouped_faculties': grouped_faculties,
         'selected_faculty': None,
         'timetable_grid': [],

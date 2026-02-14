@@ -107,11 +107,45 @@ class Command(BaseCommand):
     def create_faculty(self, departments):
         """Create demo faculty members"""
         faculty_data = [
-            # CS Department
-            ('Dr. Rajesh Kumar', 'rajesh@example.com', 'PROFESSOR', 'CS', 'CST201,CST203,CST205'),
-            ('Dr. Priya Sharma', 'priya@example.com', 'ASSOCIATE_PROFESSOR', 'CS', 'CST207,CST209'),
-            ('Mr. Amit Verma', 'amit@example.com', 'ASSISTANT_PROFESSOR', 'CS', 'CST211,CST213'),
-            ('Ms. Sneha Reddy', 'sneha@example.com', 'ASSISTANT_PROFESSOR', 'CS', 'CST215,CST217'),
+            # CS Department - Professors
+            ('Dr. Varun G. Menon', 'varun.menon@scmsgroup.org', 'PROFESSOR', 'CS', ''),
+            ('Dr. Manish T. I', 'manish.ti@scmsgroup.org', 'PROFESSOR', 'CS', ''),
+            # CS Department - Associate Professors
+            ('Dr. Dhanya K. A', 'dhanya.ka@scmsgroup.org', 'ASSOCIATE_PROFESSOR', 'CS', ''),
+            ('Dr. Deepa K', 'deepa.k@scmsgroup.org', 'ASSOCIATE_PROFESSOR', 'CS', ''),
+            # CS Department - Assistant Professors
+            ('Ms. Josna Philomina', 'josna.philomina@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
+            ('Ms. Bini Omman', 'bini.omman@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
+            ('Ms. Litty Koshy', 'litty.koshy@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
+            ('Ms. Neethu Krishna', 'neethu.krishna@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
+            ('Ms. Surya S. G', 'surya.sg@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
+            ('Ms. Greshma P. Sebastian', 'greshma.sebastian@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
+            ('Ms. Doney Daniel', 'doney.daniel@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
+            ('Ms. Meera V. M', 'meera.vm@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
+            ('Ms. Sruthy K. Joseph', 'sruthy.joseph@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
+            ('Ms. Demy Devassy', 'demy.devassy@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
+            ('Ms. Vyshna R. K', 'vyshna.rk@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
+            ('Mr. Anoop Jose', 'anoop.jose@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
+            ('Ms. Smera Thomas', 'smera.thomas@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
+            ('Dr. Noora V. T', 'noora.vt@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
+            ('Ms. Sareena K. K', 'sareena.kk@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
+            ('Ms. Divya M. P', 'divya.mp@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
+            ('Mr. Subin P. S', 'subin.ps@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
+            ('Ms. Sanooja Beegam M. A', 'sanooja.beegam@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
+            ('Ms. Anisha V. Lal', 'anisha.lal@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
+            ('Ms. Hafeesa M. Habeeb', 'hafeesa.habeeb@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
+            ('Ms. Anu S', 'anu.s@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
+            ('Ms. Neethu Roy', 'neethu.roy@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
+            ('Ms. Supriya T. B', 'supriya.tb@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
+            ('Ms. Fida Shirin', 'fida.shirin@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
+            ('Ms. Sandra Vijumon', 'sandra.vijumon@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
+            ('Ms. Shruthi S', 'shruthi.s@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
+            ('Ms. Annamol Eldho', 'annamol.eldho@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
+            ('Mr. Safeer P. S', 'safeer.ps@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
+            ('Ms. Rini Joy', 'rini.joy@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
+            ('Dr. Gokul G. N', 'gokul.gn@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
+            ('Ms. Heera Rishikeshan', 'heera.rishikeshan@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
+            ('Ms. Anugraha Raj', 'anugraha.raj@scmsgroup.org', 'ASSISTANT_PROFESSOR', 'CS', ''),
             
             # EC Department
             ('Dr. Suresh Nair', 'suresh@example.com', 'PROFESSOR', 'EC', 'ECT201,ECT203'),
