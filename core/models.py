@@ -51,16 +51,14 @@ class Department(models.Model):
     
     # Fixed list of valid department codes and names
     DEPARTMENT_CHOICES = [
-        ('AU', 'Automobile Engineering'),
-        ('CE', 'Civil Engineering'),
-        ('CS', 'Computer Science & Engineering'),
-        ('CT', 'Computer Technology'),
-        ('CO', 'Computer Engineering'),
-        ('EE', 'Electrical Engineering'),
-        ('EC', 'Electronics & Communication Engineering'),
         ('ME', 'Mechanical Engineering'),
-        ('MCA', 'Master of Computer Applications'),
-        ('BS', 'Basic Science'),
+        ('CS', 'Computer Science & Engineering'),
+        ('EEE', 'Electrical & Electronics Engineering'),
+        ('CE', 'Civil Engineering'),
+        ('AU', 'Automobile Engineering'),
+        ('EC', 'Electronics & Communication Engineering'),
+        ('BSH', 'Basic Science & Humanities'),
+        ('AIDS', 'Artificial Intelligence and Data Science'),
     ]
     
     # Dictionary for quick lookup of department names by code
