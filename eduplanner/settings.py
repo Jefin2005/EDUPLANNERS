@@ -128,3 +128,8 @@ LOGIN_URL = '/login/'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# AI Assistant Configuration
+# Get your free API key at https://aistudio.google.com
+GEMINI_API_KEY = 'AIzaSyBcvbmsbT4fEb4wzmC9KvTupdJgRgIhg1E'
+GEMINI_MODEL = 'gemini-2.0-flash'

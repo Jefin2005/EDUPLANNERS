@@ -1,0 +1,522 @@
+<!-- AI Assistant Floating Panel — Admin Only -->
+<!-- Include this partial at the bottom of admin pages -->
+
+<!-- Floating Action Button -->
+<button class="ai-fab" id="aiFab" title="AI Assistant">
+    <i class="bi bi-robot"></i>
+    <span class="ai-fab-pulse"></span>
+</button>
+
+<!-- Assistant Panel -->
+<div class="ai-panel" id="aiPanel">
+    <div class="ai-panel-header">
+        <div class="d-flex align-items-center">
+            <div class="ai-panel-icon">
+                <i class="bi bi-robot"></i>
+            </div>
+            <div class="ms-2">
+                <h6 class="mb-0 fw-bold">EDUPLANNER AI</h6>
+                <small class="text-muted">Smart Assistant</small>
+            </div>
+        </div>
+        <button class="ai-panel-close" id="aiPanelClose">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="ai-tabs">
+        <button class="ai-tab active" data-tab="health" onclick="switchAiTab('health')">
+            <i class="bi bi-heart-pulse"></i> Health
+        </button>
+        <button class="ai-tab" data-tab="clashes" onclick="switchAiTab('clashes')">
+            <i class="bi bi-exclamation-triangle"></i> Clashes
+        </button>
+        <button class="ai-tab" data-tab="suggest" onclick="switchAiTab('suggest')">
+            <i class="bi bi-lightbulb"></i> Suggest
+        </button>
+        <button class="ai-tab" data-tab="chat" onclick="switchAiTab('chat')">
+            <i class="bi bi-chat-dots"></i> Chat
+        </button>
+    </div>
+
+    <!-- Tab Contents -->
+    <div class="ai-panel-body">
+
+        <!-- Health Tab -->
+        <div class="ai-tab-content active" id="tab-health">
+            <div class="ai-loading" id="health-loading">
+                <div class="spinner-gradient"></div>
+                <p class="mt-2 mb-0 text-muted small">Analyzing system...</p>
+            </div>
+            <div id="health-content" class="d-none">
+                <!-- Health Score -->
+                <div class="ai-health-score" id="health-score-card">
+                    <div class="ai-health-ring" id="health-ring">
+                        <span class="ai-health-value" id="health-value">--</span>
+                    </div>
+                    <div class="ms-3">
+                        <h6 class="mb-0 fw-bold" id="health-label">Loading...</h6>
+                        <small class="text-muted" id="health-sem-mode">--</small>
+                    </div>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="ai-stat-row" id="health-stats"></div>
+
+                <!-- Issues -->
+                <div id="health-issues"></div>
+            </div>
+        </div>
+
+        <!-- Clashes Tab -->
+        <div class="ai-tab-content" id="tab-clashes">
+            <div class="ai-form-group">
+                <label class="ai-label">Select Faculty</label>
+                <select class="form-select form-select-sm ai-select" id="clash-faculty">
+                    <option value="">-- Choose faculty --</option>
+                </select>
+            </div>
+            <div class="ai-form-group mt-2">
+                <label class="ai-label">Time Slot (optional)</label>
+                <select class="form-select form-select-sm ai-select" id="clash-timeslot">
+                    <option value="">-- All slots --</option>
+                </select>
+            </div>
+            <button class="btn btn-sm btn-gradient w-100 mt-2" onclick="checkClashes()">
+                <i class="bi bi-search me-1"></i>Check Clashes
+            </button>
+            <div id="clash-result" class="mt-3"></div>
+        </div>
+
+        <!-- Suggest Tab -->
+        <div class="ai-tab-content" id="tab-suggest">
+            <div class="ai-form-group">
+                <label class="ai-label">Select Subject</label>
+                <select class="form-select form-select-sm ai-select" id="suggest-subject">
+                    <option value="">-- Choose subject --</option>
+                </select>
+            </div>
+            <button class="btn btn-sm btn-gradient w-100 mt-2" onclick="suggestFaculty()">
+                <i class="bi bi-lightbulb me-1"></i>Get Suggestions
+            </button>
+            <div id="suggest-result" class="mt-3"></div>
+        </div>
+
+        <!-- Chat Tab (Phase 2) -->
+        <div class="ai-tab-content" id="tab-chat">
+            <div class="ai-chat-messages" id="chat-messages">
+                <div class="ai-chat-msg ai-chat-bot">
+                    <div class="ai-chat-avatar"><i class="bi bi-robot"></i></div>
+                    <div class="ai-chat-bubble">
+                        Hi! I'm the EDUPLANNER AI assistant. Ask me anything about your timetable, faculty, or subjects.
+                        <div class="ai-chat-suggestions mt-2">
+                            <button class="ai-chip" onclick="sendChatMsg('Show workload for all CS faculty')">Workload
+                                for CS faculty</button>
+                            <button class="ai-chip" onclick="sendChatMsg('What subjects are unassigned?')">Unassigned
+                                subjects</button>
+                            <button class="ai-chip" onclick="sendChatMsg('Check system health')">System health</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="ai-chat-input-area">
+                <div class="input-group input-group-sm">
+                    <input type="text" class="form-control ai-select" id="chat-input" placeholder="Ask me anything..."
+                        onkeypress="if(event.key==='Enter')sendChatMsg()">
+                    <button class="btn btn-gradient" onclick="sendChatMsg()">
+                        <i class="bi bi-send"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Inline data blocks — rendered by Django, parsed by JS below -->
+{% if all_subjects_json %}
+<script type="application/json" id="ai-data-subjects">{{ all_subjects_json|safe }}</script>
+{% endif %}
+{% if all_faculty_json %}
+<script type="application/json" id="ai-data-faculty">{{ all_faculty_json|safe }}</script>
+{% endif %}
+{% if all_timeslots_json %}
+<script type="application/json" id="ai-data-timeslots">{{ all_timeslots_json|safe }}</script>
+{% endif %}
+
+<script>
+    (function () {
+        // ===== Panel Toggle =====
+        const fab = document.getElementById('aiFab');
+        const panel = document.getElementById('aiPanel');
+        const closeBtn = document.getElementById('aiPanelClose');
+        let panelOpen = false;
+        let dataLoaded = { health: false, clashes: false, suggest: false };
+
+        fab.addEventListener('click', () => {
+            panelOpen = !panelOpen;
+            panel.classList.toggle('open', panelOpen);
+            fab.classList.toggle('active', panelOpen);
+            if (panelOpen && !dataLoaded.health) {
+                loadHealth();
+            }
+        });
+
+        closeBtn.addEventListener('click', () => {
+            panelOpen = false;
+            panel.classList.remove('open');
+            fab.classList.remove('active');
+        });
+
+        // ===== Tab Switching =====
+        window.switchAiTab = function (tabName) {
+            document.querySelectorAll('.ai-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.ai-tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelector(`.ai-tab[data-tab="${tabName}"]`).classList.add('active');
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+
+            // Lazy load data
+            if (tabName === 'clashes' && !dataLoaded.clashes) loadClashData();
+            if (tabName === 'suggest' && !dataLoaded.suggest) loadSuggestData();
+        };
+
+        // ===== Health Tab =====
+        function loadHealth() {
+            fetch('{% url "ai_system_health" %}')
+                .then(r => r.json())
+                .then(data => {
+                    dataLoaded.health = true;
+                    document.getElementById('health-loading').classList.add('d-none');
+                    document.getElementById('health-content').classList.remove('d-none');
+
+                    // Score
+                    const value = document.getElementById('health-value');
+                    const label = document.getElementById('health-label');
+                    const ring = document.getElementById('health-ring');
+                    value.textContent = data.score;
+                    label.textContent = data.label;
+                    document.getElementById('health-sem-mode').textContent = `Semester: ${data.semester_mode}`;
+                    ring.className = `ai-health-ring ai-health-${data.color}`;
+
+                    // Stats
+                    const stats = document.getElementById('health-stats');
+                    const c = data.counts;
+                    stats.innerHTML = `
+                    <div class="ai-mini-stat"><span class="ai-mini-val">${c.departments}</span><span class="ai-mini-label">Depts</span></div>
+                    <div class="ai-mini-stat"><span class="ai-mini-val">${c.faculty}</span><span class="ai-mini-label">Faculty</span></div>
+                    <div class="ai-mini-stat"><span class="ai-mini-val">${c.subjects}</span><span class="ai-mini-label">Subjects</span></div>
+                    <div class="ai-mini-stat"><span class="ai-mini-val">${c.timetable_entries}</span><span class="ai-mini-label">Entries</span></div>
+                `;
+
+                    // Issues
+                    const issues = document.getElementById('health-issues');
+                    let html = '';
+                    if (data.issues.clashes > 0) {
+                        html += `<div class="ai-alert ai-alert-danger"><i class="bi bi-exclamation-circle me-1"></i>${data.issues.clashes} faculty clash(es) detected</div>`;
+                    }
+                    if (data.issues.overloaded_faculty.length > 0) {
+                        html += `<div class="ai-alert ai-alert-warning"><i class="bi bi-exclamation-triangle me-1"></i>${data.issues.overloaded_faculty.length} overloaded faculty</div>`;
+                        data.issues.overloaded_faculty.forEach(f => {
+                            html += `<div class="ai-issue-item"><span>${f.name}</span><span class="text-muted small">${f.workload}</span></div>`;
+                        });
+                    }
+                    if (data.issues.unassigned_subjects.length > 0) {
+                        html += `<div class="ai-alert ai-alert-info mt-2"><i class="bi bi-info-circle me-1"></i>${data.issues.unassigned_subjects.length} unassigned subject(s)</div>`;
+                    }
+                    if (data.issues.idle_faculty.length > 0) {
+                        html += `<div class="ai-alert ai-alert-info mt-2"><i class="bi bi-person-dash me-1"></i>${data.issues.idle_faculty.length} idle faculty (0 hours)</div>`;
+                    }
+                    if (!html) {
+                        html = '<div class="ai-alert ai-alert-success"><i class="bi bi-check-circle me-1"></i>No issues found — system looks great!</div>';
+                    }
+                    issues.innerHTML = html;
+                })
+                .catch(err => {
+                    document.getElementById('health-loading').innerHTML = `<p class="text-danger small">Error loading health data</p>`;
+                });
+        }
+
+        // ===== Clashes Tab =====
+        function loadClashData() {
+            dataLoaded.clashes = true;
+            // Load faculty list
+            fetch('{% url "api_departments" %}')
+                .then(r => r.json())
+                .then(() => {
+                    return fetch('{% url "ai_workload" %}');
+                })
+                .then(r => r.json())
+                .then(data => {
+                    const sel = document.getElementById('clash-faculty');
+                    if (data.faculty) {
+                        data.faculty.forEach(f => {
+                            const opt = document.createElement('option');
+                            opt.value = f.id;
+                            opt.textContent = `${f.name} (${f.department})`;
+                            sel.appendChild(opt);
+                        });
+                    }
+                });
+
+            // Load time slots
+            fetch('{% url "api_timetable_grid" %}?class_section_id=0')
+                .catch(() => { });
+
+            // Build time slot options from a simpler approach
+            const slotSel = document.getElementById('clash-timeslot');
+            const days = ['MON', 'TUE', 'WED', 'THU', 'FRI'];
+            const dayLabels = { MON: 'Monday', TUE: 'Tuesday', WED: 'Wednesday', THU: 'Thursday', FRI: 'Friday' };
+            // We'll load slots via the faculty's existing schedule when they select a faculty
+        }
+
+        window.checkClashes = function () {
+            const facId = document.getElementById('clash-faculty').value;
+            const slotId = document.getElementById('clash-timeslot').value;
+            const resultDiv = document.getElementById('clash-result');
+
+            if (!facId) {
+                resultDiv.innerHTML = '<p class="text-warning small">Please select a faculty member</p>';
+                return;
+            }
+
+            resultDiv.innerHTML = '<div class="text-center"><div class="spinner-gradient mx-auto"></div></div>';
+
+            let url = `{% url "ai_check_clashes" %}?faculty_id=${facId}`;
+            if (slotId) url += `&time_slot_id=${slotId}`;
+
+            fetch(url)
+                .then(r => r.json())
+                .then(data => {
+                    let html = '';
+                    if (data.has_clash) {
+                        html += `<div class="ai-alert ai-alert-danger"><i class="bi bi-exclamation-circle me-1"></i>${data.message}</div>`;
+                        if (data.clashes && data.clashes.length > 0) {
+                            data.clashes.forEach(c => {
+                                if (c.bookings) {
+                                    // Multiple bookings clash
+                                    html += `<div class="ai-issue-item"><strong>${c.day} P${c.period}</strong>: ${c.bookings.length} bookings</div>`;
+                                } else {
+                                    html += `<div class="ai-issue-item">
+                                    <span>${c.subject_code} — ${c.class}</span>
+                                    <span class="small text-muted">${c.day} P${c.period} (${c.role})</span>
+                                </div>`;
+                                }
+                            });
+                        }
+                    } else {
+                        html += `<div class="ai-alert ai-alert-success"><i class="bi bi-check-circle me-1"></i>${data.message}</div>`;
+                    }
+
+                    // Show full schedule if available
+                    if (data.schedule) {
+                        html += '<div class="mt-2"><small class="text-muted fw-bold">Full Schedule:</small></div>';
+                        for (const [day, entries] of Object.entries(data.schedule)) {
+                            entries.forEach(e => {
+                                html += `<div class="ai-issue-item"><span>${day} P${e.period}: ${e.subject_code}</span><span class="small">${e.class}</span></div>`;
+                            });
+                        }
+                    }
+                    resultDiv.innerHTML = html;
+                });
+        };
+
+        // ===== Suggest Tab =====
+        function loadSuggestData() {
+            dataLoaded.suggest = true;
+            // Load subjects
+            fetch('{% url "ai_system_health" %}')
+                .then(r => r.json())
+                .then(() => {
+                    // Populate subject dropdown from all subjects
+                    const sel = document.getElementById('suggest-subject');
+                    // Use a dedicated fetch for subjects grouped data
+                    return fetch('{% url "ai_search" %}?q=*');
+                })
+                .catch(() => { });
+
+            // Populate from DOM if we have subjects
+            populateSubjectDropdown();
+        }
+
+        function populateSubjectDropdown() {
+            // Fetch all subjects via search with a broad query
+            // Actually let's use the workload endpoint to get faculty and create our own subject fetch
+            fetch('{% url "ai_search" %}?q=CS')
+                .then(r => r.json())
+                .then(data => {
+                    // This gives us a sample, but we need all subjects
+                    // Let's make a broader request using a single char
+                    return fetch('{% url "ai_search" %}?q=  ');
+                })
+                .catch(() => { });
+
+            // Better approach: populate from a custom endpoint or use inline data
+            // For now, let's populate when the user types
+        }
+
+        window.suggestFaculty = function () {
+            const subId = document.getElementById('suggest-subject').value;
+            const resultDiv = document.getElementById('suggest-result');
+
+            if (!subId) {
+                resultDiv.innerHTML = '<p class="text-warning small">Please select a subject</p>';
+                return;
+            }
+
+            resultDiv.innerHTML = '<div class="text-center"><div class="spinner-gradient mx-auto"></div></div>';
+
+            fetch(`{% url "ai_suggest_faculty" %}?subject_id=${subId}`)
+                .then(r => r.json())
+                .then(data => {
+                    let html = '';
+                    if (data.error) {
+                        html = `<p class="text-danger small">${data.error}</p>`;
+                    } else {
+                        html += `<div class="ai-subject-info mb-2">
+                        <strong>${data.subject.code}</strong> — ${data.subject.name}
+                        <br><small class="text-muted">${data.subject.department} · S${data.subject.semester} · ${data.subject.hours}hrs/wk</small>
+                    </div>`;
+
+                        if (data.suggestions.length === 0) {
+                            html += '<p class="text-muted small">No suitable faculty found.</p>';
+                        } else {
+                            data.suggestions.forEach((s, i) => {
+                                const statusClass = s.workload_status === 'green' ? 'ai-wl-green' : (s.workload_status === 'yellow' ? 'ai-wl-yellow' : 'ai-wl-red');
+                                html += `<div class="ai-suggest-card">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <span class="ai-rank">#${i + 1}</span>
+                                        <strong>${s.name}</strong>
+                                        <br><small class="text-muted">${s.department} · ${s.designation}</small>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="ai-score">${s.score}pts</span>
+                                        <br><span class="ai-wl-badge ${statusClass}">${s.workload_current}/${s.workload_max}hrs</span>
+                                    </div>
+                                </div>
+                                <div class="ai-reasons mt-1">
+                                    ${s.reasons.map(r => `<span class="ai-reason-chip">${r}</span>`).join(' ')}
+                                </div>
+                            </div>`;
+                            });
+                        }
+                    }
+                    resultDiv.innerHTML = html;
+                });
+        };
+
+        // ===== Chat Tab =====
+        window.sendChatMsg = function (presetMsg) {
+            const input = document.getElementById('chat-input');
+            const msg = presetMsg || input.value.trim();
+            if (!msg) return;
+            input.value = '';
+
+            const messages = document.getElementById('chat-messages');
+
+            // Add user message
+            messages.innerHTML += `<div class="ai-chat-msg ai-chat-user">
+            <div class="ai-chat-bubble">${escapeHtml(msg)}</div>
+        </div>`;
+
+            // Add loading indicator  
+            const loadingId = 'chat-loading-' + Date.now();
+            messages.innerHTML += `<div class="ai-chat-msg ai-chat-bot" id="${loadingId}">
+            <div class="ai-chat-avatar"><i class="bi bi-robot"></i></div>
+            <div class="ai-chat-bubble"><div class="spinner-gradient" style="width:1rem;height:1rem;border-width:2px;"></div> Thinking...</div>
+        </div>`;
+            messages.scrollTop = messages.scrollHeight;
+
+            fetch('{% url "ai_chat_api" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                },
+                body: JSON.stringify({ message: msg })
+            })
+                .then(r => r.json())
+                .then(data => {
+                    const loadingEl = document.getElementById(loadingId);
+                    if (loadingEl) {
+                        loadingEl.querySelector('.ai-chat-bubble').innerHTML = formatChatResponse(data.response || data.error || 'Something went wrong.');
+                    }
+                    messages.scrollTop = messages.scrollHeight;
+                })
+                .catch(err => {
+                    const loadingEl = document.getElementById(loadingId);
+                    if (loadingEl) {
+                        loadingEl.querySelector('.ai-chat-bubble').innerHTML = '<span class="text-danger">Failed to get response. Check API key configuration.</span>';
+                    }
+                });
+        };
+
+        function formatChatResponse(text) {
+            // Basic markdown-like formatting
+            return text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n/g, '<br>')
+                .replace(/`(.*?)`/g, '<code>$1</code>');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function getCsrfToken() {
+            const cookie = document.cookie.split(';').find(c => c.trim().startsWith('csrftoken='));
+            return cookie ? cookie.split('=')[1] : '';
+        }
+
+        // ===== Inline Data Population =====
+        // Data is embedded in script[type=application/json] blocks by Django
+        function loadInlineData(elementId, handler) {
+            const el = document.getElementById(elementId);
+            if (el) {
+                try {
+                    const data = JSON.parse(el.textContent);
+                    handler(data);
+                } catch (e) {
+                    console.warn('Failed to parse inline data:', elementId, e);
+                }
+            }
+        }
+
+        // Populate subjects dropdown
+        loadInlineData('ai-data-subjects', function (subjects) {
+            const sel = document.getElementById('suggest-subject');
+            subjects.forEach(function (s) {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.textContent = s.code + ' — ' + s.name + ' (' + s.dept + ' S' + s.sem + ')';
+                sel.appendChild(opt);
+            });
+        });
+
+        // Populate faculty dropdown
+        loadInlineData('ai-data-faculty', function (faculty) {
+            const sel = document.getElementById('clash-faculty');
+            sel.innerHTML = '<option value="">-- Choose faculty --</option>';
+            faculty.forEach(function (f) {
+                const opt = document.createElement('option');
+                opt.value = f.id;
+                opt.textContent = f.name + ' (' + f.dept + ')';
+                sel.appendChild(opt);
+            });
+        });
+
+        // Populate timeslots dropdown
+        loadInlineData('ai-data-timeslots', function (slots) {
+            const sel = document.getElementById('clash-timeslot');
+            slots.forEach(function (s) {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.textContent = s.day + ' P' + s.period + ' (' + s.start + ' - ' + s.end + ')';
+                sel.appendChild(opt);
+            });
+        });
+
+    })();
+</script>
