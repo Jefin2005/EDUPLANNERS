@@ -220,7 +220,6 @@
 {% endblock %}
 
 {% block extra_js %}
-{% include 'admin/partials/ai_assistant.html' %}
 <script>
     function toggleSemester(mode) {
         fetch('{% url "toggle_semester_mode" %}', {

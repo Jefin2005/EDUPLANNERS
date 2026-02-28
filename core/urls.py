@@ -55,12 +55,4 @@ urlpatterns = [
     path('api/teachers/', views.api_teachers_by_department, name='api_teachers'),
     path('api/timetable/teacher/', views.api_teacher_timetable, name='api_teacher_timetable'),
     path('api/faculty/preferences/update/', views.update_faculty_preferences_api, name='update_faculty_preferences_api'),
-
-    # AI Assistant API
-    path('api/ai/clashes/', views.ai_check_clashes, name='ai_check_clashes'),
-    path('api/ai/suggest-faculty/', views.ai_suggest_faculty, name='ai_suggest_faculty'),
-    path('api/ai/workload/', views.ai_workload, name='ai_workload'),
-    path('api/ai/health/', views.ai_system_health, name='ai_system_health'),
-    path('api/ai/search/', views.ai_search, name='ai_search'),
-    path('api/ai/chat/', views.ai_chat_api, name='ai_chat_api'),
 ]

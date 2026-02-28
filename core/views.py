@@ -111,23 +111,6 @@ def admin_dashboard(request):
     else:
         active_semesters = Semester.objects.filter(number__in=[2, 4, 6, 8])
     
-    # AI Assistant inline data — used by the floating panel to populate dropdowns
-    all_faculty_json = json.dumps([
-        {'id': f.id, 'name': f.name, 'dept': f.department.code if f.department else 'N/A'}
-        for f in Faculty.objects.filter(is_active=True).select_related('department').order_by('name')
-    ])
-    all_subjects_json = json.dumps([
-        {'id': s.id, 'code': s.code, 'name': s.name, 'dept': s.department.code, 'sem': s.semester.number}
-        for s in Subject.objects.select_related('department', 'semester').order_by('department__code', 'code')
-    ])
-    all_timeslots_json = json.dumps([
-        {
-            'id': t.id, 'day': t.get_day_display(), 'period': t.period,
-            'start': t.start_time.strftime('%H:%M'), 'end': t.end_time.strftime('%H:%M')
-        }
-        for t in TimeSlot.objects.filter(slot_type__in=['MORNING', 'AFTERNOON']).order_by('day', 'period')
-    ])
-    
     context = {
         'config': config,
         'departments': departments,
@@ -135,9 +118,6 @@ def admin_dashboard(request):
         'total_subjects': total_subjects,
         'total_classes': total_classes,
         'active_semesters': active_semesters,
-        'all_faculty_json': all_faculty_json,
-        'all_subjects_json': all_subjects_json,
-        'all_timeslots_json': all_timeslots_json,
     }
     return render(request, 'admin/dashboard.html', context)
 
@@ -2374,83 +2354,3 @@ def api_teacher_timetable(request):
     })
 
 
-# ============ AI ASSISTANT API ============
-
-from . import ai_assistant
-
-
-@role_required('ADMIN')
-def ai_check_clashes(request):
-    """API: Check faculty clashes for a given faculty and optional time slot."""
-    faculty_id = request.GET.get('faculty_id')
-    time_slot_id = request.GET.get('time_slot_id')
-    day = request.GET.get('day')
-
-    if not faculty_id:
-        return JsonResponse({'error': 'faculty_id is required'}, status=400)
-
-    result = ai_assistant.check_faculty_clashes(
-        int(faculty_id),
-        time_slot_id=int(time_slot_id) if time_slot_id else None,
-        day=day
-    )
-    return JsonResponse(result)
-
-
-@role_required('ADMIN')
-def ai_suggest_faculty(request):
-    """API: Get ranked faculty suggestions for a subject."""
-    subject_id = request.GET.get('subject_id')
-    if not subject_id:
-        return JsonResponse({'error': 'subject_id is required'}, status=400)
-
-    result = ai_assistant.suggest_faculty_for_subject(int(subject_id))
-    return JsonResponse(result)
-
-
-@role_required('ADMIN')
-def ai_workload(request):
-    """API: Get workload status for a faculty or department."""
-    faculty_id = request.GET.get('faculty_id')
-    department = request.GET.get('department')
-
-    if faculty_id:
-        result = ai_assistant.get_workload_status(faculty_id=int(faculty_id))
-    else:
-        result = ai_assistant.get_workload_status(department_code=department)
-    return JsonResponse(result)
-
-
-@role_required('ADMIN')
-def ai_system_health(request):
-    """API: Get system health overview."""
-    result = ai_assistant.get_system_health()
-    return JsonResponse(result)
-
-
-@role_required('ADMIN')
-def ai_search(request):
-    """API: Quick entity search."""
-    query = request.GET.get('q', '')
-    result = ai_assistant.search_entities(query)
-    return JsonResponse(result)
-
-
-@role_required('ADMIN')
-def ai_chat_api(request):
-    """API: Process a natural language admin message via LLM or fallback."""
-    if request.method != 'POST':
-        return JsonResponse({'error': 'POST required'}, status=405)
-
-    try:
-        body = json.loads(request.body)
-        message = body.get('message', '').strip()
-    except (json.JSONDecodeError, AttributeError):
-        message = request.POST.get('message', '').strip()
-
-    if not message:
-        return JsonResponse({'error': 'message is required'}, status=400)
-
-    from . import ai_chat
-    result = ai_chat.process_admin_message(message)
-    return JsonResponse(result)
