@@ -714,38 +714,186 @@
         /* ========== TIMETABLE ========== */
         .timetable-grid {
             background: var(--bg-card);
-            border-radius: 12px;
-            overflow: hidden;
+            border-radius: 14px;
             border: 1px solid var(--border-color);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
         }
 
         .timetable-grid th,
         .timetable-grid td {
             text-align: center;
-            padding: 0.75rem;
+            padding: 0.6rem 0.5rem;
             border: 1px solid var(--border-color);
+            vertical-align: middle;
+        }
+
+        /* Sticky header */
+        .timetable-grid thead {
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
 
         .timetable-grid th {
-            background: var(--primary-light);
-            color: var(--primary-color);
+            background: linear-gradient(135deg, #13273F, #1a3a5c);
+            color: #fff;
             font-weight: 600;
+            font-size: 0.85rem;
+            letter-spacing: 0.02em;
+            padding: 0.7rem 0.5rem;
         }
 
-        .timetable-cell.theory {
-            background: var(--primary-light);
+        .timetable-grid th small {
+            color: rgba(255, 255, 255, 0.65) !important;
+            font-size: 0.72rem;
         }
 
-        .timetable-cell.lab {
-            background: var(--success-light);
+        /* Day column */
+        .timetable-grid td.day-cell {
+            background: linear-gradient(135deg, #f8f9fb, #eef1f5);
+            font-weight: 700;
+            font-size: 0.82rem;
+            color: var(--primary-color);
+            letter-spacing: 0.03em;
+            min-width: 95px;
+            white-space: nowrap;
         }
 
-        [data-theme="dark"] .timetable-cell.theory {
-            background: rgba(217, 206, 191, 0.15);
+        [data-theme="dark"] .timetable-grid td.day-cell {
+            background: linear-gradient(135deg, #1a2a3d, #162233);
         }
 
-        [data-theme="dark"] .timetable-cell.lab {
-            background: rgba(95, 168, 108, 0.15);
+        /* Subject cells — card style */
+        .timetable-grid td.theory-cell {
+            background: rgba(102, 126, 234, 0.07);
+            transition: all 0.2s ease;
+        }
+
+        .timetable-grid td.theory-cell:hover {
+            background: rgba(102, 126, 234, 0.15);
+            box-shadow: inset 0 0 0 2px rgba(102, 126, 234, 0.25);
+            transform: scale(1.01);
+        }
+
+        .timetable-grid td.lab-cell {
+            background: rgba(17, 153, 142, 0.08);
+            transition: all 0.2s ease;
+        }
+
+        .timetable-grid td.lab-cell:hover {
+            background: rgba(17, 153, 142, 0.18);
+            box-shadow: inset 0 0 0 2px rgba(17, 153, 142, 0.25);
+            transform: scale(1.01);
+        }
+
+        .timetable-grid td.empty-cell {
+            background: var(--bg-card);
+        }
+
+        [data-theme="dark"] .timetable-grid td.theory-cell {
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        [data-theme="dark"] .timetable-grid td.theory-cell:hover {
+            background: rgba(102, 126, 234, 0.2);
+        }
+
+        [data-theme="dark"] .timetable-grid td.lab-cell {
+            background: rgba(17, 153, 142, 0.12);
+        }
+
+        [data-theme="dark"] .timetable-grid td.lab-cell:hover {
+            background: rgba(17, 153, 142, 0.22);
+        }
+
+        /* Break columns */
+        .timetable-grid th.break-header {
+            background: linear-gradient(135deg, #e8ecf1, #dde1e8) !important;
+            color: #6b7c93 !important;
+            width: 38px !important;
+            min-width: 38px !important;
+            max-width: 38px !important;
+            padding: 8px 3px !important;
+            border-left: 2px dashed #c5cdd8 !important;
+            border-right: 2px dashed #c5cdd8 !important;
+            font-size: 0.65rem !important;
+            letter-spacing: 0.05em;
+        }
+
+        [data-theme="dark"] .timetable-grid th.break-header {
+            background: linear-gradient(135deg, #1e2d3d, #1a2735) !important;
+            color: #8899aa !important;
+            border-left-color: #2a3d52 !important;
+            border-right-color: #2a3d52 !important;
+        }
+
+        .timetable-grid th.break-header small {
+            color: #8899aa !important;
+        }
+
+        .timetable-grid td.break-cell {
+            background: repeating-linear-gradient(-45deg,
+                    transparent,
+                    transparent 4px,
+                    rgba(0, 0, 0, 0.02) 4px,
+                    rgba(0, 0, 0, 0.02) 8px), linear-gradient(135deg, #f2f4f7, #ebeef2);
+            border-left: 2px dashed #c5cdd8;
+            border-right: 2px dashed #c5cdd8;
+            width: 38px;
+            min-width: 38px;
+            max-width: 38px;
+        }
+
+        [data-theme="dark"] .timetable-grid td.break-cell {
+            background: repeating-linear-gradient(-45deg,
+                    transparent,
+                    transparent 4px,
+                    rgba(255, 255, 255, 0.02) 4px,
+                    rgba(255, 255, 255, 0.02) 8px), linear-gradient(135deg, #1a2735, #15202d);
+            border-left-color: #2a3d52;
+            border-right-color: #2a3d52;
+        }
+
+        /* Subject name and faculty in cells */
+        .timetable-grid .subj-name {
+            font-weight: 700;
+            font-size: 0.82rem;
+            line-height: 1.25;
+            color: var(--text-heading);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .timetable-grid .fac-name {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            line-height: 1.15;
+            margin-top: 3px;
+        }
+
+        .timetable-grid .fac-name .asst {
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+
+        /* Period badge */
+        .tt-periods-badge {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 4px 14px;
+            border-radius: 20px;
+            letter-spacing: 0.03em;
+        }
+
+        [data-theme="dark"] .timetable-grid th {
+            background: linear-gradient(135deg, #0f1f30, #152538);
+            border-color: #1e3350;
         }
 
         /* ========== LOADING SPINNER ========== */

@@ -1,0 +1,252 @@
+{% extends 'base.html' %}
+
+{% block title %}Clash Checker - EDUPLANNER{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-lg-2 sidebar d-none d-lg-block">
+            <div class="mb-4">
+                <h6 class="text-muted text-uppercase small fw-bold mb-3">Management</h6>
+                <a href="{% url 'manage_departments' %}" class="sidebar-link">
+                    <i class="bi bi-building"></i>Departments
+                </a>
+                <a href="{% url 'manage_semesters' %}" class="sidebar-link">
+                    <i class="bi bi-calendar3"></i>Semesters & Classes
+                </a>
+                <a href="{% url 'manage_faculty' %}" class="sidebar-link">
+                    <i class="bi bi-people"></i>Faculty
+                </a>
+                <a href="{% url 'manage_subjects' %}" class="sidebar-link">
+                    <i class="bi bi-book"></i>Subjects
+                </a>
+            </div>
+
+            <div class="mb-4">
+                <h6 class="text-muted text-uppercase small fw-bold mb-3">Setup</h6>
+                <a href="{% url 'init_time_slots' %}" class="sidebar-link">
+                    <i class="bi bi-clock"></i>Time Slots
+                </a>
+                <a href="/admin/" class="sidebar-link">
+                    <i class="bi bi-gear"></i>Django Admin
+                </a>
+            </div>
+
+            <div>
+                <h6 class="text-muted text-uppercase small fw-bold mb-3">Timetable</h6>
+                <a href="{% url 'timetable_view' %}" class="sidebar-link">
+                    <i class="bi bi-table"></i>View Timetables
+                </a>
+                <a href="{% url 'clash_checker' %}" class="sidebar-link active">
+                    <i class="bi bi-exclamation-triangle"></i>Clash Checker
+                </a>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="col-lg-10 py-4 px-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="fw-bold mb-1"><i class="bi bi-exclamation-triangle me-2"></i>Clash Checker</h2>
+                    <p class="text-muted mb-0">Detect scheduling conflicts in the current timetable</p>
+                </div>
+                <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-1"></i>Dashboard
+                </a>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-value">{{ total_entries }}</div>
+                        <div class="stat-label">Total Entries</div>
+                        <div class="stat-icon"><i class="bi bi-calendar-check"></i></div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div
+                            class="stat-value {% if faculty_clash_count > 0 %}text-danger{% else %}text-success{% endif %}">
+                            {{ faculty_clash_count }}
+                        </div>
+                        <div class="stat-label">Faculty Clashes</div>
+                        <div class="stat-icon"><i class="bi bi-people"></i></div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div
+                            class="stat-value {% if room_clash_count > 0 %}text-danger{% else %}text-success{% endif %}">
+                            {{ room_clash_count }}
+                        </div>
+                        <div class="stat-label">Room Clashes</div>
+                        <div class="stat-icon"><i class="bi bi-door-open"></i></div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div
+                            class="stat-value {% if faculty_clash_count > 0 or room_clash_count > 0 %}text-warning{% else %}text-success{% endif %}">
+                            {% if faculty_clash_count == 0 and room_clash_count == 0 %}
+                            <i class="bi bi-check-circle"></i>
+                            {% else %}
+                            <i class="bi bi-exclamation-circle"></i>
+                            {% endif %}
+                        </div>
+                        <div class="stat-label">
+                            {% if faculty_clash_count == 0 and room_clash_count == 0 %}
+                            All Clear!
+                            {% else %}
+                            Needs Attention
+                            {% endif %}
+                        </div>
+                        <div class="stat-icon"><i class="bi bi-shield-check"></i></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Overall Status Banner -->
+            {% if faculty_clash_count == 0 and room_clash_count == 0 %}
+            <div class="alert alert-success d-flex align-items-center mb-4" role="alert">
+                <i class="bi bi-check-circle-fill me-3 fs-4"></i>
+                <div>
+                    <strong>No Clashes Found!</strong><br>
+                    The current timetable is conflict-free. All {{ total_entries }} entries have been checked for
+                    faculty and room conflicts.
+                </div>
+            </div>
+            {% else %}
+            <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-3 fs-4"></i>
+                <div>
+                    <strong>Clashes Detected!</strong><br>
+                    Found {{ faculty_clash_count }} faculty clash{{ faculty_clash_count|pluralize:"es" }} and {{
+                    room_clash_count }} room clash{{ room_clash_count|pluralize:"es" }}. Please review and fix below.
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Faculty Clashes Section -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent border-0 py-3">
+                    <h5 class="mb-0">
+                        <i class="bi bi-people me-2"></i>Faculty Clashes
+                        {% if faculty_clash_count > 0 %}
+                        <span class="badge bg-danger ms-2">{{ faculty_clash_count }}</span>
+                        {% else %}
+                        <span class="badge bg-success ms-2">0</span>
+                        {% endif %}
+                    </h5>
+                    <small class="text-muted">Same faculty assigned to multiple classes at the same time</small>
+                </div>
+                <div class="card-body">
+                    {% if faculty_clashes %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Faculty</th>
+                                    <th>Department</th>
+                                    <th>Day</th>
+                                    <th>Period</th>
+                                    <th>Time</th>
+                                    <th>Conflicting Classes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for clash in faculty_clashes %}
+                                <tr>
+                                    <td><span class="badge bg-danger">{{ forloop.counter }}</span></td>
+                                    <td><strong>{{ clash.faculty_name }}</strong></td>
+                                    <td><span class="badge bg-secondary">{{ clash.department }}</span></td>
+                                    <td>{{ clash.day }}</td>
+                                    <td>Period {{ clash.period }}</td>
+                                    <td>{{ clash.time }}</td>
+                                    <td>
+                                        {% for entry in clash.entries %}
+                                        <div class="mb-1">
+                                            <span class="badge bg-warning text-dark">{{ entry.class_name }}</span>
+                                            <small class="text-muted">{{ entry.subject_code }} — {{ entry.subject_name
+                                                }}</small>
+                                        </div>
+                                        {% endfor %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-check-circle text-success" style="font-size: 2.5rem;"></i>
+                        <p class="text-muted mt-2 mb-0">No faculty clashes detected</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Room Clashes Section -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent border-0 py-3">
+                    <h5 class="mb-0">
+                        <i class="bi bi-door-open me-2"></i>Room Clashes
+                        {% if room_clash_count > 0 %}
+                        <span class="badge bg-danger ms-2">{{ room_clash_count }}</span>
+                        {% else %}
+                        <span class="badge bg-success ms-2">0</span>
+                        {% endif %}
+                    </h5>
+                    <small class="text-muted">Same room assigned to multiple classes at the same time</small>
+                </div>
+                <div class="card-body">
+                    {% if room_clashes %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Room</th>
+                                    <th>Day</th>
+                                    <th>Period</th>
+                                    <th>Time</th>
+                                    <th>Conflicting Classes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for clash in room_clashes %}
+                                <tr>
+                                    <td><span class="badge bg-danger">{{ forloop.counter }}</span></td>
+                                    <td><strong>{{ clash.room }}</strong></td>
+                                    <td>{{ clash.day }}</td>
+                                    <td>Period {{ clash.period }}</td>
+                                    <td>{{ clash.time }}</td>
+                                    <td>
+                                        {% for entry in clash.entries %}
+                                        <div class="mb-1">
+                                            <span class="badge bg-warning text-dark">{{ entry.class_name }}</span>
+                                            <small class="text-muted">{{ entry.subject_code }} — {{ entry.faculty_name
+                                                }}</small>
+                                        </div>
+                                        {% endfor %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-check-circle text-success" style="font-size: 2.5rem;"></i>
+                        <p class="text-muted mt-2 mb-0">No room clashes detected</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

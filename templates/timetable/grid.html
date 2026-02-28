@@ -1,38 +1,49 @@
-<div class="table-responsive">
+<div class="table-responsive" style="border-radius: 14px;">
     <table class="table timetable-grid mb-0">
         <thead>
             <tr>
-                <th style="width: 100px;">Day</th>
-                {% for period in period_headers %}
-                <th class="text-center">
-                    <div>{{ period.display }}</div>
-                    <small class="text-muted">{{ period.time }}</small>
+                <th style="width: 95px; min-width: 95px;">
+                    <i class="bi bi-calendar3 me-1"></i>Day
                 </th>
+                {% for period in period_headers %}
+                {% if period.is_break %}
+                <th class="break-header">
+                    <div style="writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; font-weight: 600;">{{ period.display }}</div>
+                    <small style="writing-mode: vertical-rl; transform: rotate(180deg); font-size: 0.55rem; margin-top: 4px; opacity: 0.7;">{{ period.time }}</small>
+                </th>
+                {% else %}
+                <th>
+                    <div style="font-size: 0.9rem; font-weight: 700;">{{ period.display }}</div>
+                    <small style="font-size: 0.7rem; opacity: 0.65;">{{ period.time }}</small>
+                </th>
+                {% endif %}
                 {% endfor %}
             </tr>
         </thead>
         <tbody>
             {% for day_row in grid %}
             <tr>
-                <td class="fw-bold align-middle text-center">
+                <td class="day-cell">
                     {{ day_row.day_name }}
                 </td>
                 {% for cell in day_row.periods %}
+                {% if cell.is_break %}
+                <td class="break-cell"></td>
+                {% else %}
                 <td class="{{ cell.css_class }}" title="{{ cell.tooltip }}">
                     {% if cell.has_entry %}
-                    <div class="timetable-cell text-center py-1">
-                        <div class="fw-bold"
-                            style="font-size: 0.95rem; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
-                            {{ cell.display_line1 }}</div>
-                        <div class="text-muted small mt-1" style="font-size: 0.8rem; line-height: 1.1;">
+                    <div class="text-center" style="padding: 2px 0;">
+                        <div class="subj-name">{{ cell.display_line1 }}</div>
+                        <div class="fac-name">
                             {{ cell.display_line2 }}
                             {% if cell.display_line3 %}
-                            <br><span class="text-primary">{{ cell.display_line3 }}</span>
+                            <br><span class="asst">{{ cell.display_line3 }}</span>
                             {% endif %}
                         </div>
                     </div>
                     {% endif %}
                 </td>
+                {% endif %}
                 {% endfor %}
             </tr>
             {% endfor %}
@@ -43,26 +54,26 @@
 <!-- Legend Table -->
 {% if legend %}
 <div class="mt-5">
-    <h5 class="fw-bold mb-3">Course & Faculty Details</h5>
-    <div class="table-responsive">
-        <table class="table table-sm table-bordered bg-white shadow-sm" style="font-size: 0.9rem;">
-            <thead class="bg-light">
+    <h5 class="fw-bold mb-3"><i class="bi bi-book me-2"></i>Course & Faculty Details</h5>
+    <div class="table-responsive" style="border-radius: 12px; overflow: hidden;">
+        <table class="table table-sm table-bordered mb-0 shadow-sm" style="font-size: 0.9rem;">
+            <thead style="background: linear-gradient(135deg, #13273F, #1a3a5c);">
                 <tr>
-                    <th class="py-2 px-3 text-center" style="width: 100px;">Abbreviation</th>
-                    <th class="py-2 px-3" style="width: 120px;">Course Code</th>
-                    <th class="py-2 px-3">Course Name</th>
-                    <th class="py-2 px-3 text-center" style="width: 100px;">Initials</th>
-                    <th class="py-2 px-3">Name of Faculty</th>
+                    <th class="py-2 px-3 text-center text-white" style="width: 100px;">Abbreviation</th>
+                    <th class="py-2 px-3 text-white" style="width: 120px;">Course Code</th>
+                    <th class="py-2 px-3 text-white">Course Name</th>
+                    <th class="py-2 px-3 text-center text-white" style="width: 100px;">Initials</th>
+                    <th class="py-2 px-3 text-white">Name of Faculty</th>
                 </tr>
             </thead>
             <tbody>
                 {% for item in legend %}
-                <tr>
+                <tr style="transition: background 0.2s;">
                     <td class="py-2 px-3 fw-bold text-center text-primary">{{ item.abbr }}</td>
-                    <td class="py-2 px-3 text-nowrap">{{ item.code }}</td>
-                    <td class="py-2 px-3">{{ item.name }}</td>
-                    <td class="py-2 px-3 text-center fw-bold">{{ item.fac_initials }}</td>
-                    <td class="py-2 px-3 text-muted">{{ item.fac_names }}</td>
+                    <td class="py-2 px-3 text-nowrap" style="color: var(--text-heading);">{{ item.code }}</td>
+                    <td class="py-2 px-3" style="color: var(--text-heading);">{{ item.name }}</td>
+                    <td class="py-2 px-3 text-center fw-bold" style="color: var(--primary-color);">{{ item.fac_initials }}</td>
+                    <td class="py-2 px-3" style="color: var(--text-muted);">{{ item.fac_names }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -72,15 +83,20 @@
 {% endif %}
 
 <!-- Legend Color Guide -->
-<div class="mt-4 d-flex gap-4 flex-wrap">
+<div class="mt-4 d-flex gap-4 flex-wrap align-items-center">
     <div class="d-flex align-items-center">
-        <div style="width: 24px; height: 24px; background: rgba(102, 126, 234, 0.15); border-radius: 6px;" class="me-2">
+        <div style="width: 22px; height: 22px; background: rgba(102, 126, 234, 0.15); border-radius: 6px; border: 1px solid rgba(102, 126, 234, 0.25);" class="me-2">
         </div>
-        <span class="text-muted small">Theory Subject</span>
+        <span class="text-muted small fw-semibold">Theory</span>
     </div>
     <div class="d-flex align-items-center">
-        <div style="width: 24px; height: 24px; background: rgba(17, 153, 142, 0.2); border-radius: 6px;" class="me-2">
+        <div style="width: 22px; height: 22px; background: rgba(17, 153, 142, 0.18); border-radius: 6px; border: 1px solid rgba(17, 153, 142, 0.25);" class="me-2">
         </div>
-        <span class="text-muted small">Lab Session</span>
+        <span class="text-muted small fw-semibold">Lab Session</span>
+    </div>
+    <div class="d-flex align-items-center">
+        <div style="width: 22px; height: 22px; background: repeating-linear-gradient(-45deg, transparent, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 6px), #f2f4f7; border-radius: 6px; border: 1px dashed #c5cdd8;" class="me-2">
+        </div>
+        <span class="text-muted small fw-semibold">Break / Recess</span>
     </div>
 </div>

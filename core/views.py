@@ -1834,17 +1834,18 @@ def _build_timetable_grid(entries, view_type, faculty_id=None):
     }
     periods = range(1, 8)
     
-    # Get period times from database
-    period_times = _get_period_times()
+    # Get full slot sequence including breaks
+    slot_sequence = _get_all_slot_sequence()
     
-    # Build period headers for columns
+    # Build period headers for columns (including break columns)
     period_headers = []
-    for period in periods:
-        period_headers.append({
-            'number': period,
-            'display': f'P{period}',
-            'time': period_times.get(period, '')
-        })
+    for slot in slot_sequence:
+        header = {
+            'display': slot['display'],
+            'time': slot['time'],
+            'is_break': slot['type'] == 'break',
+        }
+        period_headers.append(header)
     
     # Build grid data - now with DAYS as rows and PERIODS as columns
     grid_data = []
@@ -1859,9 +1860,24 @@ def _build_timetable_grid(entries, view_type, faculty_id=None):
             'periods': []
         }
         
-        for period in periods:
+        for slot in slot_sequence:
+            if slot['type'] == 'break':
+                # Insert a break cell
+                day_row['periods'].append({
+                    'is_break': True,
+                    'has_entry': False,
+                    'display_line1': '',
+                    'display_line2': '',
+                    'display_line3': '',
+                    'tooltip': '',
+                    'css_class': 'break-cell'
+                })
+                continue
+            
+            period = slot['period']
             cell = {
                 'period_number': period,
+                'is_break': False,
                 'has_entry': False,
                 'display_line1': '', # Subject name
                 'display_line2': '', # Faculty name
@@ -1946,14 +1962,47 @@ def _build_timetable_grid(entries, view_type, faculty_id=None):
 
 def _get_period_times():
     """
-    Get period times from database (no hardcoding in template).
-    Returns dict mapping period number to start time string.
+    Get period times from database.
+    Returns dict mapping period number to time range string.
     """
     slots = TimeSlot.objects.filter(
         slot_type__in=['MORNING', 'AFTERNOON']
-    ).order_by('period').values('period', 'start_time')
+    ).order_by('period').values('period', 'start_time', 'end_time')
     
-    return {slot['period']: slot['start_time'].strftime('%H:%M') for slot in slots}
+    return {
+        slot['period']: f"{slot['start_time'].strftime('%H:%M')} - {slot['end_time'].strftime('%H:%M')}"
+        for slot in slots
+    }
+
+
+def _get_all_slot_sequence():
+    """
+    Get the full sequence of slots including breaks for one day.
+    Returns a list of dicts in time order: teaching periods + breaks.
+    """
+    slots = TimeSlot.objects.filter(day='MON').order_by('start_time').values(
+        'period', 'slot_type', 'start_time', 'end_time'
+    )
+    
+    sequence = []
+    for slot in slots:
+        is_break = slot['slot_type'] in ('LUNCH', 'RECESS')
+        if is_break:
+            label = 'Lunch' if slot['slot_type'] == 'LUNCH' else 'Recess'
+            sequence.append({
+                'type': 'break',
+                'period': slot['period'],
+                'display': label,
+                'time': f"{slot['start_time'].strftime('%H:%M')} - {slot['end_time'].strftime('%H:%M')}",
+            })
+        else:
+            sequence.append({
+                'type': 'period',
+                'period': slot['period'],
+                'display': f"P{slot['period']}",
+                'time': f"{slot['start_time'].strftime('%H:%M')} - {slot['end_time'].strftime('%H:%M')}",
+            })
+    return sequence
 
 
 def export_timetable_pdf(request):
@@ -2354,3 +2403,88 @@ def api_teacher_timetable(request):
     })
 
 
+@role_required('ADMIN')
+def clash_checker(request):
+    """Check for faculty and room clashes in the current timetable."""
+    from django.db.models import Count
+    
+    DAY_NAMES = {0: 'Monday', 1: 'Tuesday', 2: 'Wednesday', 3: 'Thursday', 4: 'Friday', 5: 'Saturday'}
+    
+    total_entries = TimetableEntry.objects.count()
+    
+    # --- Faculty Clashes: same faculty assigned to multiple entries at same timeslot ---
+    faculty_groups = (
+        TimetableEntry.objects
+        .values('faculty_id', 'time_slot_id')
+        .annotate(entry_count=Count('id'))
+        .filter(entry_count__gt=1)
+    )
+    
+    faculty_clashes = []
+    for group in faculty_groups:
+        entries = TimetableEntry.objects.filter(
+            faculty_id=group['faculty_id'],
+            time_slot_id=group['time_slot_id']
+        ).select_related('faculty', 'faculty__department', 'subject', 'class_section', 'class_section__semester', 'class_section__department', 'time_slot')
+        
+        first = entries.first()
+        ts = first.time_slot
+        
+        faculty_clashes.append({
+            'faculty_name': first.faculty.name,
+            'department': first.faculty.department.code if first.faculty.department else 'N/A',
+            'day': DAY_NAMES.get(ts.day, ts.day),
+            'period': ts.period,
+            'time': f"{ts.start_time.strftime('%H:%M')} – {ts.end_time.strftime('%H:%M')}",
+            'entries': [
+                {
+                    'class_name': f"{e.class_section.department.code} S{e.class_section.semester.number} {e.class_section.section}",
+                    'subject_code': e.subject.code,
+                    'subject_name': e.subject.name,
+                }
+                for e in entries
+            ]
+        })
+    
+    # --- Room Clashes: same room assigned to multiple entries at same timeslot ---
+    room_groups = (
+        TimetableEntry.objects
+        .exclude(room='')
+        .values('room', 'time_slot_id')
+        .annotate(entry_count=Count('id'))
+        .filter(entry_count__gt=1)
+    )
+    
+    room_clashes = []
+    for group in room_groups:
+        entries = TimetableEntry.objects.filter(
+            room=group['room'],
+            time_slot_id=group['time_slot_id']
+        ).select_related('faculty', 'subject', 'class_section', 'class_section__semester', 'class_section__department', 'time_slot')
+        
+        first = entries.first()
+        ts = first.time_slot
+        
+        room_clashes.append({
+            'room': group['room'],
+            'day': DAY_NAMES.get(ts.day, ts.day),
+            'period': ts.period,
+            'time': f"{ts.start_time.strftime('%H:%M')} – {ts.end_time.strftime('%H:%M')}",
+            'entries': [
+                {
+                    'class_name': f"{e.class_section.department.code} S{e.class_section.semester.number} {e.class_section.section}",
+                    'subject_code': e.subject.code,
+                    'faculty_name': e.faculty.name,
+                }
+                for e in entries
+            ]
+        })
+    
+    context = {
+        'total_entries': total_entries,
+        'faculty_clashes': faculty_clashes,
+        'faculty_clash_count': len(faculty_clashes),
+        'room_clashes': room_clashes,
+        'room_clash_count': len(room_clashes),
+    }
+    return render(request, 'admin/clash_checker.html', context)

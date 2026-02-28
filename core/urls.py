@@ -55,4 +55,7 @@ urlpatterns = [
     path('api/teachers/', views.api_teachers_by_department, name='api_teachers'),
     path('api/timetable/teacher/', views.api_teacher_timetable, name='api_teacher_timetable'),
     path('api/faculty/preferences/update/', views.update_faculty_preferences_api, name='update_faculty_preferences_api'),
+
+    # Clash Checker
+    path('manage/clash-checker/', views.clash_checker, name='clash_checker'),
 ]

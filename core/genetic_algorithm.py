@@ -69,6 +69,7 @@ class GeneticAlgorithm:
         'lab_room_clash': -1500,     # Hard: Same lab subject at same time = room conflict
         'cross_dept_clash': -2000,   # Hard: Faculty already booked in another department
         'two_labs_per_week': -500,   # Hard: Each class must have exactly 2 labs
+        'lab_faculty_inconsistent': -2000,  # Hard: All lab hours for a class+subject must have same faculty
         'subject_rotation': -50,     # Soft: Penalize same faculty-subject pairs
         'faculty_preference': 100,   # Soft: Bonus for matching preferences
         'workload_balance': -30,     # Soft: Penalize uneven distribution
@@ -100,15 +101,17 @@ class GeneticAlgorithm:
         self.faculty_preferences = {}
         self.faculty_history = {}  # For subject rotation tracking
         self.faculty_workload_limits = {}
+        self.department_id = None  # Department being scheduled
         
         # Mapping for quick lookup
         self.class_subjects = defaultdict(list)  # class_id -> list of subject_ids
         self.subject_info = {}  # subject_id -> {type, hours, etc}
         self.pre_booked_slots = {}  # faculty_id -> set of time_slot_ids (from other departments)
+        self.dept_faculty_ids = set()  # Faculty IDs belonging to the home department
         
     def load_data(self, classes, subjects, faculties, time_slots, 
                   faculty_preferences=None, faculty_history=None,
-                  pre_booked_slots=None):
+                  pre_booked_slots=None, department_id=None):
         """Load problem data from Django models
         
         Args:
@@ -116,11 +119,14 @@ class GeneticAlgorithm:
                               These are slots already committed in OTHER departments'
                               timetables. The GA will avoid assigning this faculty
                               to these slots.
+            department_id: ID of the department being scheduled. Used to determine
+                           which faculty are 'home' vs 'cross-department'.
         """
         self.classes = classes
         self.subjects = subjects
         self.faculties = faculties
         self.time_slots = time_slots
+        self.department_id = department_id
         
         # Separate subjects by type
         self.lab_subjects = [s for s in subjects if s['subject_type'] == 'LAB']
@@ -138,6 +144,12 @@ class GeneticAlgorithm:
         self.faculty_preferences = faculty_preferences or {}
         self.faculty_history = faculty_history or {}
         self.pre_booked_slots = pre_booked_slots or {}
+        
+        # Identify department faculty vs cross-department faculty
+        self.dept_faculty_ids = set()
+        for f in faculties:
+            if f.get('department_id') == department_id or f.get('department_id') is None:
+                self.dept_faculty_ids.add(f['id'])
         
         for f in faculties:
             self.faculty_workload_limits[f['id']] = f['max_hours']
@@ -169,6 +181,10 @@ class GeneticAlgorithm:
         # Track faculty schedules across ALL classes to prevent faculty clashes
         # Format: faculty_id -> set of time_slot_ids
         global_faculty_schedule = defaultdict(set)
+        
+        # Track lab faculty assignments: (class_id, lab_subject_id) -> (main_faculty, assistant_faculty)
+        # Ensures the same main faculty handles all lab hours for each class+subject
+        class_lab_faculty = {}
         
         # Shuffle class order so different chromosomes try different orderings
         shuffled_classes = list(self.classes)
@@ -204,29 +220,36 @@ class GeneticAlgorithm:
                     day_usage=global_lab_day_usage
                 )
                 if lab_slots:
-                    # Assign main and assistant faculty
-                    # Filter out faculty who are pre-booked OR already scheduled during these lab slots
-                    eligible_faculty = self._get_eligible_faculty_for_subject(lab_id)
-                    eligible_faculty = [
-                        f_id for f_id in eligible_faculty
-                        if not any(
-                            s_id in self.pre_booked_slots.get(f_id, set()) or
-                            s_id in global_faculty_schedule.get(f_id, set())
-                            for s_id in lab_slots
-                        )
-                    ]
-                    
-                    if len(eligible_faculty) >= 2:
-                        main_faculty = random.choice(eligible_faculty)
-                        assistant_faculty = random.choice([f for f in eligible_faculty if f != main_faculty])
-                    elif len(eligible_faculty) == 1:
-                        main_faculty = eligible_faculty[0]
-                        assistant_faculty = None
+                    # Reuse same faculty if already assigned for this class+subject
+                    if (class_id, lab_id) in class_lab_faculty:
+                        main_faculty, assistant_faculty = class_lab_faculty[(class_id, lab_id)]
                     else:
-                        # Fallback: pick any faculty (will get penalized in fitness)
-                        all_faculty_ids = [f['id'] for f in self.faculties]
-                        main_faculty = random.choice(all_faculty_ids)
-                        assistant_faculty = None
+                        # Assign main and assistant faculty
+                        # Filter out faculty who are pre-booked OR already scheduled during these lab slots
+                        eligible_faculty = self._get_eligible_faculty_for_subject(lab_id)
+                        eligible_faculty = [
+                            f_id for f_id in eligible_faculty
+                            if not any(
+                                s_id in self.pre_booked_slots.get(f_id, set()) or
+                                s_id in global_faculty_schedule.get(f_id, set())
+                                for s_id in lab_slots
+                            )
+                        ]
+                        
+                        if len(eligible_faculty) >= 2:
+                            main_faculty = random.choice(eligible_faculty)
+                            assistant_faculty = random.choice([f for f in eligible_faculty if f != main_faculty])
+                        elif len(eligible_faculty) == 1:
+                            main_faculty = eligible_faculty[0]
+                            assistant_faculty = None
+                        else:
+                            # Fallback: pick any faculty (will get penalized in fitness)
+                            all_faculty_ids = [f['id'] for f in self.faculties]
+                            main_faculty = random.choice(all_faculty_ids)
+                            assistant_faculty = None
+                        
+                        # Remember this faculty for future lab sessions of same class+subject
+                        class_lab_faculty[(class_id, lab_id)] = (main_faculty, assistant_faculty)
                     
                     # Determine which day and half this lab lands on
                     lab_slot_info = [ts for ts in self.time_slots if ts['id'] == lab_slots[0]]
@@ -439,7 +462,13 @@ class GeneticAlgorithm:
         return []
     
     def _get_eligible_faculty_for_subject(self, subject_id: int) -> List[int]:
-        """Get faculty IDs who can teach a subject based on preferences and capacity"""
+        """Get faculty IDs who can teach a subject based on preferences and department.
+        
+        Priority:
+        1. Faculty who explicitly prefer this subject -> use only them
+        2. If none -> use only department faculty (home dept + unassigned)
+        3. If none -> fallback to all faculty
+        """
         subject = self.subject_info.get(subject_id, {})
         subject_code = subject.get('code', '')
         
@@ -454,9 +483,15 @@ class GeneticAlgorithm:
         if preferred_faculty:
             return preferred_faculty
         
-        # Otherwise, ALL faculty are eligible (allows even distribution)
-        # This ensures subjects without specific preferences get assigned
-        # to different faculty members rather than just one
+        # Second priority: department faculty only (home dept + unassigned)
+        # This ensures CS core subjects are taught by CS faculty,
+        # and cross-dept faculty only teach subjects they explicitly prefer
+        if self.dept_faculty_ids:
+            dept_list = list(self.dept_faculty_ids)
+            if dept_list:
+                return dept_list
+        
+        # Fallback: all faculty
         return [f['id'] for f in self.faculties]
     
     def calculate_fitness(self, chromosome: Chromosome) -> float:
@@ -554,6 +589,15 @@ class GeneticAlgorithm:
         for day_half, count in lab_day_half_usage.items():
             if count > 1:
                 fitness += self.WEIGHTS['lab_day_clash'] * (count - 1)
+        
+        # Check lab faculty consistency: all lab genes for same (class, subject) must have same faculty
+        for class_id, lab_genes in class_labs.items():
+            lab_faculty_by_subject = defaultdict(set)
+            for g in lab_genes:
+                lab_faculty_by_subject[g.subject_id].add(g.faculty_id)
+            for subj_id, faculty_set in lab_faculty_by_subject.items():
+                if len(faculty_set) > 1:
+                    fitness += self.WEIGHTS['lab_faculty_inconsistent'] * (len(faculty_set) - 1)
         
         # Check lab room clashes (same lab subject, different classes, same time slot)
         # If two classes have the same lab subject at the same time, they'd need the same room
@@ -660,8 +704,13 @@ class GeneticAlgorithm:
                     
                     if not conflict:
                         # Reassign the lab genes to the new continuous slots
+                        # Also ensure all genes share the same faculty (use first gene's faculty)
+                        main_fac = lab_genes[0].faculty_id
+                        asst_fac = lab_genes[0].assistant_faculty_id
                         for i, gene in enumerate(lab_genes):
                             gene.time_slot_id = new_lab_slots[i]
+                            gene.faculty_id = main_fac
+                            gene.assistant_faculty_id = asst_fac
         
         return chromosome
     
@@ -736,7 +785,14 @@ class GeneticAlgorithm:
             gene = random.choice(mutated.genes)
             eligible = self._get_eligible_faculty_for_subject(gene.subject_id)
             if eligible:
-                gene.faculty_id = random.choice(eligible)
+                new_faculty = random.choice(eligible)
+                if gene.is_lab:
+                    # Change ALL lab genes for this class+subject to keep consistency
+                    for g in mutated.genes:
+                        if g.class_id == gene.class_id and g.subject_id == gene.subject_id and g.is_lab:
+                            g.faculty_id = new_faculty
+                else:
+                    gene.faculty_id = new_faculty
         
         elif mutation_type == 'swap_subjects':
             # Swap subjects in the same time slot (different classes)
@@ -1079,13 +1135,13 @@ def generate_department_timetable(department_id: int, semester_instance: str):
     
     # Combine both querysets (union removes duplicates)
     combined_qs = (dept_faculty_qs | cross_dept_faculty_qs).distinct()
-    faculties = list(combined_qs.values('id', 'name', 'designation', 'preferences'))
+    faculties = list(combined_qs.values('id', 'name', 'designation', 'preferences', 'department_id'))
     
     if not faculties:
         # Fallback to all active faculty
         faculties = list(Faculty.objects.filter(
             is_active=True
-        ).values('id', 'name', 'designation', 'preferences'))
+        ).values('id', 'name', 'designation', 'preferences', 'department_id'))
     
     # Add max_hours to faculty data
     for f in faculties:
@@ -1178,7 +1234,8 @@ def generate_department_timetable(department_id: int, semester_instance: str):
         time_slots=time_slots,
         faculty_preferences=faculty_preferences,
         faculty_history=dict(faculty_history),
-        pre_booked_slots=dict(pre_booked_slots)
+        pre_booked_slots=dict(pre_booked_slots),
+        department_id=department_id
     )
     
     best_solution, fitness_history = ga.evolve()
