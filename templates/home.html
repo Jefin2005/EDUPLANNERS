@@ -1,147 +1,725 @@
 {% extends 'base.html' %}
 
-{% block title %}EDUPLANNER - Automated Timetable Generator{% endblock %}
+{% block title %}EduPlanner — Where Scheduling Meets Intelligence{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+<style>
+    /* ===== SCOPED LANDING VARIABLES ===== */
+    .lp {
+        --lp-bg: #F8FAFC;
+        --lp-bg-card: #FFFFFF;
+        --lp-accent: #13273F;
+        --lp-accent-end: #1E3A5F;
+        --lp-accent-light: rgba(19, 39, 63, 0.08);
+        --lp-accent-glow: rgba(19, 39, 63, 0.18);
+        --lp-text-primary: #0F172A;
+        --lp-text-secondary: #64748B;
+        --lp-text-muted: #94A3B8;
+        --lp-border: rgba(148, 163, 184, 0.2);
+        --lp-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+        --lp-shadow-card: 0 10px 30px rgba(0, 0, 0, 0.05);
+        --lp-shadow-hover: 0 20px 50px rgba(19, 39, 63, 0.12);
+        --lp-radius: 18px;
+        --lp-font: 'Poppins', 'Inter', sans-serif;
+    }
+
+    [data-theme="dark"] .lp {
+        --lp-bg: #0F172A;
+        --lp-bg-card: #1E293B;
+        --lp-accent: #D9CEBF;
+        --lp-accent-end: #E8E3DB;
+        --lp-accent-light: rgba(217, 206, 191, 0.1);
+        --lp-accent-glow: rgba(217, 206, 191, 0.15);
+        --lp-text-primary: #F1F5F9;
+        --lp-text-secondary: #94A3B8;
+        --lp-text-muted: #64748B;
+        --lp-border: rgba(148, 163, 184, 0.1);
+        --lp-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
+        --lp-shadow-card: 0 10px 30px rgba(0, 0, 0, 0.2);
+        --lp-shadow-hover: 0 20px 50px rgba(217, 206, 191, 0.1);
+    }
+
+    .lp {
+        font-family: var(--lp-font);
+        background: var(--lp-bg);
+        color: var(--lp-text-secondary);
+    }
+
+    .lp *:not(i) {
+        font-family: var(--lp-font);
+    }
+
+    /* ===== HERO ===== */
+    .lp-hero {
+        padding: 7rem 0 5rem;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+        background:
+            radial-gradient(ellipse 80% 50% at 50% -20%, rgba(19, 39, 63, 0.06), transparent),
+            var(--lp-bg);
+    }
+
+    [data-theme="dark"] .lp-hero {
+        background:
+            radial-gradient(ellipse 80% 50% at 50% -20%, rgba(217, 206, 191, 0.04), transparent),
+            var(--lp-bg);
+    }
+
+    .lp-hero-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        color: var(--lp-accent);
+        background: var(--lp-accent-light);
+        border: 1px solid rgba(19, 39, 63, 0.15);
+        padding: 0.45rem 1.1rem;
+        border-radius: 100px;
+        margin-bottom: 2rem;
+    }
+
+    [data-theme="dark"] .lp-hero-pill {
+        border-color: rgba(217, 206, 191, 0.2);
+    }
+
+    .lp-hero-pill .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--lp-accent);
+        animation: lpPulse 2s ease-in-out infinite;
+    }
+
+    @keyframes lpPulse {
+
+        0%,
+        100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.4;
+        }
+    }
+
+    .lp-hero-title {
+        font-size: clamp(3rem, 7vw, 5rem);
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        line-height: 1.05;
+        color: var(--lp-text-primary);
+        margin-bottom: 1.25rem;
+    }
+
+    .lp-hero-title span {
+        background: linear-gradient(135deg, var(--lp-accent), var(--lp-accent-end));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .lp-hero-tagline {
+        font-size: clamp(1.05rem, 2vw, 1.35rem);
+        font-weight: 400;
+        color: var(--lp-text-secondary);
+        margin-bottom: 2.5rem;
+        letter-spacing: 0.01em;
+    }
+
+    .lp-hero-cta {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.6rem;
+        background: linear-gradient(135deg, var(--lp-accent), var(--lp-accent-end));
+        color: #FFFFFF;
+        font-family: var(--lp-font);
+        font-weight: 600;
+        font-size: 0.95rem;
+        padding: 0.85rem 2rem;
+        border-radius: 12px;
+        text-decoration: none;
+        border: none;
+        transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 16px rgba(19, 39, 63, 0.3);
+    }
+
+    .lp-hero-cta:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px rgba(19, 39, 63, 0.4);
+        color: #FFFFFF;
+    }
+
+    .lp-hero-cta .arrow {
+        transition: transform 0.3s ease;
+        font-size: 1.1rem;
+    }
+
+    .lp-hero-cta:hover .arrow {
+        transform: translateX(3px);
+    }
+
+    /* ===== SECTION STYLING ===== */
+    .lp-section {
+        padding: 5rem 0;
+    }
+
+    .lp-section-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--lp-accent);
+        margin-bottom: 0.75rem;
+    }
+
+    .lp-section-label::after {
+        content: '';
+        display: inline-block;
+        width: 24px;
+        height: 2px;
+        background: linear-gradient(90deg, var(--lp-accent), var(--lp-accent-end));
+        border-radius: 1px;
+    }
+
+    .lp-section-title {
+        font-size: clamp(1.6rem, 3.5vw, 2.25rem);
+        font-weight: 700;
+        color: var(--lp-text-primary);
+        letter-spacing: -0.025em;
+        margin-bottom: 0.75rem;
+    }
+
+    .lp-section-desc {
+        font-size: 1rem;
+        color: var(--lp-text-muted);
+        max-width: 500px;
+        margin: 0 auto 3rem;
+        line-height: 1.65;
+    }
+
+    /* ===== FEATURE CARDS ===== */
+    .lp-card {
+        background: var(--lp-bg-card);
+        border: 1px solid var(--lp-border);
+        border-radius: var(--lp-radius);
+        padding: 2rem;
+        box-shadow: var(--lp-shadow-card);
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+        height: 100%;
+    }
+
+    .lp-card::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--lp-accent), var(--lp-accent-end));
+        transform: scaleX(0);
+        transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        transform-origin: left;
+    }
+
+    .lp-card:hover {
+        transform: translateY(-6px);
+        box-shadow: var(--lp-shadow-hover);
+    }
+
+    .lp-card:hover::after {
+        transform: scaleX(1);
+    }
+
+    .lp-card-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.3rem;
+        margin-bottom: 1.25rem;
+        transition: transform 0.3s ease;
+    }
+
+    .lp-card:hover .lp-card-icon {
+        transform: scale(1.08);
+    }
+
+    .lp-card-icon.purple {
+        background: rgba(19, 39, 63, 0.08);
+        color: #13273F;
+    }
+
+    .lp-card-icon.green {
+        background: rgba(16, 185, 129, 0.1);
+        color: #10B981;
+    }
+
+    .lp-card-icon.orange {
+        background: rgba(249, 115, 22, 0.1);
+        color: #F97316;
+    }
+
+    [data-theme="dark"] .lp-card-icon.purple {
+        background: rgba(217, 206, 191, 0.15);
+        color: #D9CEBF;
+    }
+
+    [data-theme="dark"] .lp-card-icon.green {
+        background: rgba(52, 211, 153, 0.15);
+        color: #6EE7B7;
+    }
+
+    [data-theme="dark"] .lp-card-icon.orange {
+        background: rgba(251, 146, 60, 0.15);
+        color: #FDBA74;
+    }
+
+    .lp-card-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: var(--lp-text-primary);
+        margin-bottom: 0.5rem;
+    }
+
+    .lp-card-desc {
+        font-size: 0.88rem;
+        color: var(--lp-text-muted);
+        line-height: 1.65;
+        margin: 0;
+    }
+
+    /* ===== STATS ===== */
+    .lp-stats-section {
+        padding: 4.5rem 0;
+        background:
+            radial-gradient(ellipse 70% 40% at 50% 110%, rgba(19, 39, 63, 0.04), transparent),
+            var(--lp-bg);
+    }
+
+    [data-theme="dark"] .lp-stats-section {
+        background:
+            radial-gradient(ellipse 70% 40% at 50% 110%, rgba(217, 206, 191, 0.03), transparent),
+            var(--lp-bg);
+    }
+
+    .lp-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+    }
+
+    .lp-stat {
+        background: var(--lp-bg-card);
+        border: 1px solid var(--lp-border);
+        border-radius: 16px;
+        padding: 1.75rem 1.25rem;
+        text-align: center;
+        box-shadow: var(--lp-shadow-sm);
+        transition: all 0.35s ease;
+    }
+
+    .lp-stat:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--lp-shadow-card);
+    }
+
+    .lp-stat-number {
+        font-size: 2.5rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        line-height: 1;
+        background: linear-gradient(135deg, var(--lp-accent), var(--lp-accent-end));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .lp-stat-label {
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--lp-text-muted);
+        margin-top: 0.6rem;
+    }
+
+    /* ===== STATUS BAR ===== */
+    .lp-status-section {
+        padding: 3.5rem 0;
+    }
+
+    .lp-status-card {
+        background: var(--lp-bg-card);
+        border: 1px solid var(--lp-border);
+        border-radius: var(--lp-radius);
+        padding: 1.75rem 2rem;
+        box-shadow: var(--lp-shadow-card);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+    }
+
+    .lp-status-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        background: var(--lp-accent-light);
+        color: var(--lp-accent);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+    }
+
+    .lp-status-label {
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--lp-text-muted);
+        margin-bottom: 0.25rem;
+    }
+
+    .lp-status-text {
+        font-size: 0.95rem;
+        color: var(--lp-text-primary);
+        font-weight: 500;
+        margin: 0;
+    }
+
+    .lp-status-badge {
+        background: linear-gradient(135deg, var(--lp-accent), var(--lp-accent-end));
+        color: #FFFFFF;
+        font-size: 0.78rem;
+        font-weight: 600;
+        padding: 0.55rem 1.25rem;
+        border-radius: 10px;
+        white-space: nowrap;
+        box-shadow: 0 4px 14px rgba(19, 39, 63, 0.25);
+    }
+
+    /* ===== FOOTER ===== */
+    .lp-footer {
+        padding: 2rem 0;
+        text-align: center;
+        border-top: 1px solid var(--lp-border);
+    }
+
+    .lp-footer p {
+        font-size: 0.78rem;
+        color: var(--lp-text-muted);
+        margin: 0;
+    }
+
+    /* ===== SCROLL ANIMATIONS ===== */
+    .lp-reveal {
+        opacity: 0;
+        transform: translateY(28px);
+        transition: opacity 0.7s cubic-bezier(0.4, 0, 0.2, 1),
+            transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .lp-reveal.visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    /* Stagger children */
+    .lp-reveal-delay-1 {
+        transition-delay: 0.08s;
+    }
+
+    .lp-reveal-delay-2 {
+        transition-delay: 0.16s;
+    }
+
+    .lp-reveal-delay-3 {
+        transition-delay: 0.24s;
+    }
+
+    .lp-reveal-delay-4 {
+        transition-delay: 0.32s;
+    }
+
+    /* Hero entrance (always visible, no scroll needed) */
+    .lp-hero-enter {
+        opacity: 0;
+        transform: translateY(20px);
+        animation: lpEnter 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+
+    .lp-hero-enter:nth-child(1) {
+        animation-delay: 0.05s;
+    }
+
+    .lp-hero-enter:nth-child(2) {
+        animation-delay: 0.15s;
+    }
+
+    .lp-hero-enter:nth-child(3) {
+        animation-delay: 0.25s;
+    }
+
+    .lp-hero-enter:nth-child(4) {
+        animation-delay: 0.35s;
+    }
+
+    @keyframes lpEnter {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 992px) {
+        .lp-stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .lp-hero {
+            padding: 5rem 0 3.5rem;
+        }
+
+        .lp-section {
+            padding: 3.5rem 0;
+        }
+
+        .lp-stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .lp-status-card {
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 1.5rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .lp-stat {
+            padding: 1.25rem 0.75rem;
+        }
+
+        .lp-stat-number {
+            font-size: 2rem;
+        }
+    }
+
+    /* ===== ACCESSIBILITY ===== */
+    @media (prefers-reduced-motion: reduce) {
+        .lp-reveal {
+            opacity: 1;
+            transform: none;
+            transition: none;
+        }
+
+        .lp-hero-enter {
+            opacity: 1;
+            transform: none;
+            animation: none;
+        }
+
+        .lp-card,
+        .lp-stat,
+        .lp-hero-cta,
+        .lp-card-icon,
+        .lp-hero-pill .dot {
+            transition: none;
+            animation: none;
+        }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid px-0">
-    <!-- Hero Section -->
-    <section class="py-5"
-        style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);">
-        <div class="container py-5">
-            <div class="row justify-content-center">
-                <div class="col-lg-8 text-center">
-                    <span class="badge badge-gradient mb-3">
-                        <i class="bi bi-mortarboard me-1"></i>KTU University
-                    </span>
-                    <h1 class="display-4 fw-bold mb-4">
-                        Automated Timetable
-                        <span
-                            style="background: var(--primary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
-                            Generator
-                        </span>
-                    </h1>
-                    <p class="lead text-muted mb-4">
-                        Generate conflict-free, workload-balanced academic timetables for B.Tech CSE and MCA departments
-                        using advanced Genetic Algorithm optimization.
-                    </p>
-                    <div class="d-flex gap-3 justify-content-center">
-                        {% if user.is_authenticated and user.is_staff %}
-                        <a href="{% url 'admin_dashboard' %}" class="btn btn-primary-custom btn-lg">
-                            <i class="bi bi-speedometer2 me-2"></i>Admin Dashboard
-                        </a>
-                        {% else %}
-                        <a href="{% url 'login' %}" class="btn btn-primary-custom btn-lg">
-                            <i class="bi bi-box-arrow-in-right me-2"></i>Login
-                        </a>
-                        {% endif %}
-                    </div>
+<div class="lp">
+
+    <!-- ===== HERO ===== -->
+    <section class="lp-hero" aria-label="Hero">
+        <div class="container">
+            <div class="lp-hero-enter">
+                <div class="lp-hero-pill">
+                    <span class="dot"></span>
+                    Powered by Genetic Algorithm
                 </div>
+            </div>
+
+            <div class="lp-hero-enter">
+                <h1 class="lp-hero-title">Edu<span>Planner</span></h1>
+            </div>
+
+            <div class="lp-hero-enter">
+                <p class="lp-hero-tagline">Where Scheduling Meets Intelligence</p>
+            </div>
+
+            <div class="lp-hero-enter">
+                {% if user.is_authenticated and user.is_staff %}
+                <a href="{% url 'admin_dashboard' %}" class="lp-hero-cta">
+                    <i class="bi bi-speedometer2"></i>
+                    Admin Dashboard
+                    <i class="bi bi-arrow-right arrow"></i>
+                </a>
+                {% else %}
+                <a href="{% url 'login' %}" class="lp-hero-cta">
+                    <i class="bi bi-box-arrow-in-right"></i>
+                    Get Started
+                    <i class="bi bi-arrow-right arrow"></i>
+                </a>
+                {% endif %}
             </div>
         </div>
     </section>
 
-    <!-- Features -->
-    <section class="py-5">
+    <!-- ===== FEATURES ===== -->
+    <section class="lp-section" aria-label="Features">
         <div class="container">
             <div class="text-center mb-5">
-                <h2 class="fw-bold">Powered by Genetic Algorithm</h2>
-                <p class="text-muted">Intelligent optimization for complex scheduling constraints</p>
+                <span class="lp-section-label lp-reveal">FEATURES</span>
+                <h2 class="lp-section-title lp-reveal">Intelligent Scheduling Constraints</h2>
+                <p class="lp-section-desc lp-reveal">
+                    Advanced optimization ensures every timetable is conflict-free, balanced, and fine-tuned for your
+                    institution.
+                </p>
             </div>
 
             <div class="row g-4">
                 <div class="col-md-4">
-                    <div class="stat-card h-100">
-                        <div class="icon primary mb-3">
+                    <div class="lp-card lp-reveal lp-reveal-delay-1">
+                        <div class="lp-card-icon purple">
                             <i class="bi bi-shield-check"></i>
                         </div>
-                        <h5 class="fw-bold">No Conflicts</h5>
-                        <p>Ensures no faculty teaches two classes simultaneously and no class has overlapping subjects.
+                        <h3 class="lp-card-title">No Conflicts</h3>
+                        <p class="lp-card-desc">
+                            Ensures no faculty teaches two classes simultaneously and no class has overlapping subjects.
                         </p>
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <div class="stat-card h-100">
-                        <div class="icon success mb-3">
-                            <i class="bi bi-graph-up"></i>
+                    <div class="lp-card lp-reveal lp-reveal-delay-2">
+                        <div class="lp-card-icon green">
+                            <i class="bi bi-bar-chart-line"></i>
                         </div>
-                        <h5 class="fw-bold">Balanced Workload</h5>
-                        <p>Distributes teaching hours evenly across faculty based on their designation limits.</p>
+                        <h3 class="lp-card-title">Balanced Workload</h3>
+                        <p class="lp-card-desc">
+                            Distributes teaching hours evenly across faculty based on their designation limits.
+                        </p>
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <div class="stat-card h-100">
-                        <div class="icon secondary mb-3">
-                            <i class="bi bi-gear"></i>
+                    <div class="lp-card lp-reveal lp-reveal-delay-3">
+                        <div class="lp-card-icon orange">
+                            <i class="bi bi-cpu"></i>
                         </div>
-                        <h5 class="fw-bold">Lab Optimization</h5>
-                        <p>Places labs in continuous 3-period blocks with proper morning/afternoon scheduling.</p>
+                        <h3 class="lp-card-title">Lab Optimization</h3>
+                        <p class="lp-card-desc">
+                            Places labs in continuous 3-period blocks with proper morning and afternoon scheduling.
+                        </p>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Stats -->
-    <section class="py-5" style="background: var(--card-bg);">
+    <!-- ===== STATS ===== -->
+    <section class="lp-stats-section" aria-label="Statistics">
         <div class="container">
-            <div class="row g-4 text-center">
-                <div class="col-6 col-md-3">
-                    <h2 class="display-5 fw-bold"
-                        style="background: var(--primary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-                        35</h2>
-                    <p class="text-muted mb-0">Periods/Week</p>
+            <div class="lp-stats-grid">
+                <div class="lp-stat lp-reveal lp-reveal-delay-1">
+                    <div class="lp-stat-number">{{ total_departments }}</div>
+                    <div class="lp-stat-label">Departments</div>
                 </div>
-                <div class="col-6 col-md-3">
-                    <h2 class="display-5 fw-bold"
-                        style="background: var(--success-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-                        33</h2>
-                    <p class="text-muted mb-0">Max Faculty</p>
+                <div class="lp-stat lp-reveal lp-reveal-delay-2">
+                    <div class="lp-stat-number">{{ total_faculty }}</div>
+                    <div class="lp-stat-label">Active Faculty</div>
                 </div>
-                <div class="col-6 col-md-3">
-                    <h2 class="display-5 fw-bold"
-                        style="background: var(--secondary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-                        8</h2>
-                    <p class="text-muted mb-0">Semesters</p>
+                <div class="lp-stat lp-reveal lp-reveal-delay-3">
+                    <div class="lp-stat-number">{{ total_semesters }}</div>
+                    <div class="lp-stat-label">Semesters</div>
                 </div>
-                <div class="col-6 col-md-3">
-                    <h2 class="display-5 fw-bold"
-                        style="background: var(--primary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-                        2</h2>
-                    <p class="text-muted mb-0">Departments</p>
+                <div class="lp-stat lp-reveal lp-reveal-delay-4">
+                    <div class="lp-stat-number">{{ total_subjects }}</div>
+                    <div class="lp-stat-label">Subjects</div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Current Status -->
+    <!-- ===== STATUS ===== -->
     {% if config %}
-    <section class="py-5">
+    <section class="lp-status-section" aria-label="Academic Status">
         <div class="container">
-            <div class="card card-custom p-4">
-                <div class="row align-items-center">
-                    <div class="col-md-8">
-                        <h4 class="fw-bold mb-2">
-                            <i class="bi bi-info-circle me-2"></i>Current Academic Status
-                        </h4>
-                        <p class="text-muted mb-0">
-                            Academic Year: <strong>{{ config.current_academic_year }}</strong> |
-                            Active Mode: <strong class="text-primary">{{ config.get_active_semester_type_display
-                                }}</strong>
+            <div class="lp-status-card lp-reveal">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="lp-status-icon">
+                        <i class="bi bi-mortarboard-fill"></i>
+                    </div>
+                    <div>
+                        <p class="lp-status-label">Current Academic Status</p>
+                        <p class="lp-status-text">
+                            Academic Year: <strong>{{ config.current_academic_year }}</strong>
+                            &nbsp;&middot;&nbsp;
+                            Active Mode: <strong>{{ config.get_active_semester_type_display }}</strong>
                         </p>
                     </div>
-                    <div class="col-md-4 text-md-end mt-3 mt-md-0">
-                        <span class="badge badge-gradient fs-6">
-                            {% if config.active_semester_type == 'ODD' %}
-                            Semesters 1, 3, 5, 7
-                            {% else %}
-                            Semesters 2, 4, 6, 8
-                            {% endif %}
-                        </span>
-                    </div>
                 </div>
+                <span class="lp-status-badge">
+                    {% if config.active_semester_type == 'ODD' %}
+                    Semesters 1, 3, 5, 7
+                    {% else %}
+                    Semesters 2, 4, 6, 8
+                    {% endif %}
+                </span>
             </div>
         </div>
     </section>
     {% endif %}
+
+    <!-- ===== FOOTER ===== -->
+    <footer class="lp-footer">
+        <div class="container">
+            <p>&copy; 2025 EduPlanner &middot; Intelligent Academic Scheduling</p>
+        </div>
+    </footer>
+
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Intersection Observer for scroll-reveal animations
+    (function () {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            },
+            { threshold: 0.15, rootMargin: '0px 0px -40px 0px' }
+        );
+
+        document.querySelectorAll('.lp-reveal').forEach((el) => observer.observe(el));
+    })();
+</script>
 {% endblock %}

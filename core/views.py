@@ -23,6 +23,10 @@ def home(request):
     config = SystemConfiguration.objects.first()
     context = {
         'config': config,
+        'total_departments': Department.objects.filter(is_active=True).count(),
+        'total_faculty': Faculty.objects.filter(is_active=True).count(),
+        'total_semesters': Semester.objects.values('number').distinct().count(),
+        'total_subjects': Subject.objects.count(),
     }
     return render(request, 'home.html', context)
 
