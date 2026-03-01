@@ -2445,11 +2445,17 @@ def clash_checker(request):
     
     DAY_NAMES = {0: 'Monday', 1: 'Tuesday', 2: 'Wednesday', 3: 'Thursday', 4: 'Friday', 5: 'Saturday'}
     
-    total_entries = TimetableEntry.objects.count()
+    # Get current semester instance to filter entries
+    config = SystemConfiguration.objects.first()
+    semester_instance = config.get_semester_instance() if config else '2024-ODD'
+    
+    # Only check entries for the current semester instance
+    current_entries = TimetableEntry.objects.filter(semester_instance=semester_instance)
+    total_entries = current_entries.count()
     
     # --- Faculty Clashes: same faculty assigned to multiple entries at same timeslot ---
     faculty_groups = (
-        TimetableEntry.objects
+        current_entries
         .values('faculty_id', 'time_slot_id')
         .annotate(entry_count=Count('id'))
         .filter(entry_count__gt=1)
@@ -2457,10 +2463,10 @@ def clash_checker(request):
     
     faculty_clashes = []
     for group in faculty_groups:
-        entries = TimetableEntry.objects.filter(
+        entries = current_entries.filter(
             faculty_id=group['faculty_id'],
             time_slot_id=group['time_slot_id']
-        ).select_related('faculty', 'faculty__department', 'subject', 'class_section', 'class_section__semester', 'class_section__department', 'time_slot')
+        ).select_related('faculty', 'faculty__department', 'subject', 'class_section', 'class_section__semester', 'class_section__semester__department', 'time_slot')
         
         first = entries.first()
         ts = first.time_slot
@@ -2473,7 +2479,7 @@ def clash_checker(request):
             'time': f"{ts.start_time.strftime('%H:%M')} – {ts.end_time.strftime('%H:%M')}",
             'entries': [
                 {
-                    'class_name': f"{e.class_section.department.code} S{e.class_section.semester.number} {e.class_section.section}",
+                    'class_name': f"{e.class_section.semester.department.code} S{e.class_section.semester.number} {e.class_section.name}",
                     'subject_code': e.subject.code,
                     'subject_name': e.subject.name,
                 }
@@ -2483,7 +2489,7 @@ def clash_checker(request):
     
     # --- Room Clashes: same room assigned to multiple entries at same timeslot ---
     room_groups = (
-        TimetableEntry.objects
+        current_entries
         .exclude(room='')
         .values('room', 'time_slot_id')
         .annotate(entry_count=Count('id'))
@@ -2492,10 +2498,10 @@ def clash_checker(request):
     
     room_clashes = []
     for group in room_groups:
-        entries = TimetableEntry.objects.filter(
+        entries = current_entries.filter(
             room=group['room'],
             time_slot_id=group['time_slot_id']
-        ).select_related('faculty', 'subject', 'class_section', 'class_section__semester', 'class_section__department', 'time_slot')
+        ).select_related('faculty', 'subject', 'class_section', 'class_section__semester', 'class_section__semester__department', 'time_slot')
         
         first = entries.first()
         ts = first.time_slot
@@ -2507,7 +2513,7 @@ def clash_checker(request):
             'time': f"{ts.start_time.strftime('%H:%M')} – {ts.end_time.strftime('%H:%M')}",
             'entries': [
                 {
-                    'class_name': f"{e.class_section.department.code} S{e.class_section.semester.number} {e.class_section.section}",
+                    'class_name': f"{e.class_section.semester.department.code} S{e.class_section.semester.number} {e.class_section.name}",
                     'subject_code': e.subject.code,
                     'faculty_name': e.faculty.name,
                 }
