@@ -115,6 +115,13 @@ def admin_dashboard(request):
     else:
         active_semesters = Semester.objects.filter(number__in=[2, 4, 6, 8])
     
+    # Generate academic year choices (2024-25 through 2030-31)
+    academic_year_choices = [f"{y}-{str(y+1)[-2:]}" for y in range(2024, 2031)]
+    # Ensure current year is included even if outside the range
+    if config.current_academic_year not in academic_year_choices:
+        academic_year_choices.append(config.current_academic_year)
+        academic_year_choices.sort()
+
     context = {
         'config': config,
         'departments': departments,
@@ -122,6 +129,7 @@ def admin_dashboard(request):
         'total_subjects': total_subjects,
         'total_classes': total_classes,
         'active_semesters': active_semesters,
+        'academic_year_choices': academic_year_choices,
     }
     return render(request, 'admin/dashboard.html', context)
 
@@ -943,6 +951,29 @@ def toggle_semester_mode(request):
         return JsonResponse({'success': True, 'mode': mode})
     
     return JsonResponse({'error': 'Invalid mode'}, status=400)
+
+
+@login_required
+@require_POST
+def change_academic_year(request):
+    """Change the current academic year"""
+    if not request.user.is_staff:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+
+    config = SystemConfiguration.objects.first()
+    if not config:
+        config = SystemConfiguration.objects.create()
+
+    year = request.POST.get('year', '').strip()
+
+    # Validate format: YYYY-YY (e.g., 2025-26)
+    import re
+    if not re.match(r'^\d{4}-\d{2}$', year):
+        return JsonResponse({'error': 'Invalid format. Use YYYY-YY (e.g., 2025-26)'}, status=400)
+
+    config.current_academic_year = year
+    config.save()
+    return JsonResponse({'success': True, 'year': year})
 
 
 @login_required

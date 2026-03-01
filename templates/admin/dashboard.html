@@ -199,7 +199,14 @@
                         <table class="table table-borderless mb-0">
                             <tr>
                                 <td class="text-muted">Academic Year</td>
-                                <td class="text-end fw-bold">{{ config.current_academic_year }}</td>
+                                <td class="text-end">
+                                    <select class="form-select form-select-sm d-inline-block w-auto fw-bold"
+                                        id="academic-year-select" onchange="changeAcademicYear(this.value)">
+                                        {% for yr in academic_year_choices %}
+                                        <option value="{{ yr }}" {% if yr == config.current_academic_year %}selected{% endif %}>{{ yr }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
                             </tr>
                             <tr>
                                 <td class="text-muted">Active Semesters</td>
@@ -238,6 +245,28 @@
                 if (data.success) {
                     location.reload();
                 }
+            });
+    }
+
+    function changeAcademicYear(year) {
+        fetch('{% url "change_academic_year" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: 'year=' + encodeURIComponent(year)
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + (data.error || 'Could not change academic year'));
+                }
+            })
+            .catch(error => {
+                alert('Error changing academic year: ' + error);
             });
     }
 

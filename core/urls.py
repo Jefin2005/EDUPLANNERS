@@ -22,6 +22,7 @@ urlpatterns = [
     path('manage/subjects/add/', views.add_subject, name='add_subject'),
     path('manage/subjects/<int:subject_id>/edit/', views.edit_subject, name='edit_subject'),
     path('manage/toggle-semester/', views.toggle_semester_mode, name='toggle_semester_mode'),
+    path('manage/change-academic-year/', views.change_academic_year, name='change_academic_year'),
     path('manage/generate-timetable/', views.generate_timetable_view, name='generate_timetable'),
     path('manage/init-slots/', views.initialize_time_slots, name='init_time_slots'),
     path('manage/teacher-lookup/', views.teacher_timetable_lookup, name='teacher_timetable_lookup'),
