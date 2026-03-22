@@ -637,12 +637,14 @@ def manage_subjects(request):
     type_badges = {
         'THEORY': 'badge-theory',
         'LAB': 'badge-lab',
-        'ELECTIVE': 'badge-elective'
+        'ELECTIVE': 'badge-elective',
+        'RMH': 'badge-elective',
     }
     type_displays = {
         'THEORY': 'Theory',
         'LAB': 'Lab',
-        'ELECTIVE': 'Elective'
+        'ELECTIVE': 'Elective',
+        'RMH': 'R/M/H',
     }
     
     # Group subjects by department and semester
@@ -799,6 +801,7 @@ def add_subject(request):
         {'value': 'THEORY', 'label': 'Theory', 'icon': 'bi bi-journal-text text-info me-1', 'checked': 'checked' if current_type == 'THEORY' else ''},
         {'value': 'LAB', 'label': 'Lab', 'icon': 'bi bi-pc-display text-success me-1', 'checked': 'checked' if current_type == 'LAB' else ''},
         {'value': 'ELECTIVE', 'label': 'Elective', 'icon': 'bi bi-bookmark-star text-warning me-1', 'checked': 'checked' if current_type == 'ELECTIVE' else ''},
+        {'value': 'RMH', 'label': 'Remedial/Minor/Honour', 'icon': 'bi bi-award text-danger me-1', 'checked': 'checked' if current_type == 'RMH' else ''},
     ]
     
     return render(request, 'admin/add_subject.html', {
@@ -915,6 +918,7 @@ def edit_subject(request, subject_id):
         {'value': 'THEORY', 'label': 'Theory', 'icon': 'bi bi-journal-text text-info me-1', 'checked': 'checked' if current_type == 'THEORY' else ''},
         {'value': 'LAB', 'label': 'Lab', 'icon': 'bi bi-pc-display text-success me-1', 'checked': 'checked' if current_type == 'LAB' else ''},
         {'value': 'ELECTIVE', 'label': 'Elective', 'icon': 'bi bi-bookmark-star text-warning me-1', 'checked': 'checked' if current_type == 'ELECTIVE' else ''},
+        {'value': 'RMH', 'label': 'Remedial/Minor/Honour', 'icon': 'bi bi-award text-danger me-1', 'checked': 'checked' if current_type == 'RMH' else ''},
     ]
     
     return render(request, 'admin/add_subject.html', {

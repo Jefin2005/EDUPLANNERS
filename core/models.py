@@ -135,9 +135,9 @@ class Faculty(models.Model):
     ]
     
     WORKLOAD_LIMITS = {
-        'PROFESSOR': 10,
-        'ASSOCIATE_PROFESSOR': 15,
-        'ASSISTANT_PROFESSOR': 23,
+        'PROFESSOR': (10, 10),
+        'ASSOCIATE_PROFESSOR': (15, 15),
+        'ASSISTANT_PROFESSOR': (20, 23),
     }
     
     user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
@@ -156,7 +156,13 @@ class Faculty(models.Model):
     
     @property
     def max_hours(self):
-        return self.WORKLOAD_LIMITS.get(self.designation, 20)
+        limits = self.WORKLOAD_LIMITS.get(self.designation, (20, 20))
+        return limits[1] if isinstance(limits, tuple) else limits
+    
+    @property
+    def min_hours(self):
+        limits = self.WORKLOAD_LIMITS.get(self.designation, (20, 20))
+        return limits[0] if isinstance(limits, tuple) else limits
     
     @property
     def current_workload(self):
@@ -188,6 +194,7 @@ class Subject(models.Model):
         ('THEORY', 'Theory'),
         ('LAB', 'Lab'),
         ('ELECTIVE', 'Elective'),
+        ('RMH', 'Remedial/Minor/Honour'),
     ]
     
     name = models.CharField(max_length=150)
