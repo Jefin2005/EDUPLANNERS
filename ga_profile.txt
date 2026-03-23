@@ -1,0 +1,58 @@
+         1739284 function calls (1739280 primitive calls) in 2.174 seconds
+
+   Ordered by: cumulative time
+   List reduced from 73 to 50 due to restriction <50>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.009    0.009    2.203    2.203 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:1298(evolve)
+        1    0.001    0.001    1.231    1.231 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:219(initialize_population)
+       20    0.245    0.012    1.230    0.061 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:229(_create_random_chromosome)
+       40    0.347    0.009    0.561    0.014 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:719(calculate_fitness)
+   872078    0.350    0.000    0.350    0.000 {method 'get' of 'dict' objects}
+    17220    0.062    0.000    0.329    0.000 {method 'sort' of 'list' objects}
+     4400    0.188    0.000    0.300    0.000 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:673(_get_eligible_faculty_for_subject)
+       20    0.160    0.008    0.253    0.013 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:1035(_repair_faculty_clashes)
+    25612    0.035    0.000    0.242    0.000 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:449(<lambda>)
+    25612    0.123    0.000    0.196    0.000 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:430(_consecutive_penalty)
+    14720    0.024    0.000    0.124    0.000 {built-in method builtins.any}
+    51364    0.075    0.000    0.103    0.000 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:332(<genexpr>)
+     1860    0.027    0.000    0.094    0.000 C:\Users\ASUS\AppData\Local\Programs\Python\Python312\Lib\random.py:350(shuffle)
+    34022    0.055    0.000    0.086    0.000 C:\Users\ASUS\AppData\Local\Programs\Python\Python312\Lib\random.py:242(_randbelow_with_getrandbits)
+   205832    0.083    0.000    0.083    0.000 {method 'append' of 'list' objects}
+       45    0.057    0.001    0.073    0.002 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:56(copy)
+      560    0.032    0.000    0.065    0.000 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:604(_find_lab_slots)
+       10    0.021    0.002    0.061    0.006 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:1172(crossover)
+   104668    0.050    0.000    0.050    0.000 {method 'add' of 'set' objects}
+   119721    0.036    0.000    0.036    0.000 {built-in method builtins.len}
+     5049    0.023    0.000    0.035    0.000 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:487(_would_be_consecutive)
+     5594    0.012    0.000    0.035    0.000 C:\Users\ASUS\AppData\Local\Programs\Python\Python312\Lib\random.py:341(choice)
+    13653    0.017    0.000    0.028    0.000 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:943(_is_remedial_gene)
+       20    0.013    0.001    0.027    0.001 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:978(_repair_labs)
+     1680    0.011    0.000    0.022    0.000 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:950(_check_lab_continuity)
+    53268    0.017    0.000    0.017    0.000 {method 'getrandbits' of '_random.Random' objects}
+    34022    0.015    0.000    0.015    0.000 {method 'bit_length' of 'int' objects}
+    29461    0.014    0.000    0.014    0.000 {method 'random' of '_random.Random' objects}
+       20    0.008    0.000    0.013    0.001 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:1103(_repair_remedial)
+       20    0.002    0.000    0.012    0.001 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:1209(mutate)
+     1120    0.005    0.000    0.012    0.000 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:968(_check_lab_timing)
+     3819    0.006    0.000    0.010    0.000 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:665(<lambda>)
+     1680    0.004    0.000    0.006    0.000 {built-in method builtins.sorted}
+    12047    0.006    0.000    0.006    0.000 {method 'items' of 'dict' objects}
+     2240    0.004    0.000    0.006    0.000 {built-in method builtins.all}
+    25576    0.006    0.000    0.006    0.000 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:909(<lambda>)
+    18880    0.004    0.000    0.004    0.000 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:899(<lambda>)
+    15911    0.004    0.000    0.004    0.000 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:627(<lambda>)
+     4046    0.003    0.000    0.003    0.000 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:1047(<lambda>)
+     4160    0.003    0.000    0.003    0.000 {method 'pop' of 'list' objects}
+     1931    0.003    0.000    0.003    0.000 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:728(<lambda>)
+     6720    0.002    0.000    0.002    0.000 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:960(<genexpr>)
+     6720    0.002    0.000    0.002    0.000 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:965(<genexpr>)
+     2175    0.002    0.000    0.002    0.000 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:732(<lambda>)
+       20    0.000    0.000    0.002    0.000 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:1167(tournament_selection)
+       27    0.001    0.000    0.002    0.000 C:\Users\ASUS\AppData\Local\Programs\Python\Python312\Lib\random.py:359(sample)
+     3390    0.001    0.000    0.001    0.000 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:973(<genexpr>)
+     3330    0.001    0.000    0.001    0.000 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:974(<genexpr>)
+      480    0.001    0.000    0.001    0.000 C:\Users\ASUS\OneDrive\Documents\GitHub\EDUPLANNERS\core\genetic_algorithm.py:729(<lambda>)
+     2175    0.001    0.000    0.001    0.000 {built-in method builtins.abs}
+
+

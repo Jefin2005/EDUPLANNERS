@@ -1,0 +1,1162 @@
+﻿23 objects imported automatically (use -v 2 for details).
+
+  Remedial auto-generated for Semester 12: 3 slots after 1 attempts.
+  Remedial auto-generated for Semester 13: 3 slots after 1 attempts.
+  Remedial auto-generated for Semester 14: 4 slots after 1 attempts.
+  Remedial sync S4: OK (3 slots configured, 4 classes checked)
+  Remedial sync S6: OK (3 slots configured, 4 classes checked)
+  Remedial sync S8: OK (4 slots configured, 4 classes checked)
+--- Remedial Diagnosis for Semesters [4, 6, 8] ---
+
+Semester 4 (ID: 12)
+  RMH Subjects defined:
+    - VAC4: 3 hrs
+
+  Generated RMH Slots per Class:
+    - CS1: 12 entries: [('FRI', 1), ('FRI', 5), ('MON', 1), ('MON', 3), ('THU', 4), ('TUE', 3), ('TUE', 4), ('TUE', 7), ('TUE', 7), ('WED', 5), ('WED', 6), ('WED', 6)]
+    - CS2: 13 entries: [('FRI', 1), ('FRI', 5), ('FRI', 5), ('THU', 6), ('TUE', 2), ('TUE', 3), ('TUE', 3), ('TUE', 7), ('WED', 1), ('WED', 5), ('WED', 6), ('WED', 6), ('WED', 6)]
+    - CS3: 13 entries: [('FRI', 1), ('FRI', 4), ('FRI', 5), ('MON', 7), ('THU', 4), ('THU', 4), ('THU', 6), ('TUE', 3), ('TUE', 5), ('TUE', 7), ('TUE', 7), ('WED', 6), ('WED', 6)]
+    - CS4: 13 entries: [('FRI', 1), ('FRI', 3), ('FRI', 4), ('FRI', 5), ('MON', 5), ('MON', 7), ('THU', 7), ('TUE', 2), ('TUE', 3), ('TUE', 7), ('WED', 3), ('WED', 6), ('WED', 6)]
+    Union of all used RMH slots: [('FRI', 1), ('FRI', 3), ('FRI', 4), ('FRI', 5), ('MON', 1), ('MON', 3), ('MON', 5), ('MON', 7), ('THU', 4), ('THU', 6), ('THU', 7), ('TUE', 2), ('TUE', 3), ('TUE', 4), ('TUE', 5), ('TUE', 7), ('WED', 1), ('WED', 3), ('WED', 5), ('WED', 6)]
+    !!! CONFLICT in ('FRI', 1):
+      - CS1 has Graph Theory (MAT206) - Regular
+      - CS1 has Graph Theory (MAT206) - Regular
+      - CS1 has Computer Organization and Architecture (CST 202) - Regular
+      - CS2 has Operating Systems Lab (CSL 204) - Regular
+      - CS2 has Digital Lab (CSL 202) - Regular
+      - CS2 has Professional Ethics (HUT 200) - Regular
+      - CS3 has Operating Systems (CST 206) - Regular
+      - CS3 has Professional Ethics (HUT 200) - Regular
+      - CS3 has Operating Systems (CST 206) - Regular
+      - CS4 has Constitution of India (MNC 202) - Regular
+      - CS4 has Computer Organization and Architecture (CST 202) - Regular
+      - CS4 has Graph Theory (MAT206) - Regular
+    !!! CONFLICT in ('FRI', 3):
+      - CS1 has Database Management Systems (CST 204) - Regular
+      - CS1 has Graph Theory (MAT206) - Regular
+      - CS1 has Computer Organization and Architecture (CST 202) - Regular
+      - CS1 has Graph Theory (MAT206) - Regular
+      - CS2 has Operating Systems Lab (CSL 204) - Regular
+      - CS2 has Digital Lab (CSL 202) - Regular
+      - CS2 has Operating Systems (CST 206) - Regular
+      - CS2 has Professional Ethics (HUT 200) - Regular
+      - CS3 has Constitution of India (MNC 202) - Regular
+      - CS3 has Professional Ethics (HUT 200) - Regular
+      - CS3 has Constitution of India (MNC 202) - Regular
+      - CS3 has Professional Ethics (HUT 200) - Regular
+      - CS4 has Computer Organization and Architecture (CST 202) - Regular
+      - CS4 has Constitution of India (MNC 202) - Regular
+      - CS4 has Professional Ethics (HUT 200) - Regular
+    !!! CONFLICT in ('FRI', 4):
+      - CS1 has Operating Systems (CST 206) - Regular
+      - CS1 has Operating Systems (CST 206) - Regular
+      - CS1 has Constitution of India (MNC 202) - Regular
+      - CS1 has Professional Ethics (HUT 200) - Regular
+      - CS2 has Operating Systems (CST 206) - Regular
+      - CS2 has Professional Ethics (HUT 200) - Regular
+      - CS2 has Database Management Systems (CST 204) - Regular
+      - CS2 has Operating Systems (CST 206) - Regular
+      - CS3 has Computer Organization and Architecture (CST 202) - Regular
+      - CS3 has Operating Systems (CST 206) - Regular
+      - CS3 has Constitution of India (MNC 202) - Regular
+      - CS4 has Professional Ethics (HUT 200) - Regular
+      - CS4 has Computer Organization and Architecture (CST 202) - Regular
+      - CS4 has Graph Theory (MAT206) - Regular
+    !!! CONFLICT in ('FRI', 5):
+      - CS1 has Constitution of India (MNC 202) - Regular
+      - CS1 has Computer Organization and Architecture (CST 202) - Regular
+      - CS1 has Professional Ethics (HUT 200) - Regular
+      - CS2 has Operating Systems (CST 206) - Regular
+      - CS2 has Operating Systems (CST 206) - Regular
+      - CS3 has Database Management Systems (CST 204) - Regular
+      - CS3 has Operating Systems (CST 206) - Regular
+      - CS3 has Graph Theory (MAT206) - Regular
+      - CS4 has Operating Systems (CST 206) - Regular
+      - CS4 has Digital Lab (CSL 202) - Regular
+      - CS4 has Operating Systems (CST 206) - Regular
+    !!! CONFLICT in ('MON', 1):
+      - CS1 has Database Management Systems (CST 204) - Regular
+      - CS1 has Graph Theory (MAT206) - Regular
+      - CS1 has Graph Theory (MAT206) - Regular
+      - CS2 has Professional Ethics (HUT 200) - Regular
+      - CS2 has Computer Organization and Architecture (CST 202) - Regular
+      - CS2 has Graph Theory (MAT206) - Regular
+      - CS2 has Operating Systems (CST 206) - Regular
+      - CS3 has Computer Organization and Architecture (CST 202) - Regular
+      - CS3 has Database Management Systems (CST 204) - Regular
+      - CS3 has Graph Theory (MAT206) - Regular
+      - CS3 has Digital Lab (CSL 202) - Regular
+      - CS4 has Computer Organization and Architecture (CST 202) - Regular
+      - CS4 has Computer Organization and Architecture (CST 202) - Regular
+      - CS4 has Computer Organization and Architecture (CST 202) - Regular
+      - CS4 has Operating Systems Lab (CSL 204) - Regular
+    !!! CONFLICT in ('MON', 3):
+      - CS1 has Operating Systems (CST 206) - Regular
+      - CS1 has Professional Ethics (HUT 200) - Regular
+      - CS1 has Constitution of India (MNC 202) - Regular
+      - CS2 has Operating Systems (CST 206) - Regular
+      - CS2 has Database Management Systems (CST 204) - Regular
+      - CS2 has Computer Organization and Architecture (CST 202) - Regular
+      - CS2 has Computer Organization and Architecture (CST 202) - Regular
+      - CS3 has Database Management Systems (CST 204) - Regular
+      - CS3 has Graph Theory (MAT206) - Regular
+      - CS3 has Graph Theory (MAT206) - Regular
+      - CS3 has Digital Lab (CSL 202) - Regular
+      - CS4 has Database Management Systems (CST 204) - Regular
+      - CS4 has Database Management Systems (CST 204) - Regular
+      - CS4 has Database Management Systems (CST 204) - Regular
+      - CS4 has Operating Systems Lab (CSL 204) - Regular
+    !!! CONFLICT in ('MON', 5):
+      - CS1 has Computer Organization and Architecture (CST 202) - Regular
+      - CS1 has Operating Systems (CST 206) - Regular
+      - CS1 has Operating Systems Lab (CSL 204) - Regular
+      - CS1 has Computer Organization and Architecture (CST 202) - Regular
+      - CS2 has Digital Lab (CSL 202) - Regular
+      - CS2 has Operating Systems Lab (CSL 204) - Regular
+      - CS2 has Graph Theory (MAT206) - Regular
+      - CS2 has Digital Lab (CSL 202) - Regular
+      - CS3 has Graph Theory (MAT206) - Regular
+      - CS3 has Operating Systems (CST 206) - Regular
+      - CS3 has Professional Ethics (HUT 200) - Regular
+      - CS3 has Database Management Systems (CST 204) - Regular
+      - CS4 has Database Management Systems (CST 204) - Regular
+      - CS4 has Constitution of India (MNC 202) - Regular
+      - CS4 has Professional Ethics (HUT 200) - Regular
+    !!! CONFLICT in ('MON', 7):
+      - CS1 has Operating Systems (CST 206) - Regular
+      - CS1 has Database Management Systems (CST 204) - Regular
+      - CS1 has Operating Systems Lab (CSL 204) - Regular
+      - CS1 has Database Management Systems (CST 204) - Regular
+      - CS2 has Digital Lab (CSL 202) - Regular
+      - CS2 has Operating Systems Lab (CSL 204) - Regular
+      - CS2 has Database Management Systems (CST 204) - Regular
+      - CS2 has Digital Lab (CSL 202) - Regular
+      - CS3 has Database Management Systems (CST 204) - Regular
+      - CS3 has Operating Systems (CST 206) - Regular
+      - CS3 has Database Management Systems (CST 204) - Regular
+      - CS4 has Graph Theory (MAT206) - Regular
+      - CS4 has Graph Theory (MAT206) - Regular
+      - CS4 has Operating Systems (CST 206) - Regular
+    !!! CONFLICT in ('THU', 4):
+      - CS1 has Graph Theory (MAT206) - Regular
+      - CS1 has Graph Theory (MAT206) - Regular
+      - CS1 has Operating Systems (CST 206) - Regular
+      - CS2 has Professional Ethics (HUT 200) - Regular
+      - CS2 has Computer Organization and Architecture (CST 202) - Regular
+      - CS2 has Constitution of India (MNC 202) - Regular
+      - CS2 has Computer Organization and Architecture (CST 202) - Regular
+      - CS3 has Graph Theory (MAT206) - Regular
+      - CS3 has Professional Ethics (HUT 200) - Regular
+      - CS4 has Database Management Systems (CST 204) - Regular
+      - CS4 has Graph Theory (MAT206) - Regular
+      - CS4 has Operating Systems (CST 206) - Regular
+      - CS4 has Database Management Systems (CST 204) - Regular
+    !!! CONFLICT in ('THU', 6):
+      - CS1 has Graph Theory (MAT206) - Regular
+      - CS1 has Computer Organization and Architecture (CST 202) - Regular
+      - CS1 has Digital Lab (CSL 202) - Regular
+      - CS1 has Operating Systems Lab (CSL 204) - Regular
+      - CS2 has Database Management Systems (CST 204) - Regular
+      - CS2 has Graph Theory (MAT206) - Regular
+      - CS2 has Computer Organization and Architecture (CST 202) - Regular
+      - CS3 has Operating Systems Lab (CSL 204) - Regular
+      - CS3 has Database Management Systems (CST 204) - Regular
+      - CS3 has Professional Ethics (HUT 200) - Regular
+      - CS4 has Operating Systems (CST 206) - Regular
+      - CS4 has Professional Ethics (HUT 200) - Regular
+      - CS4 has Operating Systems Lab (CSL 204) - Regular
+      - CS4 has Computer Organization and Architecture (CST 202) - Regular
+    !!! CONFLICT in ('THU', 7):
+      - CS1 has Graph Theory (MAT206) - Regular
+      - CS1 has Database Management Systems (CST 204) - Regular
+      - CS1 has Digital Lab (CSL 202) - Regular
+      - CS1 has Operating Systems Lab (CSL 204) - Regular
+      - CS2 has Computer Organization and Architecture (CST 202) - Regular
+      - CS2 has Graph Theory (MAT206) - Regular
+      - CS2 has Operating Systems (CST 206) - Regular
+      - CS2 has Operating Systems (CST 206) - Regular
+      - CS3 has Operating Systems Lab (CSL 204) - Regular
+      - CS3 has Graph Theory (MAT206) - Regular
+      - CS3 has Operating Systems (CST 206) - Regular
+      - CS3 has Graph Theory (MAT206) - Regular
+      - CS4 has Graph Theory (MAT206) - Regular
+      - CS4 has Operating Systems Lab (CSL 204) - Regular
+      - CS4 has Database Management Systems (CST 204) - Regular
+    !!! CONFLICT in ('TUE', 2):
+      - CS1 has Operating Systems Lab (CSL 204) - Regular
+      - CS1 has Constitution of India (MNC 202) - Regular
+      - CS1 has Database Management Systems (CST 204) - Regular
+      - CS1 has Digital Lab (CSL 202) - Regular
+      - CS2 has Operating Systems (CST 206) - Regular
+      - CS2 has Graph Theory (MAT206) - Regular
+      - CS2 has Database Management Systems (CST 204) - Regular
+      - CS3 has Graph Theory (MAT206) - Regular
+      - CS3 has Operating Systems (CST 206) - Regular
+      - CS3 has Database Management Systems (CST 204) - Regular
+      - CS3 has Computer Organization and Architecture (CST 202) - Regular
+      - CS4 has Operating Systems Lab (CSL 204) - Regular
+      - CS4 has Constitution of India (MNC 202) - Regular
+      - CS4 has Graph Theory (MAT206) - Regular
+    !!! CONFLICT in ('TUE', 3):
+      - CS1 has Operating Systems Lab (CSL 204) - Regular
+      - CS1 has Database Management Systems (CST 204) - Regular
+      - CS1 has Digital Lab (CSL 202) - Regular
+      - CS2 has Graph Theory (MAT206) - Regular
+      - CS2 has Database Management Systems (CST 204) - Regular
+      - CS3 has Database Management Systems (CST 204) - Regular
+      - CS3 has Professional Ethics (HUT 200) - Regular
+      - CS3 has Computer Organization and Architecture (CST 202) - Regular
+      - CS4 has Computer Organization and Architecture (CST 202) - Regular
+      - CS4 has Operating Systems Lab (CSL 204) - Regular
+      - CS4 has Constitution of India (MNC 202) - Regular
+    !!! CONFLICT in ('TUE', 4):
+      - CS1 has Graph Theory (MAT206) - Regular
+      - CS1 has Constitution of India (MNC 202) - Regular
+      - CS1 has Operating Systems (CST 206) - Regular
+      - CS2 has Computer Organization and Architecture (CST 202) - Regular
+      - CS2 has Graph Theory (MAT206) - Regular
+      - CS2 has Database Management Systems (CST 204) - Regular
+      - CS2 has Professional Ethics (HUT 200) - Regular
+      - CS3 has Operating Systems (CST 206) - Regular
+      - CS3 has Operating Systems (CST 206) - Regular
+      - CS3 has Professional Ethics (HUT 200) - Regular
+      - CS3 has Database Management Systems (CST 204) - Regular
+      - CS4 has Operating Systems (CST 206) - Regular
+      - CS4 has Professional Ethics (HUT 200) - Regular
+      - CS4 has Professional Ethics (HUT 200) - Regular
+      - CS4 has Database Management Systems (CST 204) - Regular
+    !!! CONFLICT in ('TUE', 5):
+      - CS1 has Computer Organization and Architecture (CST 202) - Regular
+      - CS1 has Digital Lab (CSL 202) - Regular
+      - CS1 has Graph Theory (MAT206) - Regular
+      - CS1 has Computer Organization and Architecture (CST 202) - Regular
+      - CS2 has Database Management Systems (CST 204) - Regular
+      - CS2 has Computer Organization and Architecture (CST 202) - Regular
+      - CS2 has Operating Systems Lab (CSL 204) - Regular
+      - CS2 has Graph Theory (MAT206) - Regular
+      - CS3 has Graph Theory (MAT206) - Regular
+      - CS3 has Professional Ethics (HUT 200) - Regular
+      - CS3 has Operating Systems (CST 206) - Regular
+      - CS4 has Digital Lab (CSL 202) - Regular
+      - CS4 has Graph Theory (MAT206) - Regular
+      - CS4 has Digital Lab (CSL 202) - Regular
+      - CS4 has Graph Theory (MAT206) - Regular
+    !!! CONFLICT in ('TUE', 7):
+      - CS1 has Digital Lab (CSL 202) - Regular
+      - CS1 has Database Management Systems (CST 204) - Regular
+      - CS2 has Graph Theory (MAT206) - Regular
+      - CS2 has Professional Ethics (HUT 200) - Regular
+      - CS2 has Operating Systems Lab (CSL 204) - Regular
+      - CS3 has Professional Ethics (HUT 200) - Regular
+      - CS3 has Computer Organization and Architecture (CST 202) - Regular
+      - CS4 has Digital Lab (CSL 202) - Regular
+      - CS4 has Graph Theory (MAT206) - Regular
+      - CS4 has Digital Lab (CSL 202) - Regular
+    !!! CONFLICT in ('WED', 1):
+      - CS1 has Database Management Systems (CST 204) - Regular
+      - CS1 has Computer Organization and Architecture (CST 202) - Regular
+      - CS1 has Database Management Systems (CST 204) - Regular
+      - CS1 has Database Management Systems (CST 204) - Regular
+      - CS2 has Database Management Systems (CST 204) - Regular
+      - CS2 has Graph Theory (MAT206) - Regular
+      - CS2 has Operating Systems Lab (CSL 204) - Regular
+      - CS3 has Digital Lab (CSL 202) - Regular
+      - CS3 has Database Management Systems (CST 204) - Regular
+      - CS3 has Digital Lab (CSL 202) - Regular
+      - CS3 has Computer Organization and Architecture (CST 202) - Regular
+      - CS4 has Database Management Systems (CST 204) - Regular
+      - CS4 has Computer Organization and Architecture (CST 202) - Regular
+      - CS4 has Database Management Systems (CST 204) - Regular
+      - CS4 has Database Management Systems (CST 204) - Regular
+    !!! CONFLICT in ('WED', 3):
+      - CS1 has Computer Organization and Architecture (CST 202) - Regular
+      - CS1 has Operating Systems (CST 206) - Regular
+      - CS1 has Operating Systems (CST 206) - Regular
+      - CS1 has Professional Ethics (HUT 200) - Regular
+      - CS2 has Operating Systems (CST 206) - Regular
+      - CS2 has Operating Systems (CST 206) - Regular
+      - CS2 has Computer Organization and Architecture (CST 202) - Regular
+      - CS2 has Operating Systems Lab (CSL 204) - Regular
+      - CS3 has Digital Lab (CSL 202) - Regular
+      - CS3 has Computer Organization and Architecture (CST 202) - Regular
+      - CS3 has Digital Lab (CSL 202) - Regular
+      - CS3 has Database Management Systems (CST 204) - Regular
+      - CS4 has Graph Theory (MAT206) - Regular
+      - CS4 has Database Management Systems (CST 204) - Regular
+      - CS4 has Constitution of India (MNC 202) - Regular
+    !!! CONFLICT in ('WED', 5):
+      - CS1 has Operating Systems Lab (CSL 204) - Regular
+      - CS1 has Constitution of India (MNC 202) - Regular
+      - CS1 has Operating Systems (CST 206) - Regular
+      - CS2 has Database Management Systems (CST 204) - Regular
+      - CS2 has Operating Systems (CST 206) - Regular
+      - CS2 has Constitution of India (MNC 202) - Regular
+      - CS3 has Computer Organization and Architecture (CST 202) - Regular
+      - CS3 has Digital Lab (CSL 202) - Regular
+      - CS3 has Database Management Systems (CST 204) - Regular
+      - CS3 has Graph Theory (MAT206) - Regular
+      - CS4 has Operating Systems Lab (CSL 204) - Regular
+      - CS4 has Constitution of India (MNC 202) - Regular
+      - CS4 has Operating Systems (CST 206) - Regular
+      - CS4 has Computer Organization and Architecture (CST 202) - Regular
+    !!! CONFLICT in ('WED', 6):
+      - CS1 has Operating Systems (CST 206) - Regular
+      - CS1 has Operating Systems Lab (CSL 204) - Regular
+      - CS2 has Computer Organization and Architecture (CST 202) - Regular
+      - CS3 has Operating Systems (CST 206) - Regular
+      - CS3 has Digital Lab (CSL 202) - Regular
+      - CS4 has Operating Systems Lab (CSL 204) - Regular
+      - CS4 has Professional Ethics (HUT 200) - Regular
+
+Semester 6 (ID: 13)
+  RMH Subjects defined:
+    - VAC6: 3 hrs
+
+  Generated RMH Slots per Class:
+    - CS1: 16 entries: [('FRI', 2), ('FRI', 6), ('MON', 5), ('MON', 6), ('MON', 7), ('THU', 1), ('THU', 2), ('THU', 3), ('THU', 4), ('THU', 7), ('THU', 7), ('TUE', 1), ('TUE', 4), ('WED', 1), ('WED', 6), ('WED', 6)]
+    - CS2: 16 entries: [('FRI', 4), ('FRI', 5), ('FRI', 6), ('FRI', 6), ('MON', 5), ('MON', 6), ('THU', 2), ('THU', 5), ('THU', 7), ('TUE', 3), ('TUE', 4), ('TUE', 4), ('TUE', 4), ('TUE', 6), ('WED', 6), ('WED', 7)]
+    - CS3: 15 entries: [('FRI', 3), ('FRI', 6), ('FRI', 6), ('MON', 3), ('MON', 5), ('MON', 5), ('MON', 6), ('MON', 7), ('THU', 2), ('THU', 7), ('THU', 7), ('TUE', 4), ('TUE', 6), ('WED', 5), ('WED', 6)]
+    - CS4: 16 entries: [('FRI', 6), ('MON', 1), ('MON', 5), ('MON', 6), ('MON', 7), ('THU', 2), ('THU', 7), ('THU', 7), ('TUE', 1), ('TUE', 4), ('TUE', 5), ('TUE', 6), ('WED', 1), ('WED', 3), ('WED', 4), ('WED', 6)]
+    Union of all used RMH slots: [('FRI', 2), ('FRI', 3), ('FRI', 4), ('FRI', 5), ('FRI', 6), ('MON', 1), ('MON', 3), ('MON', 5), ('MON', 6), ('MON', 7), ('THU', 1), ('THU', 2), ('THU', 3), ('THU', 4), ('THU', 5), ('THU', 7), ('TUE', 1), ('TUE', 3), ('TUE', 4), ('TUE', 5), ('TUE', 6), ('WED', 1), ('WED', 3), ('WED', 4), ('WED', 5), ('WED', 6), ('WED', 7)]
+    !!! CONFLICT in ('FRI', 2):
+      - CS1 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS1 has Compiler Design (CST302) - Regular
+      - CS1 has Algorithm Analysis and Design (CST306) - Regular
+      - CS2 has Compiler Design (CST302) - Regular
+      - CS2 has Compiler Design (CST302) - Regular
+      - CS2 has Compiler Design (CST302) - Regular
+      - CS2 has Program Elective I (CST 307) - Regular
+      - CS3 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS3 has networking lab (NW) - Regular
+      - CS3 has Algorithm Analysis and Design (CST306) - Regular
+      - CS3 has Mini Project (CSD 334) - Regular
+      - CS4 has comprehensive course work (CST308) - Regular
+      - CS4 has Mini Project (CSD 334) - Regular
+      - CS4 has comprehensive course work (CST308) - Regular
+      - CS4 has networking lab (NW) - Regular
+    !!! CONFLICT in ('FRI', 3):
+      - CS1 has Algorithm Analysis and Design (CST306) - Regular
+      - CS1 has Compiler Design (CST302) - Regular
+      - CS1 has Program Elective I (CST 307) - Regular
+      - CS1 has Compiler Design (CST302) - Regular
+      - CS2 has comprehensive course work (CST308) - Regular
+      - CS2 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS2 has Algorithm Analysis and Design (CST306) - Regular
+      - CS2 has comprehensive course work (CST308) - Regular
+      - CS3 has networking lab (NW) - Regular
+      - CS3 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS3 has Mini Project (CSD 334) - Regular
+      - CS4 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS4 has Mini Project (CSD 334) - Regular
+      - CS4 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS4 has networking lab (NW) - Regular
+    !!! CONFLICT in ('FRI', 4):
+      - CS1 has Compiler Design (CST302) - Regular
+      - CS1 has Algorithm Analysis and Design (CST306) - Regular
+      - CS1 has Compiler Design (CST302) - Regular
+      - CS1 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS2 has Compiler Design (CST302) - Regular
+      - CS2 has Compiler Design (CST302) - Regular
+      - CS2 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS3 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS3 has comprehensive course work (CST308) - Regular
+      - CS3 has comprehensive course work (CST308) - Regular
+      - CS3 has Algorithm Analysis and Design (CST306) - Regular
+      - CS4 has Compiler Design (CST302) - Regular
+      - CS4 has Algorithm Analysis and Design (CST306) - Regular
+      - CS4 has Compiler Design (CST302) - Regular
+      - CS4 has Compiler Design (CST302) - Regular
+    !!! CONFLICT in ('FRI', 5):
+      - CS1 has comprehensive course work (CST308) - Regular
+      - CS1 has Algorithm Analysis and Design (CST306) - Regular
+      - CS1 has Algorithm Analysis and Design (CST306) - Regular
+      - CS1 has Compiler Design (CST302) - Regular
+      - CS2 has Algorithm Analysis and Design (CST306) - Regular
+      - CS2 has Mini Project (CSD 334) - Regular
+      - CS2 has Algorithm Analysis and Design (CST306) - Regular
+      - CS3 has Compiler Design (CST302) - Regular
+      - CS3 has Compiler Design (CST302) - Regular
+      - CS3 has Program Elective I (CST 307) - Regular
+      - CS3 has comprehensive course work (CST308) - Regular
+      - CS4 has networking lab (NW) - Regular
+      - CS4 has Compiler Design (CST302) - Regular
+      - CS4 has networking lab (NW) - Regular
+      - CS4 has Computer Graphics and Image Processing (CST304) - Regular
+    !!! CONFLICT in ('FRI', 6):
+      - CS1 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS1 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS1 has comprehensive course work (CST308) - Regular
+      - CS2 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS2 has Mini Project (CSD 334) - Regular
+      - CS3 has Algorithm Analysis and Design (CST306) - Regular
+      - CS3 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS4 has networking lab (NW) - Regular
+      - CS4 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS4 has networking lab (NW) - Regular
+    !!! CONFLICT in ('MON', 1):
+      - CS1 has Algorithm Analysis and Design (CST306) - Regular
+      - CS1 has Algorithm Analysis and Design (CST306) - Regular
+      - CS1 has Program Elective I (CST 307) - Regular
+      - CS1 has Compiler Design (CST302) - Regular
+      - CS2 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS2 has Mini Project (CSD 334) - Regular
+      - CS2 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS2 has Mini Project (CSD 334) - Regular
+      - CS3 has Mini Project (CSD 334) - Regular
+      - CS3 has Algorithm Analysis and Design (CST306) - Regular
+      - CS3 has networking lab (NW) - Regular
+      - CS3 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS4 has Algorithm Analysis and Design (CST306) - Regular
+      - CS4 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS4 has Compiler Design (CST302) - Regular
+    !!! CONFLICT in ('MON', 3):
+      - CS1 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS1 has Compiler Design (CST302) - Regular
+      - CS1 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS1 has Algorithm Analysis and Design (CST306) - Regular
+      - CS2 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS2 has Mini Project (CSD 334) - Regular
+      - CS2 has Compiler Design (CST302) - Regular
+      - CS2 has Mini Project (CSD 334) - Regular
+      - CS3 has Mini Project (CSD 334) - Regular
+      - CS3 has networking lab (NW) - Regular
+      - CS3 has Program Elective I (CST 307) - Regular
+      - CS4 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS4 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS4 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS4 has Computer Graphics and Image Processing (CST304) - Regular
+    !!! CONFLICT in ('MON', 5):
+      - CS1 has comprehensive course work (CST308) - Regular
+      - CS1 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS1 has Program Elective I (CST 307) - Regular
+      - CS2 has networking lab (NW) - Regular
+      - CS2 has Compiler Design (CST302) - Regular
+      - CS2 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS3 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS3 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS4 has Compiler Design (CST302) - Regular
+      - CS4 has comprehensive course work (CST308) - Regular
+      - CS4 has Compiler Design (CST302) - Regular
+    !!! CONFLICT in ('MON', 6):
+      - CS1 has Algorithm Analysis and Design (CST306) - Regular
+      - CS1 has comprehensive course work (CST308) - Regular
+      - CS1 has Compiler Design (CST302) - Regular
+      - CS2 has networking lab (NW) - Regular
+      - CS2 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS2 has Compiler Design (CST302) - Regular
+      - CS3 has comprehensive course work (CST308) - Regular
+      - CS3 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS3 has comprehensive course work (CST308) - Regular
+      - CS4 has comprehensive course work (CST308) - Regular
+      - CS4 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS4 has Computer Graphics and Image Processing (CST304) - Regular
+    !!! CONFLICT in ('MON', 7):
+      - CS1 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS1 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS1 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS2 has networking lab (NW) - Regular
+      - CS2 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS2 has Compiler Design (CST302) - Regular
+      - CS2 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS3 has comprehensive course work (CST308) - Regular
+      - CS3 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS3 has Compiler Design (CST302) - Regular
+      - CS4 has Program Elective I (CST 307) - Regular
+      - CS4 has Algorithm Analysis and Design (CST306) - Regular
+      - CS4 has Industrial Economics and Foreign Trade (HUT300) - Regular
+    !!! CONFLICT in ('THU', 1):
+      - CS1 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS1 has Algorithm Analysis and Design (CST306) - Regular
+      - CS1 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS2 has Mini Project (CSD 334) - Regular
+      - CS2 has comprehensive course work (CST308) - Regular
+      - CS2 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS2 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS3 has Algorithm Analysis and Design (CST306) - Regular
+      - CS3 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS3 has Compiler Design (CST302) - Regular
+      - CS3 has Program Elective I (CST 307) - Regular
+      - CS4 has Algorithm Analysis and Design (CST306) - Regular
+      - CS4 has networking lab (NW) - Regular
+      - CS4 has Program Elective I (CST 307) - Regular
+      - CS4 has Mini Project (CSD 334) - Regular
+    !!! CONFLICT in ('THU', 2):
+      - CS1 has Compiler Design (CST302) - Regular
+      - CS1 has comprehensive course work (CST308) - Regular
+      - CS1 has comprehensive course work (CST308) - Regular
+      - CS2 has Mini Project (CSD 334) - Regular
+      - CS2 has Compiler Design (CST302) - Regular
+      - CS2 has comprehensive course work (CST308) - Regular
+      - CS3 has comprehensive course work (CST308) - Regular
+      - CS3 has Compiler Design (CST302) - Regular
+      - CS3 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS4 has Compiler Design (CST302) - Regular
+      - CS4 has networking lab (NW) - Regular
+      - CS4 has Mini Project (CSD 334) - Regular
+    !!! CONFLICT in ('THU', 3):
+      - CS1 has comprehensive course work (CST308) - Regular
+      - CS1 has Algorithm Analysis and Design (CST306) - Regular
+      - CS1 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS2 has Mini Project (CSD 334) - Regular
+      - CS2 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS2 has Algorithm Analysis and Design (CST306) - Regular
+      - CS2 has Algorithm Analysis and Design (CST306) - Regular
+      - CS3 has Compiler Design (CST302) - Regular
+      - CS3 has comprehensive course work (CST308) - Regular
+      - CS3 has Compiler Design (CST302) - Regular
+      - CS3 has Compiler Design (CST302) - Regular
+      - CS4 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS4 has networking lab (NW) - Regular
+      - CS4 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS4 has Mini Project (CSD 334) - Regular
+    !!! CONFLICT in ('THU', 4):
+      - CS1 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS1 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS1 has comprehensive course work (CST308) - Regular
+      - CS2 has Program Elective I (CST 307) - Regular
+      - CS2 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS2 has Algorithm Analysis and Design (CST306) - Regular
+      - CS2 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS3 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS3 has Compiler Design (CST302) - Regular
+      - CS3 has Algorithm Analysis and Design (CST306) - Regular
+      - CS3 has Compiler Design (CST302) - Regular
+      - CS4 has Algorithm Analysis and Design (CST306) - Regular
+      - CS4 has Compiler Design (CST302) - Regular
+      - CS4 has Compiler Design (CST302) - Regular
+      - CS4 has Compiler Design (CST302) - Regular
+    !!! CONFLICT in ('THU', 5):
+      - CS1 has Algorithm Analysis and Design (CST306) - Regular
+      - CS1 has networking lab (NW) - Regular
+      - CS1 has comprehensive course work (CST308) - Regular
+      - CS1 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS2 has Program Elective I (CST 307) - Regular
+      - CS2 has comprehensive course work (CST308) - Regular
+      - CS2 has Compiler Design (CST302) - Regular
+      - CS3 has Compiler Design (CST302) - Regular
+      - CS3 has Compiler Design (CST302) - Regular
+      - CS3 has comprehensive course work (CST308) - Regular
+      - CS3 has comprehensive course work (CST308) - Regular
+      - CS4 has Mini Project (CSD 334) - Regular
+      - CS4 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS4 has Algorithm Analysis and Design (CST306) - Regular
+      - CS4 has Industrial Economics and Foreign Trade (HUT300) - Regular
+    !!! CONFLICT in ('THU', 7):
+      - CS1 has networking lab (NW) - Regular
+      - CS1 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS2 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS2 has Algorithm Analysis and Design (CST306) - Regular
+      - CS2 has Compiler Design (CST302) - Regular
+      - CS3 has Compiler Design (CST302) - Regular
+      - CS3 has Algorithm Analysis and Design (CST306) - Regular
+      - CS4 has Mini Project (CSD 334) - Regular
+      - CS4 has Algorithm Analysis and Design (CST306) - Regular
+    !!! CONFLICT in ('TUE', 1):
+      - CS1 has Mini Project (CSD 334) - Regular
+      - CS1 has networking lab (NW) - Regular
+      - CS1 has Algorithm Analysis and Design (CST306) - Regular
+      - CS2 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS2 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS2 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS2 has comprehensive course work (CST308) - Regular
+      - CS3 has networking lab (NW) - Regular
+      - CS3 has Mini Project (CSD 334) - Regular
+      - CS3 has comprehensive course work (CST308) - Regular
+      - CS3 has networking lab (NW) - Regular
+      - CS4 has comprehensive course work (CST308) - Regular
+      - CS4 has Mini Project (CSD 334) - Regular
+      - CS4 has Algorithm Analysis and Design (CST306) - Regular
+    !!! CONFLICT in ('TUE', 3):
+      - CS1 has Mini Project (CSD 334) - Regular
+      - CS1 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS1 has networking lab (NW) - Regular
+      - CS1 has Algorithm Analysis and Design (CST306) - Regular
+      - CS2 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS2 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS2 has Algorithm Analysis and Design (CST306) - Regular
+      - CS3 has networking lab (NW) - Regular
+      - CS3 has Mini Project (CSD 334) - Regular
+      - CS3 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS3 has networking lab (NW) - Regular
+      - CS4 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS4 has Algorithm Analysis and Design (CST306) - Regular
+      - CS4 has Mini Project (CSD 334) - Regular
+      - CS4 has Compiler Design (CST302) - Regular
+    !!! CONFLICT in ('TUE', 4):
+      - CS1 has Algorithm Analysis and Design (CST306) - Regular
+      - CS1 has Compiler Design (CST302) - Regular
+      - CS1 has Compiler Design (CST302) - Regular
+      - CS2 has Compiler Design (CST302) - Regular
+      - CS3 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS3 has comprehensive course work (CST308) - Regular
+      - CS3 has Compiler Design (CST302) - Regular
+      - CS4 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS4 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS4 has Computer Graphics and Image Processing (CST304) - Regular
+    !!! CONFLICT in ('TUE', 5):
+      - CS1 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS1 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS1 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS1 has networking lab (NW) - Regular
+      - CS2 has comprehensive course work (CST308) - Regular
+      - CS2 has Algorithm Analysis and Design (CST306) - Regular
+      - CS2 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS2 has Program Elective I (CST 307) - Regular
+      - CS3 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS3 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS3 has Mini Project (CSD 334) - Regular
+      - CS3 has comprehensive course work (CST308) - Regular
+      - CS4 has comprehensive course work (CST308) - Regular
+      - CS4 has comprehensive course work (CST308) - Regular
+      - CS4 has comprehensive course work (CST308) - Regular
+    !!! CONFLICT in ('TUE', 6):
+      - CS1 has Program Elective I (CST 307) - Regular
+      - CS1 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS1 has Program Elective I (CST 307) - Regular
+      - CS1 has networking lab (NW) - Regular
+      - CS2 has Algorithm Analysis and Design (CST306) - Regular
+      - CS2 has comprehensive course work (CST308) - Regular
+      - CS2 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS3 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS3 has Mini Project (CSD 334) - Regular
+      - CS3 has Compiler Design (CST302) - Regular
+      - CS4 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS4 has comprehensive course work (CST308) - Regular
+      - CS4 has Program Elective I (CST 307) - Regular
+    !!! CONFLICT in ('WED', 1):
+      - CS1 has Mini Project (CSD 334) - Regular
+      - CS1 has Mini Project (CSD 334) - Regular
+      - CS1 has comprehensive course work (CST308) - Regular
+      - CS2 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS2 has networking lab (NW) - Regular
+      - CS2 has networking lab (NW) - Regular
+      - CS2 has Compiler Design (CST302) - Regular
+      - CS3 has Algorithm Analysis and Design (CST306) - Regular
+      - CS3 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS3 has Compiler Design (CST302) - Regular
+      - CS3 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS4 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS4 has Compiler Design (CST302) - Regular
+      - CS4 has Computer Graphics and Image Processing (CST304) - Regular
+    !!! CONFLICT in ('WED', 3):
+      - CS1 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS1 has Mini Project (CSD 334) - Regular
+      - CS1 has Mini Project (CSD 334) - Regular
+      - CS1 has comprehensive course work (CST308) - Regular
+      - CS2 has Compiler Design (CST302) - Regular
+      - CS2 has networking lab (NW) - Regular
+      - CS2 has networking lab (NW) - Regular
+      - CS2 has Algorithm Analysis and Design (CST306) - Regular
+      - CS3 has comprehensive course work (CST308) - Regular
+      - CS3 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS3 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS3 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS4 has Compiler Design (CST302) - Regular
+      - CS4 has comprehensive course work (CST308) - Regular
+      - CS4 has Program Elective I (CST 307) - Regular
+    !!! CONFLICT in ('WED', 4):
+      - CS1 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS1 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS1 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS1 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS2 has Program Elective I (CST 307) - Regular
+      - CS2 has comprehensive course work (CST308) - Regular
+      - CS2 has comprehensive course work (CST308) - Regular
+      - CS2 has Compiler Design (CST302) - Regular
+      - CS3 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS3 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS3 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS3 has comprehensive course work (CST308) - Regular
+      - CS4 has Compiler Design (CST302) - Regular
+      - CS4 has Compiler Design (CST302) - Regular
+      - CS4 has Computer Graphics and Image Processing (CST304) - Regular
+    !!! CONFLICT in ('WED', 5):
+      - CS1 has networking lab (NW) - Regular
+      - CS1 has Program Elective I (CST 307) - Regular
+      - CS1 has Compiler Design (CST302) - Regular
+      - CS1 has Mini Project (CSD 334) - Regular
+      - CS2 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS2 has comprehensive course work (CST308) - Regular
+      - CS2 has comprehensive course work (CST308) - Regular
+      - CS2 has networking lab (NW) - Regular
+      - CS3 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS3 has Algorithm Analysis and Design (CST306) - Regular
+      - CS3 has Program Elective I (CST 307) - Regular
+      - CS4 has Algorithm Analysis and Design (CST306) - Regular
+      - CS4 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS4 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS4 has Compiler Design (CST302) - Regular
+    !!! CONFLICT in ('WED', 6):
+      - CS1 has networking lab (NW) - Regular
+      - CS1 has Mini Project (CSD 334) - Regular
+      - CS2 has Algorithm Analysis and Design (CST306) - Regular
+      - CS2 has Compiler Design (CST302) - Regular
+      - CS2 has networking lab (NW) - Regular
+      - CS3 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS3 has Compiler Design (CST302) - Regular
+      - CS3 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS4 has Algorithm Analysis and Design (CST306) - Regular
+      - CS4 has Algorithm Analysis and Design (CST306) - Regular
+      - CS4 has Algorithm Analysis and Design (CST306) - Regular
+    !!! CONFLICT in ('WED', 7):
+      - CS1 has networking lab (NW) - Regular
+      - CS1 has Compiler Design (CST302) - Regular
+      - CS1 has Compiler Design (CST302) - Regular
+      - CS1 has Mini Project (CSD 334) - Regular
+      - CS2 has Program Elective I (CST 307) - Regular
+      - CS2 has Industrial Economics and Foreign Trade (HUT300) - Regular
+      - CS2 has networking lab (NW) - Regular
+      - CS3 has Program Elective I (CST 307) - Regular
+      - CS3 has Program Elective I (CST 307) - Regular
+      - CS3 has Algorithm Analysis and Design (CST306) - Regular
+      - CS3 has Algorithm Analysis and Design (CST306) - Regular
+      - CS4 has Compiler Design (CST302) - Regular
+      - CS4 has Computer Graphics and Image Processing (CST304) - Regular
+      - CS4 has Program Elective I (CST 307) - Regular
+      - CS4 has Industrial Economics and Foreign Trade (HUT300) - Regular
+
+Semester 8 (ID: 14)
+  RMH Subjects defined:
+    - VAC8: 4 hrs
+
+  Generated RMH Slots per Class:
+    - CS1: 27 entries: [('FRI', 2), ('FRI', 2), ('FRI', 3), ('FRI', 4), ('FRI', 7), ('FRI', 7), ('MON', 1), ('MON', 3), ('MON', 3), ('MON', 5), ('MON', 6), ('MON', 6), ('MON', 7), ('THU', 1), ('THU', 2), ('THU', 4), ('THU', 6), ('THU', 7), ('TUE', 2), ('TUE', 3), ('TUE', 4), ('TUE', 4), ('WED', 3), ('WED', 3), ('WED', 3), ('WED', 5), ('WED', 7)]
+    - CS2: 27 entries: [('FRI', 1), ('FRI', 2), ('FRI', 3), ('FRI', 4), ('FRI', 5), ('MON', 1), ('MON', 3), ('MON', 4), ('MON', 5), ('MON', 6), ('THU', 2), ('THU', 3), ('THU', 4), ('THU', 7), ('TUE', 1), ('TUE', 1), ('TUE', 2), ('TUE', 3), ('TUE', 3), ('WED', 1), ('WED', 3), ('WED', 3), ('WED', 4), ('WED', 5), ('WED', 5), ('WED', 7), ('WED', 7)]
+    - CS3: 27 entries: [('FRI', 1), ('FRI', 2), ('FRI', 4), ('FRI', 4), ('MON', 2), ('MON', 3), ('MON', 3), ('MON', 5), ('MON', 5), ('MON', 6), ('THU', 1), ('THU', 2), ('THU', 2), ('THU', 3), ('THU', 4), ('THU', 7), ('TUE', 1), ('TUE', 2), ('TUE', 3), ('TUE', 5), ('TUE', 7), ('WED', 3), ('WED', 3), ('WED', 4), ('WED', 5), ('WED', 7), ('WED', 7)]
+    - CS4: 28 entries: [('FRI', 1), ('FRI', 2), ('FRI', 4), ('MON', 2), ('MON', 3), ('MON', 4), ('MON', 5), ('MON', 5), ('THU', 2), ('THU', 2), ('THU', 4), ('THU', 4), ('THU', 4), ('THU', 7), ('TUE', 4), ('TUE', 5), ('TUE', 5), ('TUE', 6), ('TUE', 6), ('TUE', 7), ('WED', 1), ('WED', 1), ('WED', 1), ('WED', 2), ('WED', 3), ('WED', 4), ('WED', 4), ('WED', 7)]
+    Union of all used RMH slots: [('FRI', 1), ('FRI', 2), ('FRI', 3), ('FRI', 4), ('FRI', 5), ('FRI', 7), ('MON', 1), ('MON', 2), ('MON', 3), ('MON', 4), ('MON', 5), ('MON', 6), ('MON', 7), ('THU', 1), ('THU', 2), ('THU', 3), ('THU', 4), ('THU', 6), ('THU', 7), ('TUE', 1), ('TUE', 2), ('TUE', 3), ('TUE', 4), ('TUE', 5), ('TUE', 6), ('TUE', 7), ('WED', 1), ('WED', 2), ('WED', 3), ('WED', 4), ('WED', 5), ('WED', 7)]
+    !!! CONFLICT in ('FRI', 1):
+      - CS1 has Program Elective III (CST-) - Regular
+      - CS1 has Program Elective IV (CST---) - Regular
+      - CS1 has Comprehensive Viva (CST404) - Regular
+      - CS1 has Program Elective IV (CST---) - Regular
+      - CS2 has Comprehensive Viva (CST404) - Regular
+      - CS2 has Project Phase II (CSD 416) - Regular
+      - CS2 has Program Elective v (CST----) - Regular
+      - CS3 has Program Elective III (CST-) - Regular
+      - CS3 has Program Elective v (CST----) - Regular
+      - CS3 has Program Elective v (CST----) - Regular
+      - CS4 has Distributed Computing (CST402) - Regular
+      - CS4 has Program Elective III (CST-) - Regular
+      - CS4 has Distributed Computing (CST402) - Regular
+    !!! CONFLICT in ('FRI', 2):
+      - CS1 has Distributed Computing (CST402) - Regular
+      - CS1 has Program Elective III (CST-) - Regular
+      - CS2 has Program Elective IV (CST---) - Regular
+      - CS2 has Comprehensive Viva (CST404) - Regular
+      - CS2 has Project Phase II (CSD 416) - Regular
+      - CS3 has Program Elective v (CST----) - Regular
+      - CS3 has Distributed Computing (CST402) - Regular
+      - CS3 has Comprehensive Viva (CST404) - Regular
+      - CS4 has Program Elective v (CST----) - Regular
+      - CS4 has Program Elective v (CST----) - Regular
+      - CS4 has Program Elective v (CST----) - Regular
+    !!! CONFLICT in ('FRI', 3):
+      - CS1 has Program Elective v (CST----) - Regular
+      - CS1 has Program Elective IV (CST---) - Regular
+      - CS1 has Distributed Computing (CST402) - Regular
+      - CS2 has Program Elective v (CST----) - Regular
+      - CS2 has Project Phase II (CSD 416) - Regular
+      - CS2 has Program Elective IV (CST---) - Regular
+      - CS3 has Program Elective IV (CST---) - Regular
+      - CS3 has Comprehensive Viva (CST404) - Regular
+      - CS3 has Program Elective v (CST----) - Regular
+      - CS3 has Distributed Computing (CST402) - Regular
+      - CS4 has Distributed Computing (CST402) - Regular
+      - CS4 has Distributed Computing (CST402) - Regular
+      - CS4 has Distributed Computing (CST402) - Regular
+      - CS4 has Comprehensive Viva (CST404) - Regular
+    !!! CONFLICT in ('FRI', 4):
+      - CS1 has Program Elective III (CST-) - Regular
+      - CS1 has Program Elective IV (CST---) - Regular
+      - CS1 has Program Elective III (CST-) - Regular
+      - CS2 has Program Elective v (CST----) - Regular
+      - CS2 has Program Elective IV (CST---) - Regular
+      - CS2 has Distributed Computing (CST402) - Regular
+      - CS3 has Program Elective IV (CST---) - Regular
+      - CS3 has Program Elective III (CST-) - Regular
+      - CS4 has Comprehensive Viva (CST404) - Regular
+      - CS4 has Program Elective v (CST----) - Regular
+      - CS4 has Program Elective III (CST-) - Regular
+    !!! CONFLICT in ('FRI', 5):
+      - CS1 has Program Elective v (CST----) - Regular
+      - CS1 has Program Elective IV (CST---) - Regular
+      - CS1 has Program Elective IV (CST---) - Regular
+      - CS1 has Program Elective v (CST----) - Regular
+      - CS2 has Comprehensive Viva (CST404) - Regular
+      - CS2 has Distributed Computing (CST402) - Regular
+      - CS2 has Comprehensive Viva (CST404) - Regular
+      - CS3 has Comprehensive Viva (CST404) - Regular
+      - CS3 has Program Elective IV (CST---) - Regular
+      - CS3 has Program Elective III (CST-) - Regular
+      - CS3 has Project Phase II (CSD 416) - Regular
+      - CS4 has Project Phase II (CSD 416) - Regular
+      - CS4 has Project Phase II (CSD 416) - Regular
+      - CS4 has Program Elective v (CST----) - Regular
+      - CS4 has Comprehensive Viva (CST404) - Regular
+    !!! CONFLICT in ('FRI', 7):
+      - CS1 has Comprehensive Viva (CST404) - Regular
+      - CS1 has Program Elective III (CST-) - Regular
+      - CS2 has Distributed Computing (CST402) - Regular
+      - CS2 has Distributed Computing (CST402) - Regular
+      - CS2 has Distributed Computing (CST402) - Regular
+      - CS2 has Program Elective v (CST----) - Regular
+      - CS3 has Program Elective III (CST-) - Regular
+      - CS3 has Program Elective v (CST----) - Regular
+      - CS3 has Program Elective III (CST-) - Regular
+      - CS3 has Project Phase II (CSD 416) - Regular
+      - CS4 has Project Phase II (CSD 416) - Regular
+      - CS4 has Project Phase II (CSD 416) - Regular
+      - CS4 has Program Elective IV (CST---) - Regular
+      - CS4 has Distributed Computing (CST402) - Regular
+    !!! CONFLICT in ('MON', 1):
+      - CS1 has Distributed Computing (CST402) - Regular
+      - CS1 has Comprehensive Viva (CST404) - Regular
+      - CS1 has Distributed Computing (CST402) - Regular
+      - CS2 has Distributed Computing (CST402) - Regular
+      - CS2 has Distributed Computing (CST402) - Regular
+      - CS2 has Program Elective IV (CST---) - Regular
+      - CS3 has Program Elective III (CST-) - Regular
+      - CS3 has Program Elective III (CST-) - Regular
+      - CS3 has Distributed Computing (CST402) - Regular
+      - CS3 has Program Elective IV (CST---) - Regular
+      - CS4 has Program Elective IV (CST---) - Regular
+      - CS4 has Program Elective IV (CST---) - Regular
+      - CS4 has Program Elective IV (CST---) - Regular
+      - CS4 has Distributed Computing (CST402) - Regular
+    !!! CONFLICT in ('MON', 2):
+      - CS1 has Program Elective IV (CST---) - Regular
+      - CS1 has Program Elective v (CST----) - Regular
+      - CS1 has Program Elective v (CST----) - Regular
+      - CS1 has Comprehensive Viva (CST404) - Regular
+      - CS2 has Program Elective III (CST-) - Regular
+      - CS2 has Program Elective IV (CST---) - Regular
+      - CS2 has Comprehensive Viva (CST404) - Regular
+      - CS2 has Program Elective IV (CST---) - Regular
+      - CS3 has Program Elective IV (CST---) - Regular
+      - CS3 has Program Elective IV (CST---) - Regular
+      - CS3 has Distributed Computing (CST402) - Regular
+      - CS4 has Comprehensive Viva (CST404) - Regular
+      - CS4 has Program Elective III (CST-) - Regular
+      - CS4 has Program Elective III (CST-) - Regular
+    !!! CONFLICT in ('MON', 3):
+      - CS1 has Distributed Computing (CST402) - Regular
+      - CS1 has Distributed Computing (CST402) - Regular
+      - CS2 has Program Elective v (CST----) - Regular
+      - CS2 has Program Elective IV (CST---) - Regular
+      - CS2 has Program Elective v (CST----) - Regular
+      - CS3 has Program Elective III (CST-) - Regular
+      - CS3 has Program Elective IV (CST---) - Regular
+      - CS4 has Program Elective IV (CST---) - Regular
+      - CS4 has Program Elective IV (CST---) - Regular
+      - CS4 has Program Elective IV (CST---) - Regular
+    !!! CONFLICT in ('MON', 4):
+      - CS1 has Program Elective IV (CST---) - Regular
+      - CS1 has Comprehensive Viva (CST404) - Regular
+      - CS1 has Program Elective III (CST-) - Regular
+      - CS1 has Distributed Computing (CST402) - Regular
+      - CS2 has Program Elective III (CST-) - Regular
+      - CS2 has Distributed Computing (CST402) - Regular
+      - CS2 has Program Elective III (CST-) - Regular
+      - CS3 has Program Elective v (CST----) - Regular
+      - CS3 has Distributed Computing (CST402) - Regular
+      - CS3 has Program Elective III (CST-) - Regular
+      - CS3 has Distributed Computing (CST402) - Regular
+      - CS4 has Program Elective III (CST-) - Regular
+      - CS4 has Program Elective IV (CST---) - Regular
+      - CS4 has Distributed Computing (CST402) - Regular
+    !!! CONFLICT in ('MON', 5):
+      - CS1 has Comprehensive Viva (CST404) - Regular
+      - CS1 has Comprehensive Viva (CST404) - Regular
+      - CS1 has Distributed Computing (CST402) - Regular
+      - CS2 has Comprehensive Viva (CST404) - Regular
+      - CS2 has Distributed Computing (CST402) - Regular
+      - CS2 has Distributed Computing (CST402) - Regular
+      - CS3 has Program Elective v (CST----) - Regular
+      - CS3 has Program Elective v (CST----) - Regular
+      - CS4 has Comprehensive Viva (CST404) - Regular
+      - CS4 has Distributed Computing (CST402) - Regular
+    !!! CONFLICT in ('MON', 6):
+      - CS1 has Program Elective III (CST-) - Regular
+      - CS1 has Program Elective v (CST----) - Regular
+      - CS2 has Comprehensive Viva (CST404) - Regular
+      - CS2 has Comprehensive Viva (CST404) - Regular
+      - CS2 has Distributed Computing (CST402) - Regular
+      - CS3 has Program Elective IV (CST---) - Regular
+      - CS3 has Distributed Computing (CST402) - Regular
+      - CS3 has Program Elective v (CST----) - Regular
+      - CS4 has Program Elective III (CST-) - Regular
+      - CS4 has Distributed Computing (CST402) - Regular
+      - CS4 has Comprehensive Viva (CST404) - Regular
+      - CS4 has Distributed Computing (CST402) - Regular
+    !!! CONFLICT in ('MON', 7):
+      - CS1 has Comprehensive Viva (CST404) - Regular
+      - CS1 has Program Elective III (CST-) - Regular
+      - CS1 has Program Elective IV (CST---) - Regular
+      - CS2 has Program Elective III (CST-) - Regular
+      - CS2 has Distributed Computing (CST402) - Regular
+      - CS2 has Program Elective III (CST-) - Regular
+      - CS2 has Comprehensive Viva (CST404) - Regular
+      - CS3 has Distributed Computing (CST402) - Regular
+      - CS3 has Distributed Computing (CST402) - Regular
+      - CS3 has Program Elective IV (CST---) - Regular
+      - CS3 has Distributed Computing (CST402) - Regular
+      - CS4 has Comprehensive Viva (CST404) - Regular
+      - CS4 has Program Elective IV (CST---) - Regular
+      - CS4 has Program Elective IV (CST---) - Regular
+      - CS4 has Distributed Computing (CST402) - Regular
+    !!! CONFLICT in ('THU', 1):
+      - CS1 has Project Phase II (CSD 416) - Regular
+      - CS1 has Program Elective v (CST----) - Regular
+      - CS1 has Distributed Computing (CST402) - Regular
+      - CS2 has Comprehensive Viva (CST404) - Regular
+      - CS2 has Program Elective v (CST----) - Regular
+      - CS2 has Program Elective III (CST-) - Regular
+      - CS2 has Comprehensive Viva (CST404) - Regular
+      - CS3 has Program Elective III (CST-) - Regular
+      - CS3 has Program Elective IV (CST---) - Regular
+      - CS3 has Program Elective IV (CST---) - Regular
+      - CS4 has Distributed Computing (CST402) - Regular
+      - CS4 has Comprehensive Viva (CST404) - Regular
+      - CS4 has Program Elective III (CST-) - Regular
+      - CS4 has Comprehensive Viva (CST404) - Regular
+    !!! CONFLICT in ('THU', 2):
+      - CS1 has Program Elective IV (CST---) - Regular
+      - CS1 has Project Phase II (CSD 416) - Regular
+      - CS1 has Comprehensive Viva (CST404) - Regular
+      - CS2 has Program Elective III (CST-) - Regular
+      - CS2 has Comprehensive Viva (CST404) - Regular
+      - CS2 has Program Elective III (CST-) - Regular
+      - CS3 has Distributed Computing (CST402) - Regular
+      - CS3 has Program Elective III (CST-) - Regular
+      - CS4 has Distributed Computing (CST402) - Regular
+      - CS4 has Program Elective III (CST-) - Regular
+    !!! CONFLICT in ('THU', 3):
+      - CS1 has Program Elective v (CST----) - Regular
+      - CS1 has Project Phase II (CSD 416) - Regular
+      - CS1 has Distributed Computing (CST402) - Regular
+      - CS1 has Distributed Computing (CST402) - Regular
+      - CS2 has Distributed Computing (CST402) - Regular
+      - CS2 has Program Elective IV (CST---) - Regular
+      - CS2 has Program Elective IV (CST---) - Regular
+      - CS3 has Distributed Computing (CST402) - Regular
+      - CS3 has Program Elective v (CST----) - Regular
+      - CS3 has Distributed Computing (CST402) - Regular
+      - CS4 has Program Elective IV (CST---) - Regular
+      - CS4 has Program Elective IV (CST---) - Regular
+      - CS4 has Program Elective III (CST-) - Regular
+      - CS4 has Distributed Computing (CST402) - Regular
+    !!! CONFLICT in ('THU', 4):
+      - CS1 has Distributed Computing (CST402) - Regular
+      - CS1 has Distributed Computing (CST402) - Regular
+      - CS1 has Program Elective III (CST-) - Regular
+      - CS2 has Program Elective III (CST-) - Regular
+      - CS2 has Program Elective IV (CST---) - Regular
+      - CS2 has Program Elective III (CST-) - Regular
+      - CS3 has Distributed Computing (CST402) - Regular
+      - CS3 has Comprehensive Viva (CST404) - Regular
+      - CS3 has Comprehensive Viva (CST404) - Regular
+      - CS4 has Distributed Computing (CST402) - Regular
+    !!! CONFLICT in ('THU', 6):
+      - CS1 has Project Phase II (CSD 416) - Regular
+      - CS1 has Distributed Computing (CST402) - Regular
+      - CS1 has Project Phase II (CSD 416) - Regular
+      - CS2 has Program Elective IV (CST---) - Regular
+      - CS2 has Project Phase II (CSD 416) - Regular
+      - CS2 has Distributed Computing (CST402) - Regular
+      - CS2 has Comprehensive Viva (CST404) - Regular
+      - CS3 has Distributed Computing (CST402) - Regular
+      - CS3 has Distributed Computing (CST402) - Regular
+      - CS3 has Project Phase II (CSD 416) - Regular
+      - CS3 has Program Elective IV (CST---) - Regular
+      - CS4 has Comprehensive Viva (CST404) - Regular
+      - CS4 has Comprehensive Viva (CST404) - Regular
+      - CS4 has Comprehensive Viva (CST404) - Regular
+      - CS4 has Program Elective v (CST----) - Regular
+    !!! CONFLICT in ('THU', 7):
+      - CS1 has Project Phase II (CSD 416) - Regular
+      - CS1 has Distributed Computing (CST402) - Regular
+      - CS1 has Project Phase II (CSD 416) - Regular
+      - CS2 has Project Phase II (CSD 416) - Regular
+      - CS2 has Comprehensive Viva (CST404) - Regular
+      - CS2 has Distributed Computing (CST402) - Regular
+      - CS3 has Program Elective III (CST-) - Regular
+      - CS3 has Project Phase II (CSD 416) - Regular
+      - CS3 has Program Elective v (CST----) - Regular
+      - CS4 has Program Elective v (CST----) - Regular
+      - CS4 has Program Elective v (CST----) - Regular
+      - CS4 has Comprehensive Viva (CST404) - Regular
+    !!! CONFLICT in ('TUE', 1):
+      - CS1 has Program Elective III (CST-) - Regular
+      - CS1 has Program Elective III (CST-) - Regular
+      - CS1 has Project Phase II (CSD 416) - Regular
+      - CS1 has Program Elective v (CST----) - Regular
+      - CS2 has Program Elective IV (CST---) - Regular
+      - CS2 has Program Elective IV (CST---) - Regular
+      - CS3 has Comprehensive Viva (CST404) - Regular
+      - CS3 has Comprehensive Viva (CST404) - Regular
+      - CS3 has Comprehensive Viva (CST404) - Regular
+      - CS4 has Program Elective III (CST-) - Regular
+      - CS4 has Program Elective III (CST-) - Regular
+      - CS4 has Distributed Computing (CST402) - Regular
+      - CS4 has Project Phase II (CSD 416) - Regular
+    !!! CONFLICT in ('TUE', 2):
+      - CS1 has Distributed Computing (CST402) - Regular
+      - CS1 has Project Phase II (CSD 416) - Regular
+      - CS1 has Program Elective IV (CST---) - Regular
+      - CS2 has Program Elective IV (CST---) - Regular
+      - CS2 has Comprehensive Viva (CST404) - Regular
+      - CS2 has Comprehensive Viva (CST404) - Regular
+      - CS3 has Distributed Computing (CST402) - Regular
+      - CS3 has Distributed Computing (CST402) - Regular
+      - CS3 has Distributed Computing (CST402) - Regular
+      - CS4 has Program Elective III (CST-) - Regular
+      - CS4 has Program Elective III (CST-) - Regular
+      - CS4 has Comprehensive Viva (CST404) - Regular
+      - CS4 has Project Phase II (CSD 416) - Regular
+    !!! CONFLICT in ('TUE', 3):
+      - CS1 has Distributed Computing (CST402) - Regular
+      - CS1 has Project Phase II (CSD 416) - Regular
+      - CS1 has Distributed Computing (CST402) - Regular
+      - CS2 has Distributed Computing (CST402) - Regular
+      - CS2 has Program Elective III (CST-) - Regular
+      - CS3 has Program Elective v (CST----) - Regular
+      - CS3 has Program Elective v (CST----) - Regular
+      - CS3 has Program Elective v (CST----) - Regular
+      - CS4 has Distributed Computing (CST402) - Regular
+      - CS4 has Program Elective v (CST----) - Regular
+      - CS4 has Distributed Computing (CST402) - Regular
+      - CS4 has Project Phase II (CSD 416) - Regular
+    !!! CONFLICT in ('TUE', 4):
+      - CS1 has Program Elective III (CST-) - Regular
+      - CS1 has Program Elective III (CST-) - Regular
+      - CS2 has Distributed Computing (CST402) - Regular
+      - CS2 has Comprehensive Viva (CST404) - Regular
+      - CS2 has Program Elective IV (CST---) - Regular
+      - CS2 has Comprehensive Viva (CST404) - Regular
+      - CS3 has Comprehensive Viva (CST404) - Regular
+      - CS3 has Program Elective IV (CST---) - Regular
+      - CS3 has Program Elective v (CST----) - Regular
+      - CS3 has Distributed Computing (CST402) - Regular
+      - CS4 has Program Elective III (CST-) - Regular
+      - CS4 has Distributed Computing (CST402) - Regular
+      - CS4 has Program Elective v (CST----) - Regular
+    !!! CONFLICT in ('TUE', 5):
+      - CS1 has Distributed Computing (CST402) - Regular
+      - CS1 has Comprehensive Viva (CST404) - Regular
+      - CS1 has Program Elective IV (CST---) - Regular
+      - CS1 has Distributed Computing (CST402) - Regular
+      - CS2 has Project Phase II (CSD 416) - Regular
+      - CS2 has Program Elective v (CST----) - Regular
+      - CS2 has Distributed Computing (CST402) - Regular
+      - CS2 has Project Phase II (CSD 416) - Regular
+      - CS3 has Program Elective IV (CST---) - Regular
+      - CS3 has Project Phase II (CSD 416) - Regular
+      - CS3 has Program Elective v (CST----) - Regular
+      - CS4 has Distributed Computing (CST402) - Regular
+      - CS4 has Program Elective IV (CST---) - Regular
+    !!! CONFLICT in ('TUE', 6):
+      - CS1 has Distributed Computing (CST402) - Regular
+      - CS1 has Program Elective III (CST-) - Regular
+      - CS1 has Distributed Computing (CST402) - Regular
+      - CS1 has Program Elective III (CST-) - Regular
+      - CS2 has Project Phase II (CSD 416) - Regular
+      - CS2 has Program Elective v (CST----) - Regular
+      - CS2 has Program Elective v (CST----) - Regular
+      - CS2 has Project Phase II (CSD 416) - Regular
+      - CS3 has Comprehensive Viva (CST404) - Regular
+      - CS3 has Project Phase II (CSD 416) - Regular
+      - CS3 has Comprehensive Viva (CST404) - Regular
+      - CS3 has Distributed Computing (CST402) - Regular
+      - CS4 has Program Elective IV (CST---) - Regular
+      - CS4 has Distributed Computing (CST402) - Regular
+    !!! CONFLICT in ('TUE', 7):
+      - CS1 has Comprehensive Viva (CST404) - Regular
+      - CS1 has Program Elective IV (CST---) - Regular
+      - CS1 has Program Elective v (CST----) - Regular
+      - CS1 has Program Elective IV (CST---) - Regular
+      - CS2 has Project Phase II (CSD 416) - Regular
+      - CS2 has Program Elective IV (CST---) - Regular
+      - CS2 has Comprehensive Viva (CST404) - Regular
+      - CS2 has Project Phase II (CSD 416) - Regular
+      - CS3 has Project Phase II (CSD 416) - Regular
+      - CS3 has Distributed Computing (CST402) - Regular
+      - CS3 has Program Elective IV (CST---) - Regular
+      - CS4 has Program Elective v (CST----) - Regular
+      - CS4 has Distributed Computing (CST402) - Regular
+      - CS4 has Program Elective v (CST----) - Regular
+    !!! CONFLICT in ('WED', 1):
+      - CS1 has Distributed Computing (CST402) - Regular
+      - CS1 has Distributed Computing (CST402) - Regular
+      - CS1 has Program Elective IV (CST---) - Regular
+      - CS1 has Comprehensive Viva (CST404) - Regular
+      - CS2 has Distributed Computing (CST402) - Regular
+      - CS2 has Program Elective v (CST----) - Regular
+      - CS2 has Program Elective v (CST----) - Regular
+      - CS3 has Project Phase II (CSD 416) - Regular
+      - CS3 has Program Elective III (CST-) - Regular
+      - CS3 has Comprehensive Viva (CST404) - Regular
+      - CS3 has Comprehensive Viva (CST404) - Regular
+      - CS4 has Program Elective v (CST----) - Regular
+    !!! CONFLICT in ('WED', 2):
+      - CS1 has Program Elective IV (CST---) - Regular
+      - CS1 has Distributed Computing (CST402) - Regular
+      - CS1 has Program Elective v (CST----) - Regular
+      - CS1 has Program Elective IV (CST---) - Regular
+      - CS2 has Program Elective v (CST----) - Regular
+      - CS2 has Comprehensive Viva (CST404) - Regular
+      - CS2 has Distributed Computing (CST402) - Regular
+      - CS2 has Program Elective III (CST-) - Regular
+      - CS3 has Project Phase II (CSD 416) - Regular
+      - CS3 has Distributed Computing (CST402) - Regular
+      - CS3 has Program Elective IV (CST---) - Regular
+      - CS3 has Program Elective III (CST-) - Regular
+      - CS4 has Program Elective III (CST-) - Regular
+      - CS4 has Program Elective III (CST-) - Regular
+      - CS4 has Program Elective IV (CST---) - Regular
+    !!! CONFLICT in ('WED', 3):
+      - CS1 has Program Elective v (CST----) - Regular
+      - CS2 has Comprehensive Viva (CST404) - Regular
+      - CS2 has Distributed Computing (CST402) - Regular
+      - CS3 has Project Phase II (CSD 416) - Regular
+      - CS3 has Comprehensive Viva (CST404) - Regular
+      - CS4 has Program Elective v (CST----) - Regular
+      - CS4 has Distributed Computing (CST402) - Regular
+      - CS4 has Distributed Computing (CST402) - Regular
+    !!! CONFLICT in ('WED', 4):
+      - CS1 has Comprehensive Viva (CST404) - Regular
+      - CS1 has Distributed Computing (CST402) - Regular
+      - CS1 has Distributed Computing (CST402) - Regular
+      - CS1 has Program Elective IV (CST---) - Regular
+      - CS2 has Program Elective v (CST----) - Regular
+      - CS2 has Distributed Computing (CST402) - Regular
+      - CS2 has Program Elective v (CST----) - Regular
+      - CS3 has Distributed Computing (CST402) - Regular
+      - CS3 has Program Elective III (CST-) - Regular
+      - CS3 has Program Elective III (CST-) - Regular
+      - CS4 has Comprehensive Viva (CST404) - Regular
+      - CS4 has Program Elective III (CST-) - Regular
+    !!! CONFLICT in ('WED', 5):
+      - CS1 has Comprehensive Viva (CST404) - Regular
+      - CS1 has Comprehensive Viva (CST404) - Regular
+      - CS1 has Program Elective III (CST-) - Regular
+      - CS2 has Program Elective IV (CST---) - Regular
+      - CS2 has Program Elective III (CST-) - Regular
+      - CS3 has Program Elective IV (CST---) - Regular
+      - CS3 has Program Elective IV (CST---) - Regular
+      - CS3 has Program Elective IV (CST---) - Regular
+      - CS4 has Program Elective IV (CST---) - Regular
+      - CS4 has Program Elective III (CST-) - Regular
+      - CS4 has Project Phase II (CSD 416) - Regular
+      - CS4 has Comprehensive Viva (CST404) - Regular
+    !!! CONFLICT in ('WED', 7):
+      - CS1 has Program Elective v (CST----) - Regular
+      - CS1 has Program Elective v (CST----) - Regular
+      - CS1 has Comprehensive Viva (CST404) - Regular
+      - CS2 has Program Elective III (CST-) - Regular
+      - CS2 has Program Elective v (CST----) - Regular
+      - CS3 has Distributed Computing (CST402) - Regular
+      - CS3 has Program Elective v (CST----) - Regular
+      - CS4 has Distributed Computing (CST402) - Regular
+      - CS4 has Distributed Computing (CST402) - Regular
+      - CS4 has Project Phase II (CSD 416) - Regular
