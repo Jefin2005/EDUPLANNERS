@@ -1935,6 +1935,10 @@ def _build_timetable_grid(entries, view_type, faculty_id=None):
                 subj = matching_entry.subject
                 abbr = subj.short_code or subj.code
                 fac_name = matching_entry.faculty.name
+                # Use the entry's is_remedial flag strictly for the label.
+                # If a subject happens to be RMH type but is not in a synchronized slot,
+                # it will show its actual name instead of the generic label.
+                is_rmh = matching_entry.is_remedial
                 
                 # Update legend map (keeping it for reference)
                 if subj.code not in legend_map:
@@ -1956,21 +1960,23 @@ def _build_timetable_grid(entries, view_type, faculty_id=None):
                 if view_type == 'class':
                     cell.update({
                         'has_entry': True,
-                        'display_line1': subj.name,
-                        'display_line2': fac_name,
-                        'display_line3': f"& {matching_entry.assistant_faculty.name}" if matching_entry.assistant_faculty else "",
-                        'tooltip': f"{subj.code}: {subj.name}",
-                        'css_class': 'lab-cell' if matching_entry.is_lab_session else 'theory-cell'
+                        'display_line1': 'Remedial / Minor / Honour' if is_rmh else subj.name,
+                        'display_line2': '' if is_rmh else fac_name,
+                        'display_line3': '' if is_rmh else (f"& {matching_entry.assistant_faculty.name}" if matching_entry.assistant_faculty else ""),
+                        'tooltip': f"RMH Hour ({subj.code}: {subj.name})" if is_rmh else f"{subj.code}: {subj.name}",
+                        'css_class': 'remedial-cell' if is_rmh else ('lab-cell' if matching_entry.is_lab_session else 'theory-cell'),
+                        'is_remedial': is_rmh
                     })
                 else:
                     is_assistant = matching_entry.assistant_faculty_id and str(matching_entry.assistant_faculty_id) == str(faculty_id)
                     cell.update({
                         'has_entry': True,
-                        'display_line1': subj.name,
-                        'display_line2': str(matching_entry.class_section),
-                        'display_line3': '(Asst)' if is_assistant else '',
-                        'tooltip': f"{subj.code}: {subj.name}",
-                        'css_class': 'lab-cell' if matching_entry.is_lab_session else 'theory-cell'
+                        'display_line1': 'Remedial / Minor / Honour' if is_rmh else subj.name,
+                        'display_line2': str(matching_entry.class_section) if not is_rmh else '',
+                        'display_line3': '' if is_rmh else ('(Asst)' if is_assistant else ''),
+                        'tooltip': f"RMH Hour ({subj.code}: {subj.name})" if is_rmh else f"{subj.code}: {subj.name}",
+                        'css_class': 'remedial-cell' if is_rmh else ('lab-cell' if matching_entry.is_lab_session else 'theory-cell'),
+                        'is_remedial': is_rmh
                     })
             
             day_row['periods'].append(cell)

@@ -19,6 +19,8 @@ from collections import defaultdict
 from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass, field
 from django.db.models import Q
+import concurrent.futures
+import multiprocessing
 
 
 # Genetic Algorithm constraints are strictly enforced logically against combinatoric sets.
@@ -27,12 +29,19 @@ from django.db.models import Q
 @dataclass
 class Gene:
     """Represents a single timetable entry"""
-    class_id: int
-    subject_id: int
-    faculty_id: int
-    time_slot_id: int
-    is_lab: bool = False
-    assistant_faculty_id: Optional[int] = None
+    
+    
+    def __init__(self, class_id, subject_id, faculty_id, time_slot_id, is_lab=False, is_remedial=False, assistant_faculty_id=None):
+        self.class_id = class_id
+        self.subject_id = subject_id
+        self.faculty_id = faculty_id
+        self.time_slot_id = time_slot_id
+        self.is_lab = is_lab
+        self.is_remedial = is_remedial
+        self.assistant_faculty_id = assistant_faculty_id
+
+    def copy(self):
+        return Gene(self.class_id, self.subject_id, self.faculty_id, self.time_slot_id, self.is_lab, self.is_remedial, self.assistant_faculty_id)
 
 
 @dataclass
@@ -42,8 +51,9 @@ class Chromosome:
     fitness: float = 0.0
     
     def copy(self):
+        # Use Gene.copy() for faster duplication
         return Chromosome(
-            genes=[Gene(**g.__dict__) for g in self.genes],
+            genes=[g.copy() for g in self.genes],
             fitness=self.fitness
         )
 
@@ -63,29 +73,39 @@ class GeneticAlgorithm:
     
     # Constraint weights
     WEIGHTS = {
-        'faculty_clash': -5000,      # Hard: Same faculty in 2 classes at same time
-        'class_clash': -1000,        # Hard: Same class has 2 subjects at same time  
-        'workload_exceeded': -5000,  # Hard: Faculty exceeds max hours
+        'faculty_clash': -10000,     # Hard: Same faculty in 2 classes at same time
+        'class_clash': -5000,        # Hard: Same class has 2 subjects at same time  
+        'workload_exceeded': -10000, # Hard: Faculty exceeds max hours
         'lab_continuity': -5000,     # Hard: Lab MUST be in 3 continuous periods
         'lab_timing': -100,          # Soft: Labs should be morning OR afternoon
         'lab_day_clash': -2000,       # Different classes should have labs on different days/halves
         'lab_room_clash': -5000,     # Hard: Same lab subject at same time = room conflict
-        'cross_dept_clash': -2000,   # Hard: Faculty already booked in another department
+        'cross_dept_clash': -5000,   # Hard: Faculty already booked in another department
         'two_labs_per_week': -5000,   # Hard: Each class must have exactly 2 labs
-        'lab_faculty_inconsistent': -2000,  # Hard: All lab hours for a class+subject must have same faculty
+        'lab_faculty_inconsistent': -5000,  # Hard: All lab hours for a class+subject must have same faculty
         'subject_rotation': -50,     # Soft: Penalize same faculty-subject pairs
-        'faculty_preference': 100,   # Soft: Bonus for matching preferences
-        'no_preference_match': -5000, # Hard: Faculty assigned to subject not in their preferences
-        'professor_lab': -1500,      # Hard: Professors should NOT be assigned to lab sessions
+        'faculty_preference': 200,   # Soft: Bonus for matching preferences
+        'no_preference_match': -10000, # Hard: Faculty assigned to subject not in their preferences
+        'professor_lab': -5000,      # Hard: Professors should NOT be assigned to lab sessions
         'workload_balance': -500,     # Penalize uneven distribution within same designation
-        'workload_under_min': -300,  # Soft: Faculty below their minimum hours
+        'workload_under_min': -10000, # Hard: Faculty below their minimum hours (designation range)
         'consecutive_theory': -300,  # Soft: Penalize same theory subject in consecutive periods
-        'faculty_consecutive': -5000, # Hard: Faculty should not have back-to-back consecutive classes
+        # 83. Faculty consecutive class penalty (Higher priority for hardening)
+        'faculty_consecutive': -100000, 
         'faculty_multi_theory': -100000, # Hard: Faculty should teach only ONE theory subject per class
-        'special_subject_daily': -1000, # Hard: Remedial/Minor/Honour/Elective max once per day per class
-        'remedial_sync': -5000,          # Hard: Remedial slot must be synchronized across classes in a semester
+        'special_subject_daily': -5000, # Hard: Remedial/Minor/Honour/Elective max once per day per class
+        'remedial_sync': -10000,          # Hard: Remedial slot must be synchronized across classes in a semester
+        'faculty_class_spread': -50000,   # Hard: Penalize faculty in > 3 distinct classes
+        'lab_only_senior': -20000,        # Hard: Associate Professors must have at least one theory subject
     }
     
+    @staticmethod
+    def _normalize_code(code: str) -> str:
+        """Remove all whitespace and convert to uppercase for robust matching."""
+        if not code:
+            return ""
+        return "".join(code.split()).upper()
+
     def __init__(
         self,
         population_size: int = 100,
@@ -120,16 +140,29 @@ class GeneticAlgorithm:
         self.pre_booked_slots = {}  # faculty_id -> set of time_slot_ids (from other departments)
         self.dept_faculty_ids = set()  # Faculty IDs belonging to the home department
         self.faculty_workload_min = {}  # faculty_id -> min hours
+        self.faculty_info = {}  # faculty_id -> full dict
         self.faculty_designation = {}   # faculty_id -> designation string
         
         # Remedial period synchronization
         self.remedial_schedule = {}     # semester_id -> time_slot_id
         self.remedial_subjects = {}     # class_id -> list of RMH subject_ids
         self.class_semester_map = {}    # class_id -> semester_id
+        self.semester_number_map = {}   # semester_id -> semester_number
+        
+        # Precomputed slot data
+        self.slot_by_id = {}
+        self.slot_id_by_day_period = {}
+        self.available_slots = []
+        self.slots_by_day = defaultdict(list)
+        
+        # Performance: Cache method/dict lookups locally
+        self._eligible_faculty_cache = {}
+        self.repair_frequency = 4  # Skip heavy repairs 3/4 of the time in early gens
         
     def load_data(self, classes, subjects, faculties, time_slots, 
                   faculty_preferences=None, faculty_history=None,
-                  pre_booked_slots=None, department_id=None):
+                  pre_booked_slots=None, department_id=None,
+                  semester_number_map=None):
         """Load problem data from Django models
         
         Args:
@@ -169,26 +202,47 @@ class GeneticAlgorithm:
                 if c['semester_id'] == s['semester_id']:
                     self.class_subjects[c['id']].append(s['id'])
         
-        # Faculty data
-        self.faculty_preferences = faculty_preferences or {}
-        self.faculty_history = faculty_history or {}
+        # ── Normalize Faculty Preferences & History ────────────────────
+        self.faculty_preferences = {}
+        if faculty_preferences:
+            for f_id, prefs in faculty_preferences.items():
+                if isinstance(prefs, str):
+                    p_list = [self._normalize_code(p) for p in prefs.split(',') if p.strip()]
+                else:
+                    p_list = [self._normalize_code(p) for p in prefs if p]
+                self.faculty_preferences[f_id] = p_list
+                
+        self.faculty_history = {}
+        if faculty_history:
+            for f_id, hist in faculty_history.items():
+                self.faculty_history[f_id] = [self._normalize_code(h) for h in hist if h]
+
         self.pre_booked_slots = pre_booked_slots or {}
         
+        # Build faculty info map (safe access for eligibility rules)
+        self.faculty_info = {}
+        for f in faculties:
+            self.faculty_info[f['id']] = f
+            
         # Identify department faculty vs cross-department faculty
         self.dept_faculty_ids = set()
         for f in faculties:
+            # Check for both department_id (ID) and department_code (e.g. 'CS')
             if f.get('department_id') == department_id or f.get('department_id') is None:
                 self.dept_faculty_ids.add(f['id'])
         
         for f in faculties:
-            self.faculty_workload_limits[f['id']] = f['max_hours']
-            self.faculty_workload_min[f['id']] = f.get('min_hours', f['max_hours'])
+            self.faculty_workload_limits[f['id']] = f.get('max_hours', 18)
+            self.faculty_workload_min[f['id']] = f.get('min_hours', f.get('max_hours', 14))
             self.faculty_designation[f['id']] = f.get('designation', '')
         
         # Build class -> semester mapping
         self.class_semester_map = {}
         for c in classes:
             self.class_semester_map[c['id']] = c['semester_id']
+        
+        # Semester ID -> number mapping (for skipping S1/S2 from RMH)
+        self.semester_number_map = semester_number_map or {}
         
         # Build class -> RMH subject list
         self.remedial_subjects = defaultdict(list)
@@ -220,6 +274,13 @@ class GeneticAlgorithm:
         all_days = list(slots_by_day.keys())
         
         for sem_id, class_ids in sem_classes.items():
+            # ── Skip Semester 1 and 2: No RMH sessions for these ──
+            sem_number = self.semester_number_map.get(sem_id, 0)
+            if sem_number in (1, 2):
+                self.remedial_schedule[sem_id] = []
+                print(f"  Semester {sem_id} (S{sem_number}): Skipped RMH (not applicable for S1/S2).")
+                continue
+            
             max_hours = 0
             for cid in class_ids:
                 rmh_subjs = self.remedial_subjects.get(cid, [])
@@ -228,7 +289,13 @@ class GeneticAlgorithm:
                     if hours > max_hours:
                         max_hours = hours
                         
-            slots_needed = min(max_hours, 4)
+            # Requirement: Exactly 3 RMH hours per week for semesters 3+
+            slots_needed = 3 if any(self.remedial_subjects.get(cid) for cid in class_ids) or max_hours > 0 else 0
+            
+            # Fallback: if user hasn't defined RMH subjects, but wants RMH slots for theory repurposing
+            if slots_needed == 0 and len(class_ids) > 0:
+                slots_needed = 3
+                
             if slots_needed == 0:
                 self.remedial_schedule[sem_id] = []
                 continue
@@ -236,7 +303,14 @@ class GeneticAlgorithm:
             valid_combination_found = False
             attempts = 0
             
-            while not valid_combination_found and attempts < 1000:
+            # Pre-calculate eligible faculty for all RMH subjects in this semester to avoid redundant loops
+            sem_rmh_faculty = {}
+            for cid in class_ids:
+                for sid in self.remedial_subjects.get(cid, []):
+                    if sid not in sem_rmh_faculty:
+                        sem_rmh_faculty[sid] = self._get_eligible_faculty_for_subject(sid)
+
+            while not valid_combination_found and attempts < 100: # Reduced from 1000 for speed
                 attempts += 1
                 
                 if len(all_days) < slots_needed:
@@ -345,205 +419,209 @@ class GeneticAlgorithm:
             available_slots = self.available_slots
             used_slots = set()
             
-            # ── Phase 0: Reserve the synchronized remedial slot(s) ──────────
+            # ── Phase 0: Identify Theory Faculty & Reserve Synchronized Slots ──
             semester_id = self.class_semester_map.get(class_id)
             remedial_slot_ids = self.remedial_schedule.get(semester_id, [])
             rmh_subjects = self.remedial_subjects.get(class_id, [])
             
-            # Track assigned remedial subject (if any) to avoid over-scheduling it in phase 1
-            assigned_rmh_subject_id = None
-            num_remedial_assigned = 0
-            
-            if remedial_slot_ids:
-                # ALWAYS block ALL synchronized remedial slots for THIS class
-                # so no regular subject can ever be placed here.
-                for slot_id in remedial_slot_ids:
-                    used_slots.add(slot_id)
-                
-                if rmh_subjects:
-                    # Pick an RMH subject and assign a faculty
-                    rmh_subject_id = random.choice(rmh_subjects)
-                    assigned_rmh_subject_id = rmh_subject_id
-                    eligible_faculty = self._get_eligible_faculty_for_subject(rmh_subject_id)
-                    
-                    hours_needed = self.subject_info.get(rmh_subject_id, {}).get('hours_per_week', 3)
-                    # Assign only up to the subject's required hours (capped at 4)
-                    slots_to_assign = min(hours_needed, 4, len(remedial_slot_ids))
-                    
-                    for i in range(slots_to_assign):
-                        slot_id = remedial_slot_ids[i]
-                        
-                        # Filter out faculty already booked at this slot
-                        available_fac = [
-                            f_id for f_id in eligible_faculty
-                            if slot_id not in self.pre_booked_slots.get(f_id, set())
-                            and slot_id not in global_faculty_schedule.get(f_id, set())
-                        ]
-                        
-                        if available_fac:
-                            rmh_faculty_id = random.choice(available_fac)
-                        else:
-                            # Fallback: pick any home faculty not clashing
-                            all_fac = [f['id'] for f in self.faculties]
-                            non_clash = [f for f in all_fac
-                                         if slot_id not in global_faculty_schedule.get(f, set())]
-                            rmh_faculty_id = random.choice(non_clash) if non_clash else random.choice(all_fac)
-                        
-                        genes.append(Gene(
-                            class_id=class_id,
-                            subject_id=rmh_subject_id,
-                            faculty_id=rmh_faculty_id,
-                            time_slot_id=slot_id,
-                            is_lab=False
-                        ))
-                        # used_slots.add(slot_id) # Already added above
-                        global_faculty_schedule[rmh_faculty_id].add(slot_id)
-                        global_faculty_hours[rmh_faculty_id] += 1
-                        
-                        # Track RMH as a theory subject for this class
-                        class_faculty_theory_global[class_id][rmh_faculty_id] = rmh_subject_id
-                        
-                    num_remedial_assigned = slots_to_assign
-            
-            # Track days used for labs by THIS class to avoid same day
-            class_lab_days = set()
-            
-            # First, schedule labs (need 3 continuous periods each, 2 per week)
-            lab_subjects_for_class = [
-                s_id for s_id in class_subject_ids 
-                if self.subject_info[s_id]['subject_type'] == 'LAB'
-            ]
-            
-            for lab_id in lab_subjects_for_class[:2]:  # Max 2 labs per week
-                # Find 3 continuous morning or afternoon slots
-                # Exclude days already used for labs by this class,
-                # and prefer days less used globally
-                # Also avoid slots where this same lab subject is already scheduled
-                # for another class (implies same physical lab room)
-                lab_blocked_slots = global_lab_room_usage.get(lab_id, set())
-                lab_slots = self._find_lab_slots(
-                    available_slots, used_slots | lab_blocked_slots, 
-                    exclude_days=class_lab_days,
-                    day_usage=global_lab_day_usage
-                )
-                if lab_slots:
-                    # Reuse same faculty if already assigned for this class+subject
-                    if (class_id, lab_id) in class_lab_faculty:
-                        main_faculty, assistant_faculty = class_lab_faculty[(class_id, lab_id)]
-                    else:
-                        # Assign main and assistant faculty
-                        # Filter out faculty who are pre-booked OR already scheduled during these lab slots
-                        eligible_faculty = self._get_eligible_faculty_for_subject(lab_id)
-                        eligible_faculty = [
-                            f_id for f_id in eligible_faculty
-                            if not any(
-                                s_id in self.pre_booked_slots.get(f_id, set()) or
-                                s_id in global_faculty_schedule.get(f_id, set())
-                                for s_id in lab_slots
-                            )
-                        ]
-                        
-                        if len(eligible_faculty) >= 2:
-                            main_faculty = random.choice(eligible_faculty)
-                            assistant_faculty = random.choice([f for f in eligible_faculty if f != main_faculty])
-                        elif len(eligible_faculty) == 1:
-                            main_faculty = eligible_faculty[0]
-                            assistant_faculty = None
-                        else:
-                            # Fallback: pick any faculty (will get penalized in fitness)
-                            all_faculty_ids = [f['id'] for f in self.faculties]
-                            main_faculty = random.choice(all_faculty_ids)
-                            assistant_faculty = None
-                        
-                        # Remember this faculty for future lab sessions of same class+subject
-                        class_lab_faculty[(class_id, lab_id)] = (main_faculty, assistant_faculty)
-                    
-                    # Determine which day and half this lab lands on
-                    lab_slot_info = self.slot_by_id.get(lab_slots[0])
-                    if lab_slot_info:
-                        lab_day = lab_slot_info['day']
-                        lab_half = 'morning' if lab_slot_info['period'] <= 3 else 'afternoon'
-                        class_lab_days.add(lab_day)
-                        global_lab_day_usage[(lab_day, lab_half)] += 1
-                    
-                    for slot_id in lab_slots:
-                        genes.append(Gene(
-                            class_id=class_id,
-                            subject_id=lab_id,
-                            faculty_id=main_faculty,
-                            time_slot_id=slot_id,
-                            is_lab=True,
-                            assistant_faculty_id=assistant_faculty
-                        ))
-                        used_slots.add(slot_id)
-                        # Track this lab subject's time slots globally for room clash prevention
-                        global_lab_room_usage[lab_id].add(slot_id)
-                        # Track faculty schedule and workload globally
-                        global_faculty_schedule[main_faculty].add(slot_id)
-                        global_faculty_hours[main_faculty] += 1
-                        if assistant_faculty:
-                            global_faculty_schedule[assistant_faculty].add(slot_id)
-                            global_faculty_hours[assistant_faculty] += 1
-            
-            # Then, schedule theory subjects
+            # Pre-identify theory subjects to determine their faculty upfront
             theory_subjects_for_class = [
                 s_id for s_id in class_subject_ids 
                 if self.subject_info[s_id]['subject_type'] == 'THEORY'
             ]
             
+            # Map: subject_id -> faculty_id (assigned for this class)
+            subject_to_faculty = {}
+            # Map: subject_id -> hours assigned in phase 0
+            subject_phase0_hours = defaultdict(int)
+            
+            # Pre-assign faculty to each theory subject for this class
+            # This ensures consistency between normal periods and remedial periods
+            for subject_id in theory_subjects_for_class:
+                eligible = self._get_eligible_faculty_for_subject(subject_id)
+                if eligible:
+                    # Priority 1: Faculty not already teaching another theory subject in this class
+                    available = [f for f in eligible if f not in class_faculty_theory]
+                    # If all eligible are already teaching or pool is restricted, use anyone eligible
+                    if not available:
+                        available = eligible
+                    # Pick the one with fewest hours so far to balance workload
+                    faculty_id = min(available, key=lambda f: global_faculty_hours[f])
+                else:
+                    # Fallback: pick any home faculty
+                    all_fac = [f['id'] for f in self.faculties]
+                    faculty_id = random.choice(all_fac)
+                
+                subject_to_faculty[subject_id] = faculty_id
+                class_faculty_theory[faculty_id] = subject_id
+            
+            if remedial_slot_ids:
+                # Requirement: Exactly 3 RMH hours. 
+                # If explicit RMH subjects exist, use them. Otherwise, repurpose theory subjects.
+                slots_to_fill = 3
+                
+                rmh_cycle = []
+                if rmh_subjects:
+                    # Priority 1: Explicit RMH subjects
+                    rmh_subjects.sort(key=lambda s: self.subject_info[s].get('hours_per_week', 3), reverse=True)
+                    for s_id in rmh_subjects:
+                        hours = self.subject_info[s_id].get('hours_per_week', 3)
+                        rmh_cycle.extend([s_id] * hours)
+                    rmh_cycle = rmh_cycle[:3]  # Hard cap: never exceed 3 RMH hours
+                
+                # If we still need more RMH hours, or have none defined, use theory subjects
+                if len(rmh_cycle) < slots_to_fill and theory_subjects_for_class:
+                    # Pick theory subjects to fill the gap
+                    # Use a copy so we don't mutate the original list
+                    theory_pool = list(theory_subjects_for_class)
+                    random.shuffle(theory_pool)
+                    while len(rmh_cycle) < slots_to_fill:
+                        # Add theory subjects until we hit 3 total RMH hours
+                        rmh_cycle.append(random.choice(theory_pool))
+                
+                slots_to_fill = min(slots_to_fill, len(remedial_slot_ids), len(rmh_cycle))
+                
+                for i in range(slots_to_fill):
+                    slot_id = remedial_slot_ids[i]
+                    subject_id = rmh_cycle[i]
+                    faculty_id = subject_to_faculty.get(subject_id)
+                    
+                    if not faculty_id:
+                        eligible = self._get_eligible_faculty_for_subject(subject_id)
+                        faculty_id = random.choice(eligible) if eligible else (self.faculties[0]['id'] if self.faculties else None)
+                        if faculty_id:
+                            subject_to_faculty[subject_id] = faculty_id
+                    
+                    if faculty_id is not None:
+                        genes.append(Gene(
+                            class_id=class_id,
+                            subject_id=subject_id,
+                            faculty_id=faculty_id,
+                            time_slot_id=slot_id,
+                            is_lab=False,
+                            is_remedial=True
+                        ))
+                        used_slots.add(slot_id)
+                        global_faculty_schedule[faculty_id].add(slot_id)
+                        global_faculty_hours[faculty_id] += 1
+                        subject_phase0_hours[subject_id] += 1
+            
+            # Track days used for labs by THIS class to avoid same day
+            class_lab_days = set()
+            
+            # First, schedule labs (need 3 continuous periods each session)
+            lab_subjects_for_class = [
+                s_id for s_id in class_subject_ids 
+                if self.subject_info[s_id]['subject_type'] == 'LAB'
+            ]
+            
+            for lab_id in lab_subjects_for_class:
+                hours_total = self.subject_info[lab_id].get('hours_per_week', 6)
+                sessions_needed = (hours_total + 2) // 3 # Round up to handle 1-2 extra hours too
+                
+                for sess_idx in range(sessions_needed):
+                    # Find 3 continuous morning or afternoon slots
+                    # Exclude days already used for labs by this class,
+                    # and prefer days less used globally
+                    # Also avoid slots where this same lab subject is already scheduled
+                    # for another class (implies same physical lab room)
+                    lab_blocked_slots = global_lab_room_usage.get(lab_id, set())
+                    lab_slots = self._find_lab_slots(
+                        available_slots, used_slots | lab_blocked_slots, 
+                        exclude_days=class_lab_days,
+                        day_usage=global_lab_day_usage
+                    )
+                    # Retry without room blocking if first attempt fails
+                    if not lab_slots:
+                        lab_slots = self._find_lab_slots(
+                            available_slots, used_slots,
+                            exclude_days=class_lab_days,
+                            day_usage=global_lab_day_usage
+                        )
+                    # Final retry: also relax day exclusion
+                    if not lab_slots:
+                        lab_slots = self._find_lab_slots(
+                            available_slots, used_slots
+                        )
+                    if lab_slots:
+                        # Reuse same faculty if already assigned for this class+subject
+                        if (class_id, lab_id) in class_lab_faculty:
+                            main_faculty, assistant_faculty = class_lab_faculty[(class_id, lab_id)]
+                        else:
+                            # Assign main and assistant faculty
+                            # Filter out faculty who are pre-booked OR already scheduled during these lab slots
+                            eligible_faculty = self._get_eligible_faculty_for_subject(lab_id)
+                            eligible_faculty = [
+                                f_id for f_id in eligible_faculty
+                                if not any(
+                                    s_id in self.pre_booked_slots.get(f_id, set()) or
+                                    s_id in global_faculty_schedule.get(f_id, set())
+                                    for s_id in lab_slots
+                                )
+                            ]
+                            
+                            if len(eligible_faculty) >= 2:
+                                main_faculty = random.choice(eligible_faculty)
+                                assistant_faculty = random.choice([f for f in eligible_faculty if f != main_faculty])
+                            elif len(eligible_faculty) == 1:
+                                main_faculty = eligible_faculty[0]
+                                assistant_faculty = None
+                            else:
+                                # Fallback: pick any faculty (will get penalized in fitness)
+                                all_faculty_ids = [f['id'] for f in self.faculties]
+                                main_faculty = random.choice(all_faculty_ids)
+                                assistant_faculty = None
+                            
+                            # Remember this faculty for future lab sessions of same class+subject
+                            class_lab_faculty[(class_id, lab_id)] = (main_faculty, assistant_faculty)
+                        
+                        # Determine which day and half this lab lands on
+                        lab_slot_info = self.slot_by_id.get(lab_slots[0])
+                        if lab_slot_info:
+                            lab_day = lab_slot_info['day']
+                            lab_half = 'morning' if lab_slot_info['period'] <= 3 else 'afternoon'
+                            class_lab_days.add(lab_day)
+                            global_lab_day_usage[(lab_day, lab_half)] += 1
+                        
+                        for slot_id in lab_slots:
+                            genes.append(Gene(
+                                class_id=class_id,
+                                subject_id=lab_id,
+                                faculty_id=main_faculty,
+                                time_slot_id=slot_id,
+                                is_lab=True,
+                                assistant_faculty_id=assistant_faculty
+                            ))
+                            used_slots.add(slot_id)
+                            # Track this lab subject's time slots globally for room clash prevention
+                            global_lab_room_usage[lab_id].add(slot_id)
+                            # Track faculty schedule and workload globally
+                            global_faculty_schedule[main_faculty].add(slot_id)
+                            global_faculty_hours[main_faculty] += 1
+                            if assistant_faculty:
+                                global_faculty_schedule[assistant_faculty].add(slot_id)
+                                global_faculty_hours[assistant_faculty] += 1
+            
+            # Then, schedule theory subjects
             # Track which subject is assigned to each slot for this class
             # Used to avoid placing the same subject in consecutive periods
             class_slot_subject = {}  # time_slot_id -> subject_id
             
-            # A faculty should only teach ONE theory subject per class
-            # class_faculty_theory is already loaded from class_faculty_theory_global[class_id]
+            # Populate class_slot_subject with phase 0 assignments
+            for gene in genes:
+                if gene.class_id == class_id:
+                    class_slot_subject[gene.time_slot_id] = gene.subject_id
             
             for subject_id in theory_subjects_for_class:
-                hours_needed = self.subject_info[subject_id].get('hours_per_week', 3)
+                # Faculty is already pre-assigned
+                faculty_id = subject_to_faculty[subject_id]
                 
-                # If we already scheduled slots for this subject in the remedial Phase 0, subtract it.
-                if subject_id == assigned_rmh_subject_id:
-                    hours_needed -= num_remedial_assigned
-                    
-                eligible_faculty = self._get_eligible_faculty_for_subject(subject_id)
+                hours_total = self.subject_info[subject_id].get('hours_per_week', 3)
+                # Subtract hours already assigned in Phase 0
+                hours_needed = hours_total - subject_phase0_hours.get(subject_id, 0)
                 
-                if eligible_faculty:
-                    # Filter out faculty already assigned to a DIFFERENT theory subject in this class
-                    available_faculty = [
-                        f_id for f_id in eligible_faculty
-                        if f_id not in class_faculty_theory
-                        and (global_faculty_hours[f_id] + hours_needed <= self.faculty_workload_limits.get(f_id, 20))
-                    ]
-                    if not available_faculty:
-                        # Priority 2: allow faculty who already have a theory subject in this class
-                        # ONLY if we absolutely MUST (very small pool).
-                        # Actually, we prefer to go OVER workload limit on a DIFFERENT faculty
-                        # who isn't already in this class.
-                        available_faculty = [
-                            f_id for f_id in eligible_faculty
-                            if f_id not in class_faculty_theory
-                        ]
-                    if not available_faculty:
-                        # Priority 3: any eligible faculty
-                        available_faculty = eligible_faculty
-                    if available_faculty:
-                        # Pick faculty with fewest hours for balanced distribution
-                        faculty_id = min(available_faculty,
-                                        key=lambda f: global_faculty_hours[f])
-                    else:
-                        # All eligible faculty would exceed limits
-                        # Pick the one with most remaining capacity
-                        eligible_with_capacity = sorted(
-                            eligible_faculty,
-                            key=lambda f: self.faculty_workload_limits.get(f, 20) - global_faculty_hours[f],
-                            reverse=True
-                        )
-                        faculty_id = eligible_with_capacity[0]
-                else:
-                    faculty_id = random.choice([f['id'] for f in self.faculties])
-                
-                # Record this faculty's theory subject assignment for this class
-                class_faculty_theory[faculty_id] = subject_id
+                if hours_needed <= 0:
+                    continue
                 
                 # Assign hours across the week
                 # Avoid slots where this faculty is pre-booked OR already teaching another class
@@ -583,7 +661,9 @@ class GeneticAlgorithm:
                                 penalty += 1
                     return penalty
                 
-                remaining_slots.sort(key=lambda s: (_consecutive_penalty(s), random.random()))
+                # Compact Placement: Sort remaining slots to prefer EARLIER periods (1, 2, 3...)
+                # and then penalize consecutive same-subject/faculty periods.
+                remaining_slots.sort(key=lambda s: (self.slot_by_id[s]['period'], _consecutive_penalty(s), random.random()))
                 
                 slots_assigned = 0
                 for slot_id in remaining_slots:
@@ -601,26 +681,25 @@ class GeneticAlgorithm:
                     global_faculty_schedule[faculty_id].add(slot_id)
                     global_faculty_hours[faculty_id] += 1
                     slots_assigned += 1
+
             
             # ── Fill remaining empty periods ──────────────────────────
-            # After scheduling all subjects with their required hours,
-            # distribute extra hours among theory subjects to fill all 35 slots.
-            # Also include ELECTIVE and RMH (Remedial/Minor/Honour) subjects if available.
+            # Include THEORY and ELECTIVE subjects only. RMH subjects are excluded
+            # because their names (e.g. "Remedial / Minor / Honors Course") look
+            # identical to the remedial label and confuse the display.
             fillable_subjects = [
                 s_id for s_id in class_subject_ids 
                 if self.subject_info[s_id]['subject_type'] in ('THEORY', 'ELECTIVE')
             ]
             
-            # DIAGNOSTIC: Check why RMH subjects are being included (they shouldn't be)
-            rmh_in_filler = [s for s in fillable_subjects if self.subject_info[s]['subject_type'] == 'RMH']
-            if rmh_in_filler:
-                print(f"!!! CRITICAL BUG: RMH subjects {rmh_in_filler} found in fillable_subjects for class {class_id}")
-                for s in rmh_in_filler:
-                    print(f"  - Subject {self.subject_info[s]['code']} has type: {self.subject_info[s]['subject_type']}")
-            
+            # DIAGNOSTIC: Ensure we have fillable subjects
+            if not fillable_subjects:
+                # Fallback: if no theory/elective, use LAB subjects (rare)
+                fillable_subjects = [s_id for s_id in class_subject_ids if self.subject_info[s_id]['subject_type'] == 'LAB']
             if fillable_subjects:
                 remaining_slots = [s for s in available_slots if s not in used_slots]
-                random.shuffle(remaining_slots)
+                # Compact Placement: Sort fillers to prefer EARLIER periods too
+                remaining_slots.sort(key=lambda s: (self.slot_by_id[s]['period'], random.random()))
                 
                 # Track which faculty was assigned to each subject
                 subject_faculty_map = {}
@@ -637,15 +716,26 @@ class GeneticAlgorithm:
                 fill_idx = 0
                 slot_queue = list(remaining_slots)
                 
-                while slot_queue:
-                    slot_id = slot_queue[0]
+                # Pre-calculate assigned hours for theory subjects to avoid repetition
+                # But allow some flexibility if many slots are empty
+                subject_total_assigned = defaultdict(int)
+                for gene in genes:
+                    if gene.class_id == class_id:
+                        subject_total_assigned[gene.subject_id] += 1
+
+                for slot_id in slot_queue:
                     assigned = False
                     
                     # Try each subject for this slot
+                    # Prio 1: Subjects strictly below their hours_per_week
                     for attempt in range(len(fillable_subjects)):
                         subject_id = fillable_subjects[(fill_idx + attempt) % len(fillable_subjects)]
-                        faculty_id = subject_faculty_map.get(subject_id)
+                        h_limit = self.subject_info[subject_id].get('hours_per_week', 3)
                         
+                        if subject_total_assigned[subject_id] >= h_limit:
+                             continue
+
+                        faculty_id = subject_faculty_map.get(subject_id)
                         if not faculty_id:
                             eligible = subject_eligible_map.get(subject_id, [])
                             # Avoid faculty already in this class
@@ -677,17 +767,17 @@ class GeneticAlgorithm:
                             consec_clash = self._would_be_consecutive(slot_id, subject_id, faculty_id, class_slot_subject, global_faculty_schedule)
                             if not consec_clash:
                                 # Perfect slot
-                                slot_queue.pop(0)
                                 genes.append(Gene(
                                     class_id=class_id,
                                     subject_id=subject_id,
                                     faculty_id=faculty_id,
                                     time_slot_id=slot_id,
-                                    is_lab=False
+                                    is_lab=False,
+                                    is_remedial=False
                                 ))
                                 used_slots.add(slot_id)
                                 class_slot_subject[slot_id] = subject_id
-                                global_faculty_schedule[faculty_id].add(slot_id)
+                                global_faculty_schedule.setdefault(faculty_id, set()).add(slot_id)
                                 global_faculty_hours[faculty_id] += 1
                                 fill_idx = (fill_idx + attempt + 1) % len(fillable_subjects)
                                 assigned = True
@@ -703,36 +793,25 @@ class GeneticAlgorithm:
                             pass
                     
                     if not assigned:
-                        # Last resort: place any subject that won't clash.
-                        # ALWAYS use the locked faculty for that subject to avoid split-teaching.
-                        slot_queue.pop(0)
-                        # Pick a subject whose locked faculty is free at this slot
-                        best_subj = None
-                        best_fac = None
-                        for s_id in fillable_subjects:
-                            locked_fac = subject_faculty_map.get(s_id)
-                            if locked_fac and slot_id not in global_faculty_schedule.get(locked_fac, set()):
-                                best_subj = s_id
-                                best_fac = locked_fac
-                                break
-                        # If no locked faculty is free, use the round-robin subject+its locked faculty anyway
-                        if not best_subj:
-                            best_subj = fillable_subjects[fill_idx % len(fillable_subjects)]
-                            best_fac = subject_faculty_map.get(best_subj)
-                            if not best_fac:
-                                eligible = subject_eligible_map.get(best_subj, [])
-                                best_fac = random.choice(eligible) if eligible else random.choice([f['id'] for f in self.faculties])
-                                subject_faculty_map[best_subj] = best_fac
+                        # Last resort: use round-robin subject and its faculty (may clash)
+                        best_subj = fillable_subjects[fill_idx % len(fillable_subjects)]
+                        best_fac = subject_faculty_map.get(best_subj)
+                        if not best_fac:
+                            eligible = subject_eligible_map.get(best_subj, [])
+                            best_fac = min(eligible, key=lambda f: global_faculty_hours[f]) if eligible else random.choice([f['id'] for f in self.faculties])
+                            subject_faculty_map[best_subj] = best_fac
+                            
                         genes.append(Gene(
                             class_id=class_id,
                             subject_id=best_subj,
                             faculty_id=best_fac,
                             time_slot_id=slot_id,
-                            is_lab=False
+                            is_lab=False,
+                            is_remedial=False
                         ))
                         used_slots.add(slot_id)
                         class_slot_subject[slot_id] = best_subj
-                        global_faculty_schedule[best_fac].add(slot_id)
+                        global_faculty_schedule.setdefault(best_fac, set()).add(slot_id)
                         global_faculty_hours[best_fac] += 1
                         fill_idx = (fill_idx + 1) % len(fillable_subjects)
         
@@ -827,73 +906,84 @@ class GeneticAlgorithm:
             return fallback[0][2]
         
         return []
-    
-    def _get_eligible_faculty_for_subject(self, subject_id: int) -> List[int]:
-        """Get faculty IDs who can teach a subject based on preferences and department.
-        
-        STRICT rules:
-        1. Faculty who explicitly prefer this subject -> use ONLY them.
-        2. If no faculty has this subject in preferences AND the subject belongs
-           to the home department -> use home-dept faculty who have NO preferences
-           configured at all (unconfigured CS/dept faculty teach core dept subjects).
-        3. If no faculty has this subject in preferences AND the subject belongs
-           to a DIFFERENT department -> return empty (no one should teach it;
-           the fitness function will penalise any assignment made via fallback).
-        4. Faculty who HAVE preferences but don't list this subject are ALWAYS EXCLUDED.
-        5. Professors are EXCLUDED from lab subjects.
-        """
-        subject = self.subject_info.get(subject_id, {})
-        subject_code = subject.get('code', '')
-        is_lab = subject.get('subject_type') == 'LAB'
-        subject_dept_id = subject.get('department_id')  # which dept owns this subject
 
-        # ── Priority 1: faculty who explicitly prefer this subject ─────────
+    def _get_eligible_faculty_for_subject(self, subject_id: int) -> List[int]:
+        """Get faculty IDs who can teach a subject with caching."""
+        if subject_id in self._eligible_faculty_cache:
+            return self._eligible_faculty_cache[subject_id]
+            
+        subject = self.subject_info.get(subject_id, {})
+        subject_code = self._normalize_code(subject.get('code', ''))
+        is_lab = subject.get('subject_type') == 'LAB'
+        subject_dept_id = subject.get('department_id')
+
+        # Rule 0: BSH Prefix Prioritization (PHT, HUN, MAT, CYT, PHL, CYL, etc.)
+        # These subjects SHOULD be taught by BSH faculty if available.
+        BSH_PREFIXES = ('PHT', 'HUN', 'MAT', 'CYT', 'PHL', 'CYL', 'EST', 'MNC', 'HUT')
+        is_bsh_subject = subject_code.startswith(BSH_PREFIXES)
+
+        # Rule 1: Strict Preference Alignment
         preferred_faculty = []
-        for faculty in self.faculties:
-            preferences = self.faculty_preferences.get(faculty['id'], [])
-            if subject_code in preferences:
-                # Exclude Professors from lab subjects
-                if is_lab and self.faculty_designation.get(faculty['id']) == 'PROFESSOR':
+        for f_id, prefs in self.faculty_preferences.items():
+            if subject_code in prefs:
+                if is_lab and self.faculty_designation.get(f_id) == 'PROFESSOR':
                     continue
-                preferred_faculty.append(faculty['id'])
+                preferred_faculty.append(f_id)
 
         if preferred_faculty:
+            # ── BSH Prefix Prioritization ──────────────────────────────────
+            # If this is a BSH subject (MAT, PHT, etc.), and we have BSH faculty 
+            # who prefer it, we EXCLUDE faculty from other departments to ensure 
+            # that "correct" departmental staff handle these subjects.
+            if is_bsh_subject:
+                bsh_specialists = [
+                    f_id for f_id in preferred_faculty 
+                    if self.faculty_info[f_id].get('department_code') == 'BSH'
+                ]
+                if bsh_specialists:
+                    self._eligible_faculty_cache[subject_id] = bsh_specialists
+                    return bsh_specialists
+            
+            self._eligible_faculty_cache[subject_id] = preferred_faculty
             return preferred_faculty
-
-        # ── Priority 2 (no one prefers it): home-dept faculty with NO preferences ──
-        # Only allowed if the subject BELONGS to the home department.
-        # Cross-department subjects must be explicitly listed in preferences.
-        subject_is_home_dept = (
-            subject_dept_id is None or
-            subject_dept_id == self.department_id
-        )
-
-        if subject_is_home_dept and self.dept_faculty_ids:
-            eligible = [
-                f_id for f_id in self.dept_faculty_ids
-                if not self.faculty_preferences.get(f_id)  # no preferences configured
+            
+        # ── Rule 1.5: BSH Specialty Unlock ──────────────────────────────
+        # If no one preferred it explicitly, but it's a BSH subject, 
+        # allow ANY BSH faculty who doesn't have conflicting preferences.
+        if is_bsh_subject:
+            bsh_faculty = [
+                f_id for f_id, f in self.faculty_info.items()
+                if f.get('department_code') == 'BSH'
             ]
+            if bsh_faculty:
+                return bsh_faculty
+
+        # ── Rule 2: Departmental Lock (No one preferred this subject) ─────
+        # Eligibility is strictly locked to faculty from the subject's own department.
+        if subject_dept_id:
+            # First choice: Dept faculty with NO preferences (active generalists)
+            eligible_generalists = [
+                f['id'] for f in self.faculties
+                if f['department_id'] == subject_dept_id and not self.faculty_preferences.get(f['id'])
+            ]
+            
+            # Second choice: Any other faculty from the same department
+            eligible_others = [
+                f['id'] for f in self.faculties
+                if f['department_id'] == subject_dept_id and self.faculty_preferences.get(f['id'])
+            ]
+            
+            eligible = eligible_generalists if eligible_generalists else eligible_others
+            
+            # Apply Professor exclusion for Labs
             if is_lab:
                 eligible = [f_id for f_id in eligible
                             if self.faculty_designation.get(f_id) != 'PROFESSOR']
+            
             if eligible:
                 return eligible
 
-        # ── No eligible faculty found ──────────────────────────────────────
-        # For cross-dept subjects: return empty so the caller uses the
-        # fitness penalty path rather than assigning the wrong faculty.
-        # For home-dept subjects where all faculty have mismatched prefs:
-        # use any no-preferences home-dept faculty as last resort.
-        if subject_is_home_dept:
-            last_resort = [f['id'] for f in self.faculties
-                           if not self.faculty_preferences.get(f['id'])]
-            if is_lab:
-                last_resort = [f_id for f_id in last_resort
-                               if self.faculty_designation.get(f_id) != 'PROFESSOR']
-            if last_resort:
-                return last_resort
-
-        # Truly no eligible faculty – return empty list
+        # Fallback: Still return empty if no departmental match found (cross-dept case)
         return []
     
     def calculate_fitness(self, chromosome: Chromosome) -> float:
@@ -907,11 +997,21 @@ class GeneticAlgorithm:
         class_labs = defaultdict(list)        # class_id -> list of lab genes
         faculty_class_theory = defaultdict(lambda: defaultdict(set))
         class_day_special = defaultdict(lambda: defaultdict(int))
-        lab_slot_usage = defaultdict(lambda: defaultdict(set))
         class_day_genes = defaultdict(lambda: defaultdict(list))
         faculty_day_periods = defaultdict(lambda: defaultdict(list))
         
+        # New: Group genes by class for remedial sync (O(N) instead of O(N^2))
+        class_genes_map = defaultdict(list)  # class_id -> list of genes
+        
         SPECIAL_TYPES = {'ELECTIVE', 'RMH'}
+        
+        # Performance: Cache method/dict lookups locally
+        get_subject_info = self.subject_info.get
+        get_slot_info = self.slot_by_id.get
+        get_faculty_pref = self.faculty_preferences.get
+        get_faculty_hist = self.faculty_history.get
+        get_faculty_desig = self.faculty_designation.get
+        get_pre_booked = self.pre_booked_slots.get
         
         for gene in chromosome.genes:
             slot_id = gene.time_slot_id
@@ -920,6 +1020,8 @@ class GeneticAlgorithm:
             class_id = gene.class_id
             subj_id = gene.subject_id
             is_lab = gene.is_lab
+            
+            class_genes_map[class_id].append(gene)
             
             # Faculty clash
             if slot_id in faculty_schedule[fac_id]:
@@ -941,16 +1043,20 @@ class GeneticAlgorithm:
             if asst_id:
                 faculty_hours[asst_id] += 1
             
+            # Dictionary lookups (cached)
+            subj_info = get_subject_info(subj_id, {})
+            subject_code = self._normalize_code(subj_info.get('code', ''))
+            subj_type = subj_info.get('subject_type', '')
+            
             # Labs and Theory mapping
             if is_lab:
                 class_labs[class_id].append(gene)
-                lab_slot_usage[subj_id][slot_id].add(class_id)
+                # lab_slot_usage moved to per-subject processing below if possible
             else:
                 faculty_class_theory[fac_id][class_id].add(subj_id)
             
             # Preferences
-            preferences = self.faculty_preferences.get(fac_id, [])
-            subject_code = self.subject_info.get(subj_id, {}).get('code', '')
+            preferences = get_faculty_pref(fac_id, [])
             if subject_code in preferences:
                 fitness += self.WEIGHTS['faculty_preference']
             elif preferences:
@@ -958,30 +1064,31 @@ class GeneticAlgorithm:
             
             # Professor lab
             if is_lab:
-                if self.faculty_designation.get(fac_id) == 'PROFESSOR':
+                if get_faculty_desig(fac_id) == 'PROFESSOR':
                     fitness += self.WEIGHTS['professor_lab']
-                if asst_id and self.faculty_designation.get(asst_id) == 'PROFESSOR':
+                if asst_id and get_faculty_desig(asst_id) == 'PROFESSOR':
                     fitness += self.WEIGHTS['professor_lab']
             
             # Pre-booked clash
-            if fac_id in self.pre_booked_slots and slot_id in self.pre_booked_slots[fac_id]:
+            fac_pre_booked = get_pre_booked(fac_id)
+            if fac_pre_booked and slot_id in fac_pre_booked:
                 fitness += self.WEIGHTS['cross_dept_clash']
-            if asst_id and asst_id in self.pre_booked_slots and slot_id in self.pre_booked_slots[asst_id]:
-                fitness += self.WEIGHTS['cross_dept_clash']
+            if asst_id:
+                asst_pre_booked = get_pre_booked(asst_id)
+                if asst_pre_booked and slot_id in asst_pre_booked:
+                    fitness += self.WEIGHTS['cross_dept_clash']
                 
             # Subject rotation penalty
-            history = self.faculty_history.get(fac_id, [])
+            history = get_faculty_hist(fac_id, [])
             if subject_code in history:
                 fitness += self.WEIGHTS['subject_rotation']
                 
-            # Dictionary lookups for time slots
-            slot_info = self.slot_by_id.get(slot_id)
+            slot_info = get_slot_info(slot_id)
             if slot_info:
                 day = slot_info['day']
                 period = slot_info['period']
                 
                 # Special subject daily limits
-                subj_type = self.subject_info.get(subj_id, {}).get('subject_type', '')
                 if subj_type in SPECIAL_TYPES:
                     class_day_special[class_id][day] += 1
                 
@@ -994,19 +1101,34 @@ class GeneticAlgorithm:
                 if asst_id:
                     faculty_day_periods[asst_id][day].append((period, is_lab, subj_id))
 
-        # ── End of single pass. Now process constraints mathematically ──
+        # ── End of single pass ──
 
-        # Check workload limits (both min and max)
+        # Check workload limits
         for faculty_id, hours in faculty_hours.items():
             max_hours = self.faculty_workload_limits.get(faculty_id, 20)
             min_hours = self.faculty_workload_min.get(faculty_id, max_hours)
+            
+            # Professors (limit 10) have much higher penalty for exceeding
+            workload_penalty = self.WEIGHTS['workload_exceeded']
+            if max_hours <= 10:
+                workload_penalty *= 50  # 50x penalty for Professor overload (aggressive)
+                
             if hours > max_hours:
-                fitness += self.WEIGHTS['workload_exceeded'] * (hours - max_hours)
+                fitness += workload_penalty * (hours - max_hours)
             elif hours < min_hours:
                 fitness += self.WEIGHTS['workload_under_min'] * (min_hours - hours)
 
         # Faculty multi-theory penalty
         for faculty_id, class_map in faculty_class_theory.items():
+            # Class spread penalty
+            if len(class_map) > 3:
+                fitness += self.WEIGHTS['faculty_class_spread'] * (len(class_map) - 3)
+            
+            # Lab-only senior penalty
+            if self.faculty_designation.get(faculty_id) == 'ASSOCIATE_PROFESSOR':
+                if len(class_map) == 0: # Only labs/projects assigned
+                    fitness += self.WEIGHTS['lab_only_senior']
+
             for class_id, theory_subjects in class_map.items():
                 if len(theory_subjects) > 1:
                     fitness += self.WEIGHTS['faculty_multi_theory'] * (len(theory_subjects) - 1)
@@ -1018,17 +1140,17 @@ class GeneticAlgorithm:
                     fitness += self.WEIGHTS['special_subject_daily'] * (count - 1)
 
         # Check lab constraints
-        lab_day_half_usage = defaultdict(int)  # (day, half) -> count
+        lab_day_half_usage = defaultdict(int) 
         for class_id, lab_genes in class_labs.items():
             lab_days_for_class = set()
             lab_faculty_by_subject = defaultdict(set)
-            lab_subjects_scheduled = set()
+            lab_subject_genes = defaultdict(list)
             
             for g in lab_genes:
                 lab_faculty_by_subject[g.subject_id].add(g.faculty_id)
-                lab_subjects_scheduled.add(g.subject_id)
+                lab_subject_genes[g.subject_id].append(g)
                 
-                slot_info = self.slot_by_id.get(g.time_slot_id)
+                slot_info = get_slot_info(g.time_slot_id)
                 if slot_info:
                     half = 'morning' if slot_info['period'] <= 3 else 'afternoon'
                     day_half = (slot_info['day'], half)
@@ -1037,12 +1159,10 @@ class GeneticAlgorithm:
                         lab_day_half_usage[day_half] += 1
                         
             # Check lab continuity and timing
-            for lab_subject_id in lab_subjects_scheduled:
-                subject_lab_genes = [g for g in lab_genes if g.subject_id == lab_subject_id]
-                slot_ids = [g.time_slot_id for g in subject_lab_genes]
-                
+            for lab_subject_id, s_genes in lab_subject_genes.items():
+                slot_ids = [g.time_slot_id for g in s_genes]
                 if len(slot_ids) != 3:
-                    fitness += self.WEIGHTS['lab_continuity'] * 2  # Extra penalty for wrong count
+                    fitness += self.WEIGHTS['lab_continuity'] * 2
                 else:
                     if not self._check_lab_continuity(slot_ids):
                         fitness += self.WEIGHTS['lab_continuity']
@@ -1054,62 +1174,60 @@ class GeneticAlgorithm:
                 if len(faculty_set) > 1:
                     fitness += self.WEIGHTS['lab_faculty_inconsistent'] * (len(faculty_set) - 1)
 
-        # Penalize each (day, half) that has more than 1 class with labs
-        for day_half, count in lab_day_half_usage.items():
+        # Lab day clash
+        for count in lab_day_half_usage.values():
             if count > 1:
                 fitness += self.WEIGHTS['lab_day_clash'] * (count - 1)
 
-        # Check lab room clashes
-        for subject_id, slot_classes in lab_slot_usage.items():
-            for slot_id, class_ids in slot_classes.items():
-                if len(class_ids) > 1:
-                    fitness += self.WEIGHTS['lab_room_clash'] * (len(class_ids) - 1)
+        # Lab room clashes (re-calculated to avoid another 3D map if possible, but let's see)
+        lab_room_usage = defaultdict(lambda: defaultdict(int)) # subj_id -> slot_id -> count
+        for class_id, lab_genes in class_labs.items():
+            for g in lab_genes:
+                lab_room_usage[g.subject_id][g.time_slot_id] += 1
+        
+        for slot_counts in lab_room_usage.values():
+            for count in slot_counts.values():
+                if count > 1:
+                    fitness += self.WEIGHTS['lab_room_clash'] * (count - 1)
 
-        # Check workload balance PER DESIGNATION (soft constraint)
-        # Group faculty hours by designation and penalize deviations from group average
-        designation_hours = defaultdict(list)  # designation -> list of (faculty_id, hours)
+        # Workload balance
+        designation_hours = defaultdict(list)
         for faculty_id, hours in faculty_hours.items():
             designation = self.faculty_designation.get(faculty_id, '')
             designation_hours[designation].append(hours)
         
-        for designation, hours_list in designation_hours.items():
-            if len(hours_list) < 2:
-                continue  # Need at least 2 faculty to compare
+        for hours_list in designation_hours.values():
+            if len(hours_list) < 2: continue
             avg_hours = sum(hours_list) / len(hours_list)
             for hours in hours_list:
                 deviation = abs(hours - avg_hours)
-                if deviation > 2:  # Tighter threshold: penalize if > 2 hours off average
+                if deviation > 2:
                     fitness += self.WEIGHTS['workload_balance'] * (deviation - 2)
 
-        # ── Consecutive same-theory penalty ──────────────────────────
-        for class_id, day_map in class_day_genes.items():
-            for day, period_genes in day_map.items():
+        # Consecutive same-theory penalty
+        for day_map in class_day_genes.values():
+            for period_genes in day_map.values():
+                if len(period_genes) < 2: continue
                 period_genes.sort(key=lambda x: x[0])
                 for i in range(len(period_genes) - 1):
-                    curr_period, curr_gene = period_genes[i]
-                    next_period, next_gene = period_genes[i + 1]
-                    if next_period == curr_period + 1 and curr_gene.subject_id == next_gene.subject_id:
+                    if period_genes[i+1][0] == period_genes[i][0] + 1 and \
+                       period_genes[i][1].subject_id == period_genes[i+1][1].subject_id:
                         fitness += self.WEIGHTS['consecutive_theory']
 
-        # ── Faculty consecutive class penalty ──────────────────────────
-        for faculty_id, day_map in faculty_day_periods.items():
-            for day, period_list in day_map.items():
+        # Faculty consecutive class penalty
+        for day_map in faculty_day_periods.values():
+            for period_list in day_map.values():
+                if len(period_list) < 2: continue
                 period_list.sort(key=lambda x: x[0])
                 for i in range(len(period_list) - 1):
-                    curr_period, curr_is_lab, curr_subj = period_list[i]
-                    next_period, next_is_lab, next_subj = period_list[i + 1]
-                    # Skip if both are lab sessions of the same subject
-                    if curr_is_lab and next_is_lab and curr_subj == next_subj:
-                        continue
-                    # Skip if separated by Lunch (P4 and P5)
-                    if curr_period == 4 and next_period == 5:
-                        continue
-                    if next_period == curr_period + 1:
+                    p1, l1, s1 = period_list[i]
+                    p2, l2, s2 = period_list[i+1]
+                    if l1 and l2 and s1 == s2: continue
+                    if p1 == 4 and p2 == 5: continue
+                    if p2 == p1 + 1:
                         fitness += self.WEIGHTS['faculty_consecutive']
         
-        # ── Remedial sync penalty ──────────────────────────────────────
-        # Verify every class has exactly the expected number of genes at its remedial slots
-        # and that those genes are the correct RMH subject.
+        # Optimized Remedial sync penalty (Uses class_genes_map)
         if self.remedial_schedule:
             for c in self.classes:
                 class_id = c['id']
@@ -1118,23 +1236,17 @@ class GeneticAlgorithm:
                 rmh_subjects = self.remedial_subjects.get(class_id, [])
                 
                 if config_slots and rmh_subjects:
-                    class_genes = [g for g in chromosome.genes if g.class_id == class_id]
-                    
-                    assigned_rmh_id = None
-                    for g in class_genes:
-                        if g.time_slot_id in config_slots and g.subject_id in rmh_subjects:
-                            assigned_rmh_id = g.subject_id
-                            break
-                    
-                    if not assigned_rmh_id:
-                        fitness += self.WEIGHTS['remedial_sync']
-                        continue
+                    theory_subjects = {s_id for s_id in self.class_subjects.get(class_id, [])
+                                      if get_subject_info(s_id, {}).get('subject_type') == 'THEORY'}
+                    if not theory_subjects: continue
                         
-                    hours_needed = self.subject_info.get(assigned_rmh_id, {}).get('hours_per_week', 3)
-                    expected_matches = min(hours_needed, 4, len(config_slots))
-                    target_slots = config_slots[:expected_matches]
+                    expected_matches = min(3, len(config_slots))  # Hard cap: exactly 3 RMH
+                    target_slots = set(config_slots[:expected_matches])
                     
-                    matched_slots = sum(1 for g in class_genes if g.subject_id == assigned_rmh_id and g.time_slot_id in target_slots)
+                    matched_slots = 0
+                    for g in class_genes_map[class_id]:
+                        if g.time_slot_id in target_slots and g.subject_id in theory_subjects:
+                            matched_slots += 1
                     
                     if matched_slots != expected_matches:
                         fitness += self.WEIGHTS['remedial_sync']
@@ -1145,12 +1257,9 @@ class GeneticAlgorithm:
     def _is_remedial_gene(self, gene: Gene) -> bool:
         """Check if a gene occupies a remedial slot for its class's semester.
         These genes must never be moved or swapped."""
-        rmh_subjects = self.remedial_subjects.get(gene.class_id, [])
-        if gene.subject_id not in rmh_subjects:
-            return False
-            
         semester_id = self.class_semester_map.get(gene.class_id)
         remedial_slot_ids = self.remedial_schedule.get(semester_id, [])
+        # Lock any gene that lands in a synchronized remedial slot to prevent mutation chaos
         return gene.time_slot_id in remedial_slot_ids
     
     def _check_lab_continuity(self, slot_ids: List[int]) -> bool:
@@ -1237,422 +1346,557 @@ class GeneticAlgorithm:
         
         return chromosome
     
-    def _repair_faculty_clashes(self, chromosome: Chromosome) -> Chromosome:
-        """Repair faculty clashes using multiple strategies.
+    def _repair_faculty_clashes(self, chromosome: Chromosome, evolution_mode: bool = True) -> Chromosome:
+        """Repair faculty clashes using multiple strategies with incremental indexing."""
+        max_iterations = 20 if evolution_mode else 100
         
-        Strategies (tried in order for EACH clashing gene):
-        1. Swap time slot with a non-clashing gene in the same class
-        2. Reassign faculty to an alternative eligible faculty free at this slot
-        3. Move the gene to any slot where this faculty is free, displacing
-           a non-clashing gene from the same class
-        """
-        max_repair_iterations = 50  # Very thorough
+        # Build initial indexes
+        faculty_slot_genes = defaultdict(lambda: defaultdict(list))
+        class_gene_indices = defaultdict(list)
         
-        for iteration in range(max_repair_iterations):
-            # Build indexes
-            faculty_slot_genes = defaultdict(lambda: defaultdict(list))
-            class_gene_indices = defaultdict(list)
-            class_used_slots = defaultdict(set)
+        for idx, gene in enumerate(chromosome.genes):
+            faculty_slot_genes[gene.faculty_id][gene.time_slot_id].append(idx)
+            if gene.assistant_faculty_id:
+                faculty_slot_genes[gene.assistant_faculty_id][gene.time_slot_id].append(idx)
+            class_gene_indices[gene.class_id].append(idx)
             
-            for idx, gene in enumerate(chromosome.genes):
-                faculty_slot_genes[gene.faculty_id][gene.time_slot_id].append(idx)
-                if gene.assistant_faculty_id:
-                    faculty_slot_genes[gene.assistant_faculty_id][gene.time_slot_id].append(idx)
-                class_gene_indices[gene.class_id].append(idx)
-                class_used_slots[gene.class_id].add(gene.time_slot_id)
-            
-            # Collect ALL clashes
-            all_clashes = []
+        all_slots = self.available_slots
+        
+        for _ in range(max_iterations):
+            # Collect clashing genes (only need to look at slot occupancy > 1)
+            clashing_indices = []
             for fac_id, slot_map in faculty_slot_genes.items():
                 for slot_id, gene_indices in slot_map.items():
                     if len(gene_indices) > 1:
-                        all_clashes.append((fac_id, slot_id, gene_indices))
+                        # Find movable clashing genes
+                        movable = [i for i in gene_indices 
+                                   if not chromosome.genes[i].is_lab 
+                                   and not chromosome.genes[i].is_remedial]
+                        clashing_indices.extend(movable)
             
-            if not all_clashes:
-                break  # No clashes!
+            if not clashing_indices:
+                break
+                
+            clashing_indices = list(set(clashing_indices))
+            random.shuffle(clashing_indices)
             
             fixed_any = False
-            
-            for fac_id, slot_id, gene_indices in all_clashes:
-                # Get ALL movable (non-lab, non-remedial) clashing genes
-                movable = [i for i in gene_indices
-                           if not chromosome.genes[i].is_lab
-                           and not self._is_remedial_gene(chromosome.genes[i])]
-                if not movable:
-                    continue
+            for clash_idx in clashing_indices:
+                gene = chromosome.genes[clash_idx]
+                old_slot = gene.time_slot_id
+                fac_id = gene.faculty_id
+                class_id = gene.class_id
                 
-                # Try each movable gene until one is fixed
-                random.shuffle(movable)
-                for clash_idx in movable:
-                    clash_gene = chromosome.genes[clash_idx]
-                    
-                    # ── Strategy 1: Swap time slot within the same class ──
-                    swap_candidates = []
-                    for i in class_gene_indices[clash_gene.class_id]:
-                        g = chromosome.genes[i]
-                        if (i != clash_idx and
-                            not g.is_lab and
-                            not self._is_remedial_gene(g) and
-                            g.time_slot_id != slot_id):
-                            new_slot = g.time_slot_id
-                            would_clash = len(faculty_slot_genes[fac_id].get(new_slot, [])) > 0
-                            if not would_clash:
-                                swap_candidates.append(i)
-                    
-                    if swap_candidates:
-                        swap_idx = random.choice(swap_candidates)
-                        chromosome.genes[clash_idx].time_slot_id, \
-                            chromosome.genes[swap_idx].time_slot_id = \
-                            chromosome.genes[swap_idx].time_slot_id, \
-                            chromosome.genes[clash_idx].time_slot_id
+                # Strategy 1: Swap with a non-clashing gene in same class
+                class_genes = class_gene_indices[class_id]
+                for target_idx in class_genes:
+                    target_gene = chromosome.genes[target_idx]
+                    if (target_idx == clash_idx or target_gene.is_lab or 
+                        target_gene.is_remedial):
+                        continue
+                        
+                    new_slot = target_gene.time_slot_id
+                    # Would faculty clash at new_slot?
+                    if len(faculty_slot_genes[fac_id].get(new_slot, [])) == 0:
+                        # Update indexes
+                        faculty_slot_genes[fac_id][old_slot].remove(clash_idx)
+                        faculty_slot_genes[fac_id][new_slot].append(clash_idx)
+                        
+                        target_fac = target_gene.faculty_id
+                        faculty_slot_genes[target_fac][new_slot].remove(target_idx)
+                        faculty_slot_genes[target_fac][old_slot].append(target_idx)
+                        
+                        # Swap data
+                        gene.time_slot_id, target_gene.time_slot_id = target_gene.time_slot_id, gene.time_slot_id
                         fixed_any = True
-                        break  # Fixed this clash, rebuild indexes
-                    
-                    # ── Strategy 2: Reassign faculty ──
-                    eligible = self._get_eligible_faculty_for_subject(clash_gene.subject_id)
-                    alt_faculty = [
-                        f for f in eligible
-                        if f != fac_id
-                        and len(faculty_slot_genes[f].get(slot_id, [])) == 0
-                    ]
-                    if alt_faculty:
-                        faculty_hours = defaultdict(int)
-                        for g in chromosome.genes:
-                            faculty_hours[g.faculty_id] += 1
-                        under_limit = [
-                            f for f in alt_faculty
-                            if faculty_hours[f] < self.faculty_workload_limits.get(f, 20)
-                        ]
-                        new_fac = random.choice(under_limit) if under_limit else random.choice(alt_faculty)
-                        for idx2, g in enumerate(chromosome.genes):
-                            if (g.class_id == clash_gene.class_id and
-                                g.subject_id == clash_gene.subject_id and
-                                g.faculty_id == fac_id and
-                                not g.is_lab):
-                                chromosome.genes[idx2].faculty_id = new_fac
+                        break
+                
+                if fixed_any: break
+                
+                # Strategy 2: Reassign faculty (available in evolution mode too)
+                eligible = self._get_eligible_faculty_for_subject(gene.subject_id)
+                random.shuffle(eligible)
+                for new_fac in eligible:
+                    if new_fac != fac_id and len(faculty_slot_genes[new_fac].get(old_slot, [])) == 0:
+                        # Update indexes for ALL hours of this subject in this class
+                        for g_idx in class_genes:
+                            g = chromosome.genes[g_idx]
+                            if g.subject_id == gene.subject_id and not g.is_lab:
+                                old_fac = g.faculty_id
+                                faculty_slot_genes[old_fac][g.time_slot_id].remove(g_idx)
+                                g.faculty_id = new_fac
+                                faculty_slot_genes[new_fac][g.time_slot_id].append(g_idx)
                         fixed_any = True
-                        break  # Fixed this clash
-                    
-                    # ── Strategy 3: Move to ANY slot where this faculty is free ──
-                    # Find slots where fac_id has NO assignments
-                    fac_busy_slots = set(faculty_slot_genes[fac_id].keys())
-                    all_slots = set(self.available_slots)
-                    fac_free_slots = all_slots - fac_busy_slots
-                    
-                    # Find a free slot that belongs to this class (swap with existing gene there)
-                    class_id = clash_gene.class_id
-                    for target_slot in fac_free_slots:
-                        if target_slot == slot_id:
-                            continue
-                        # Find a non-lab, non-remedial gene in same class at this target slot
-                        target_genes = [
-                            i for i in class_gene_indices[class_id]
-                            if chromosome.genes[i].time_slot_id == target_slot
-                            and not chromosome.genes[i].is_lab
-                            and not self._is_remedial_gene(chromosome.genes[i])
-                        ]
-                        if target_genes:
-                            # Swap the clashing gene to this free slot
-                            target_idx = target_genes[0]
-                            chromosome.genes[clash_idx].time_slot_id, \
-                                chromosome.genes[target_idx].time_slot_id = \
-                                chromosome.genes[target_idx].time_slot_id, \
-                                chromosome.genes[clash_idx].time_slot_id
+                        break
+                
+                if fixed_any: break
+
+                # Strategy 3: Exhaustive Global Swap (Only in full mode)
+                if not evolution_mode:
+                    all_indices = list(range(len(chromosome.genes)))
+                    random.shuffle(all_indices)
+                    for target_idx in all_indices:
+                        g2 = chromosome.genes[target_idx]
+                        if g2.is_lab or g2.is_remedial: continue
+                        
+                        t_slot = g2.time_slot_id
+                        t_fac = g2.faculty_id
+                        if (len(faculty_slot_genes[fac_id].get(t_slot, [])) == 0 and 
+                            len(faculty_slot_genes[t_fac].get(old_slot, [])) == 0):
+                            
+                            faculty_slot_genes[fac_id][old_slot].remove(clash_idx)
+                            faculty_slot_genes[fac_id][t_slot].append(clash_idx)
+                            faculty_slot_genes[t_fac][t_slot].remove(target_idx)
+                            faculty_slot_genes[t_fac][old_slot].append(target_idx)
+                            
+                            gene.time_slot_id, g2.time_slot_id = g2.time_slot_id, gene.time_slot_id
                             fixed_any = True
                             break
-                    
-                    if fixed_any:
-                        break  # Fixed this clash
+                    if fixed_any: break
                 
-                if fixed_any:
-                    break  # Restart from scratch with fresh indexes
-            
             if not fixed_any:
-                break  # Couldn't fix anything, give up
+                break
         
         return chromosome
     
     def _repair_remedial(self, chromosome: Chromosome) -> Chromosome:
-        """Ensure each class has a correct remedial gene at its synchronized slot.
-        
-        If a class's remedial slot is missing or has the wrong subject,
-        fix it by inserting/replacing the gene and swapping the displaced
-        gene to another slot.
-        """
+        """Ensure each class has exactly 3 synchronized remedial periods, even if RMH subjects are undefined."""
         if not self.remedial_schedule:
             return chromosome
             
-        # Pre-group genes by class to avoid N passes
-        class_genes = defaultdict(list)
-        for i, g in enumerate(chromosome.genes):
-            class_genes[g.class_id].append((i, g))
-        
-        for c in self.classes:
-            class_id = c['id']
+        genes_by_class_slot = defaultdict(dict)
+        for idx, g in enumerate(chromosome.genes):
+            genes_by_class_slot[g.class_id][g.time_slot_id] = idx
+            
+        for class_info in self.classes:
+            class_id = class_info['id']
             semester_id = self.class_semester_map.get(class_id)
             config_slots = self.remedial_schedule.get(semester_id, [])
+            
+            if not config_slots:
+                continue
+                
+            # Requirement: Exactly 3 slots
+            slots_to_sync = config_slots[:3]
+            
+            # Reset all is_remedial flags for this class to ensure hardcap
+            for g in chromosome.genes:
+                if g.class_id == class_id:
+                    g.is_remedial = False
+            
+            # Decide which subjects to use for RMH
             rmh_subjects = self.remedial_subjects.get(class_id, [])
+            rmh_cycle = []
+            if rmh_subjects:
+                for s_id in rmh_subjects:
+                    hours = self.subject_info[s_id].get('hours_per_week', 3)
+                    rmh_cycle.extend([s_id] * hours)
+                rmh_cycle = rmh_cycle[:3]  # Hard cap: never exceed 3 RMH hours
             
-            if not config_slots or not rmh_subjects:
-                continue
+            # Fallback to theory subjects if needed
+            if len(rmh_cycle) < len(slots_to_sync):
+                theory_subjects = [s_id for s_id in self.class_subjects.get(class_id, [])
+                                   if self.subject_info.get(s_id, {}).get('subject_type') == 'THEORY']
+                if theory_subjects:
+                    while len(rmh_cycle) < len(slots_to_sync):
+                        rmh_cycle.append(random.choice(theory_subjects))
             
-            genes_for_class = class_genes.get(class_id, [])
-            
-            assigned_rmh_id = None
-            for i, g in genes_for_class:
-                if g.time_slot_id in config_slots and g.subject_id in rmh_subjects:
-                    assigned_rmh_id = g.subject_id
-                    break
-            
-            if not assigned_rmh_id:
-                for i, g in genes_for_class:
-                    if g.subject_id in rmh_subjects:
-                        assigned_rmh_id = g.subject_id
-                        break
-                        
-            if not assigned_rmh_id:
+            if not rmh_cycle:
                 continue
                 
-            hours_needed = self.subject_info.get(assigned_rmh_id, {}).get('hours_per_week', 3)
-            expected_matches = min(hours_needed, 4, len(config_slots))
-            target_slots = config_slots[:expected_matches]
-            
-            occupied_targets = set()
-            for i, g in genes_for_class:
-                if g.time_slot_id in target_slots and g.subject_id == assigned_rmh_id:
-                    occupied_targets.add(g.time_slot_id)
-                    
-            missing_slots = [ts for ts in target_slots if ts not in occupied_targets]
-            if not missing_slots:
-                continue
+            for i, slot_id in enumerate(slots_to_sync):
+                target_subject_id = rmh_cycle[i % len(rmh_cycle)]
                 
-            wrong_rmh_genes = [
-                (i, g) for i, g in genes_for_class
-                if g.subject_id == assigned_rmh_id and g.time_slot_id not in target_slots and not g.is_lab
-            ]
-            
-            for missing_slot in missing_slots:
-                if not wrong_rmh_genes:
-                    break
-                    
-                rmh_gene_idx, rmh_gene = wrong_rmh_genes.pop()
-                
-                swap_target = None
-                for i, g in genes_for_class:
-                    if g.time_slot_id == missing_slot and not g.is_lab and g.subject_id not in rmh_subjects:
-                        swap_target = i
-                        break
-                
-                if swap_target is not None:
-                    chromosome.genes[rmh_gene_idx].time_slot_id, \
-                        chromosome.genes[swap_target].time_slot_id = \
-                        chromosome.genes[swap_target].time_slot_id, \
-                        chromosome.genes[rmh_gene_idx].time_slot_id
+                # Check if class already has a gene at this slot
+                if slot_id in genes_by_class_slot[class_id]:
+                    idx = genes_by_class_slot[class_id][slot_id]
+                    g = chromosome.genes[idx]
+                    g.subject_id = target_subject_id
+                    g.is_remedial = True
+                    # Re-verify faculty (should match theory subject pre-assignment)
+                    # We assume the user has assigned a valid faculty to the class for this subject
                 else:
-                    chromosome.genes[rmh_gene_idx].time_slot_id = missing_slot
+                    # Find a gene of the same subject elsewhere to move here?
+                    # Or just create a new one and delete a duplicate later?
+                    # Simplest: Force-create or overwrite another gene.
+                    # But better to just find one of the subject's genes and move it.
+                    target_gene_idx = None
+                    for idx, g in enumerate(chromosome.genes):
+                        if (g.class_id == class_id and g.subject_id == target_subject_id 
+                            and not g.is_lab and g.time_slot_id not in slots_to_sync):
+                            target_gene_idx = idx
+                            break
+                    
+                    if target_gene_idx is not None:
+                        # Move this gene to the synchronized slot
+                        old_slot = chromosome.genes[target_gene_idx].time_slot_id
+                        chromosome.genes[target_gene_idx].time_slot_id = slot_id
+                        chromosome.genes[target_gene_idx].is_remedial = True
+                        # Update index
+                        del genes_by_class_slot[class_id][old_slot]
+                        genes_by_class_slot[class_id][slot_id] = target_gene_idx
+                    else:
+                        # Create new
+                        eligible = self._get_eligible_faculty_for_subject(target_subject_id)
+                        fac_id = random.choice(eligible) if eligible else (self.faculties[0]['id'] if self.faculties else None)
+                        if fac_id:
+                            new_gene = Gene(
+                                class_id=class_id,
+                                subject_id=target_subject_id,
+                                faculty_id=fac_id,
+                                time_slot_id=slot_id,
+                                is_lab=False,
+                                is_remedial=True
+                            )
+                            chromosome.genes.append(new_gene)
+                            genes_by_class_slot[class_id][slot_id] = len(chromosome.genes) - 1
         
         return chromosome
-    
-    def _repair_workload(self, chromosome: Chromosome) -> Chromosome:
-        """Repair workload violations by reassigning over-limit faculty to under-limit alternatives.
+    def _repair_workload(self, chromosome: Chromosome, full_mode: bool = False) -> Chromosome:
+        """Repair workload violations with incremental indexing.
         
-        When a faculty member exceeds their max hours, this method finds their
-        non-lab, non-remedial genes and tries to reassign them to other eligible
-        faculty who are under their workload limit.
+        Phase 1: Reduce over-limit faculty (reassign subjects to others).
+        Phase 2: Consolidate onto under-limit faculty (steal subjects from others).
         """
-        max_repair_iterations = 5
+        max_repair_iterations = 15 if full_mode else 3
         
-        for iteration in range(max_repair_iterations):
-            # Count hours per faculty
-            faculty_hours = defaultdict(int)
-            for gene in chromosome.genes:
-                faculty_hours[gene.faculty_id] += 1
-                if gene.assistant_faculty_id:
-                    faculty_hours[gene.assistant_faculty_id] += 1
-            
-            # Find over-limit faculty
-            over_limit = []
-            for fac_id, hours in faculty_hours.items():
-                max_h = self.faculty_workload_limits.get(fac_id, 20)
-                if hours > max_h:
-                    over_limit.append((fac_id, hours, max_h))
-            
-            if not over_limit:
-                break  # No violations
-            
-            # Sort by most over-limit first
-            over_limit.sort(key=lambda x: x[1] - x[2], reverse=True)
-            
+        # Initial pass: build counts and schedule
+        faculty_hours = defaultdict(int)
+        faculty_schedule = defaultdict(set)
+        for g in chromosome.genes:
+            faculty_hours[g.faculty_id] += 1
+            faculty_schedule[g.faculty_id].add(g.time_slot_id)
+            if g.assistant_faculty_id:
+                faculty_hours[g.assistant_faculty_id] += 1
+                faculty_schedule[g.assistant_faculty_id].add(g.time_slot_id)
+        
+        for _ in range(max_repair_iterations):
             fixed_any = False
-            for fac_id, hours, max_h in over_limit:
-                excess = hours - max_h
-                
-                # Find reassignable genes (non-lab, non-remedial) for this faculty
-                reassignable = []
-                for idx, gene in enumerate(chromosome.genes):
-                    if gene.faculty_id == fac_id and not gene.is_lab and not self._is_remedial_gene(gene):
-                        reassignable.append(idx)
-                
-                random.shuffle(reassignable)
-                
-                for idx in reassignable:
-                    if excess <= 0:
-                        break
-                    
-                    gene = chromosome.genes[idx]
-                    eligible = self._get_eligible_faculty_for_subject(gene.subject_id)
-                    
-                    # Find alternative faculty who are under their limit AND not in this class
-                    # Build set of theory faculty for THIS class
-                    class_theory_facs = {g.faculty_id for g in chromosome.genes 
-                                       if g.class_id == gene.class_id and not g.is_lab}
-                    
-                    alternatives = [
-                        f for f in eligible
-                        if f != fac_id
-                        and f not in class_theory_facs
-                        and faculty_hours[f] < self.faculty_workload_limits.get(f, 20)
-                    ]
-                    
-                    if not alternatives:
-                        # Fallback: allow anyone eligible NOT in this class even if at their limit
-                        # (eligible already respects preferences via _get_eligible_faculty_for_subject)
-                        alternatives = [f for f in eligible if f != fac_id and f not in class_theory_facs]
-                    
-                    if alternatives:
-                        new_fac = random.choice(alternatives)
-                        chromosome.genes[idx].faculty_id = new_fac
-                        # Note: We don't remove fac_id from class_theory_facs because 
-                        # they still have ONE theory subject (the one we didn't reassign).
-                        # Actually, _repair_workload reassigns ONE gene, which 
-                        # might be the ONLY gene of that subject.
-                        # But it's safer to keep the set as-is for the rest of this fac_id's loop.
-                        new_fac = random.choice(alternatives)
-                        chromosome.genes[idx].faculty_id = new_fac
-                        faculty_hours[fac_id] -= 1
-                        faculty_hours[new_fac] += 1
-                        excess -= 1
-                        fixed_any = True
             
+            # --- Phase 1: Over-limit repair ---
+            overworked = []
+            for fac_id, hours in faculty_hours.items():
+                limit = self.faculty_workload_limits.get(fac_id, 20)
+                if hours > limit:
+                    prio = 10 if self.faculty_designation.get(fac_id) == 'PROFESSOR' else 1
+                    overworked.append((prio, hours - limit, fac_id))
+            
+            if overworked:
+                overworked.sort(reverse=True)
+                for _, excess_total, fac_id in overworked:
+                    limit = self.faculty_workload_limits.get(fac_id, 20)
+                    # Find theory genes for this faculty
+                    fac_genes = [g for g in chromosome.genes if g.faculty_id == fac_id and not g.is_lab]
+                    random.shuffle(fac_genes)
+                    
+                    for gene in fac_genes:
+                        if faculty_hours[fac_id] <= limit: break
+                        
+                        eligible = self._get_eligible_faculty_for_subject(gene.subject_id)
+                        # Find valid alternatives (free at this slot)
+                        # Relax 'not already over limit' for Assistants if we are saving a Professor
+                        is_prof = self.faculty_designation.get(fac_id) == 'PROFESSOR'
+                        valid_alts = [f for f in eligible if f != fac_id 
+                                     and gene.time_slot_id not in faculty_schedule[f]]
+                        
+                        if is_prof:
+                            # If we are saving a Professor, we can push to an Assistant 
+                            # even if they are slightly over, to prioritize the 10h limit
+                            valid_alts = [f for f in valid_alts 
+                                         if self.faculty_designation.get(f) != 'PROFESSOR']
+                        else:
+                            # Standard: only move to those under their limit
+                            valid_alts = [f for f in valid_alts 
+                                         if faculty_hours[f] < self.faculty_workload_limits.get(f, 20)]
+                        
+                        if not valid_alts: continue
+                        
+                        # Target faculty with lowest relative workload
+                        valid_alts.sort(key=lambda f: faculty_hours[f] - self.faculty_workload_limits.get(f, 20))
+                        new_fac = valid_alts[0]
+                        
+                        # Atomic reassignment
+                        subject_genes = [g for g in chromosome.genes 
+                                       if g.class_id == gene.class_id and g.subject_id == gene.subject_id and not g.is_lab]
+                        
+                        subject_slots = [sg.time_slot_id for sg in subject_genes]
+                        if all(slot not in faculty_schedule[new_fac] for slot in subject_slots):
+                            for sg in subject_genes:
+                                old_f = sg.faculty_id
+                                sg.faculty_id = new_fac
+                                # Update indexes
+                                faculty_schedule[old_f].discard(sg.time_slot_id)
+                                faculty_schedule[new_fac].add(sg.time_slot_id)
+                                faculty_hours[old_f] -= 1
+                                faculty_hours[new_fac] += 1
+                            fixed_any = True
+                            break
+                    if fixed_any: break
+            
+            # --- Phase 2: Under-limit consolidation (only in full_mode) ---
+            if full_mode and not fixed_any:
+                under_faculty = []
+                for fac_id in self.dept_faculty_ids:
+                    min_h = self.faculty_workload_min.get(fac_id, 0)
+                    cur_h = faculty_hours.get(fac_id, 0)
+                    if cur_h < min_h and cur_h > 0:
+                        under_faculty.append((min_h - cur_h, fac_id))
+                
+                if under_faculty:
+                    under_faculty.sort(reverse=True)
+                    for deficit, under_fac in under_faculty:
+                        min_h = self.faculty_workload_min.get(under_fac, 0)
+                        max_h = self.faculty_workload_limits.get(under_fac, 20)
+                        cur_h = faculty_hours.get(under_fac, 0)
+                        if cur_h >= min_h: continue
+                        
+                        # Use cached eligible check if possible or just get subjects
+                        eligible_subjects = {s['id'] for s in self.subjects if under_fac in self._get_eligible_faculty_for_subject(s['id'])}
+                        
+                        # Find stealable genes
+                        steal_candidates = []
+                        for idx, g in enumerate(chromosome.genes):
+                            if g.is_lab or self._is_remedial_gene(g) or g.subject_id not in eligible_subjects or g.faculty_id == under_fac:
+                                continue
+                            
+                            donor_f = g.faculty_id
+                            donor_min = self.faculty_workload_min.get(donor_f, 0)
+                            donor_cur = faculty_hours.get(donor_f, 0)
+                            
+                            # Estimate cost of subject
+                            subject_gene_count = sum(1 for sg in chromosome.genes 
+                                                   if sg.class_id == g.class_id and sg.subject_id == g.subject_id and not g.is_lab)
+                            
+                            if donor_cur - subject_gene_count >= donor_min:
+                                steal_candidates.append((donor_cur - donor_min, idx, g))
+                        
+                        if steal_candidates:
+                            steal_candidates.sort(reverse=True)
+                            for _, idx, gene in steal_candidates:
+                                if faculty_hours[under_fac] >= min_h: break
+                                # Single theory per class check
+                                class_facs = {g.faculty_id for g in chromosome.genes if g.class_id == gene.class_id and not g.is_lab and g.subject_id != gene.subject_id}
+                                if under_fac in class_facs: continue
+                                
+                                subject_genes = [g for g in chromosome.genes if g.class_id == gene.class_id and g.subject_id == gene.subject_id and not g.is_lab]
+                                subject_slots = [sg.time_slot_id for sg in subject_genes]
+                                
+                                if all(slot not in faculty_schedule[under_fac] for slot in subject_slots) and faculty_hours[under_fac] + len(subject_genes) <= max_h:
+                                    donor_f = gene.faculty_id
+                                    for sg in subject_genes:
+                                        sg.faculty_id = under_fac
+                                        faculty_schedule[donor_f].discard(sg.time_slot_id)
+                                        faculty_schedule[under_fac].add(sg.time_slot_id)
+                                        faculty_hours[donor_f] -= 1
+                                        faculty_hours[under_fac] += 1
+                                    fixed_any = True
+                                    break
+                            if fixed_any: break
+
             if not fixed_any:
-                break  # Can't fix any more
+                break
         
         return chromosome
 
-    def _repair_faculty_consecutive(self, chromosome: Chromosome) -> Chromosome:
-        """Repair consecutive faculty hours by moving to empty slots or swapping.
+    def _repair_faculty_consecutive(self, chromosome: Chromosome, max_passes: int = 3) -> Chromosome:
+        """Repair ALL consecutive faculty hours across multiple passes.
         
-        Attempts to move one of the back-to-back classes to a non-adjacent slot
-        within the same class to break up the sequence.
+        Rebuilds schedule data each pass and iterates over every faculty/day
+        combination, fixing all back-to-back violations found.
+        Use max_passes=3 for lightweight mode (GA loop), max_passes=30 for final pass.
         """
         teaching_slots = [s['id'] for s in self.time_slots]
         
-        # Group genes by faculty and day
-        faculty_day_periods = defaultdict(lambda: defaultdict(list))
-        class_used_slots = defaultdict(set)
-        
-        for idx, gene in enumerate(chromosome.genes):
-            slot = self.slot_by_id.get(gene.time_slot_id)
-            if slot:
-                faculty_day_periods[gene.faculty_id][slot['day']].append((slot['period'], idx, gene))
-                class_used_slots[gene.class_id].add(gene.time_slot_id)
-        
-        # For each faculty with back-to-back hours
-        for faculty_id, day_map in faculty_day_periods.items():
-            fixed = False
-            for day, period_list in day_map.items():
-                period_list.sort(key=lambda x: x[0])
-                for i in range(len(period_list) - 1):
-                    p1, idx1, g1 = period_list[i]
-                    p2, idx2, g2 = period_list[i + 1]
-                    
-                    # Back-to-back and NOT separated by lunch
-                    if p2 == p1 + 1 and not (p1 == 4 and p2 == 5):
-                        if g1.is_lab and g2.is_lab and g1.subject_id == g2.subject_id:
-                            continue
+        for pass_num in range(max_passes):
+            # Rebuild schedule data from scratch each pass
+            faculty_day_periods = defaultdict(lambda: defaultdict(list))
+            faculty_schedule = defaultdict(set)
+            class_used_slots = defaultdict(set)
+            
+            for idx, gene in enumerate(chromosome.genes):
+                slot = self.slot_by_id.get(gene.time_slot_id)
+                if slot:
+                    faculty_day_periods[gene.faculty_id][slot['day']].append((slot['period'], idx, gene))
+                    faculty_schedule[gene.faculty_id].add(gene.time_slot_id)
+                    class_used_slots[gene.class_id].add(gene.time_slot_id)
+            
+            # Count total violations this pass
+            total_fixed_this_pass = 0
+            
+            # Iterate over ALL faculty
+            for faculty_id, day_map in list(faculty_day_periods.items()):
+                for day, period_list in list(day_map.items()):
+                    period_list.sort(key=lambda x: x[0])
+                    for i in range(len(period_list) - 1):
+                        p1, idx1, g1 = period_list[i]
+                        p2, idx2, g2 = period_list[i + 1]
                         
-                        # Try to move one of the genes (g1 or g2)
-                        for move_idx, move_gene in [(idx2, g2), (idx1, g1)]:
-                            class_id = move_gene.class_id
+                        # Back-to-back and NOT separated by lunch
+                        if p2 == p1 + 1 and not (p1 == 4 and p2 == 5):
+                            if g1.is_lab and g2.is_lab and g1.subject_id == g2.subject_id:
+                                continue
                             
-                            # Option 1: Move to an EMPTY slot in the same class
-                            empty_slots = [s for s in teaching_slots if s not in class_used_slots[class_id]]
-                            random.shuffle(empty_slots)
-                            
-                            for target_slot_id in empty_slots:
-                                target_slot = self.slot_by_id.get(target_slot_id)
-                                tp = target_slot['period']
-                                td = target_slot['day']
+                            fixed_this_pair = False
+                            # Try to move one of the genes (g2 first, then g1)
+                            for move_idx, move_gene in [(idx2, g2), (idx1, g1)]:
+                                if move_gene.is_lab or move_gene.is_remedial:
+                                    continue
+                                class_id = move_gene.class_id
+                                fac_slots = set(faculty_schedule[faculty_id])
+                                # Remove the gene we're about to move from fac_slots for safety check
+                                fac_slots_without_self = fac_slots - {move_gene.time_slot_id}
+                                empty_slots = [s for s in teaching_slots if s not in class_used_slots[class_id]]
                                 
-                                # Would this new slot be consecutive for this faculty on THAT day?
-                                # Check periods on the target day for this faculty (excluding the gene we are moving)
-                                target_day_periods = [p for p, p_idx, _ in day_map.get(td, []) if p_idx != move_idx]
-                                is_target_consec = any((op == tp - 1 or op == tp + 1) and not ((op == 4 and tp == 5) or (op == 5 and tp == 4))
-                                                       for op in target_day_periods)
-                                
-                                if not is_target_consec:
-                                    # Perfect! Move there.
+                                def _is_safe_for_move(slot_id):
+                                    if slot_id in fac_slots:
+                                        return False
+                                    sl = self.slot_by_id.get(slot_id)
+                                    if not sl:
+                                        return False
+                                    p, d = sl['period'], sl['day']
+                                    for ap in (p-1, p+1):
+                                        if (p == 4 and ap == 5) or (p == 5 and ap == 4):
+                                            continue
+                                        aslot = self.slot_id_by_day_period.get((d, ap))
+                                        if aslot and aslot in fac_slots_without_self:
+                                            return False
+                                    return True
+
+                                safe_empty = [s for s in empty_slots if _is_safe_for_move(s)]
+                                if safe_empty:
+                                    target_slot_id = random.choice(safe_empty)
                                     old_slot_id = chromosome.genes[move_idx].time_slot_id
                                     chromosome.genes[move_idx].time_slot_id = target_slot_id
                                     class_used_slots[class_id].discard(old_slot_id)
                                     class_used_slots[class_id].add(target_slot_id)
-                                    fixed = True
+                                    faculty_schedule[faculty_id].discard(old_slot_id)
+                                    faculty_schedule[faculty_id].add(target_slot_id)
+                                    fixed_this_pair = True
+                                    total_fixed_this_pass += 1
+                                    break  # fixed this pair, move to next pair
+                                
+                                # Option 2: Swap with another gene in the same class that won't cause new consecutive
+                                other_genes = [(j, gen) for j, gen in enumerate(chromosome.genes) 
+                                              if gen.class_id == class_id and j != move_idx and not gen.is_lab]
+                                random.shuffle(other_genes)
+                                
+                                for target_idx, target_gene in other_genes:
+                                    t_slot = self.slot_by_id.get(target_gene.time_slot_id)
+                                    if not t_slot:
+                                        continue
+                                    tp = t_slot['period']
+                                    td = t_slot['day']
+                                    
+                                    # Would move_gene's faculty have consecutive at target?
+                                    target_fac_periods = [pp for pp, _, _ in faculty_day_periods[faculty_id].get(td, []) if pp != p1 and pp != p2]
+                                    is_target_consec = any(
+                                        (op == tp - 1 or op == tp + 1) and not ((op == 4 and tp == 5) or (op == 5 and tp == 4))
+                                        for op in target_fac_periods
+                                    )
+                                    
+                                    if not is_target_consec:
+                                        # Also check target_gene's faculty won't get consecutive at old slot
+                                        old_slot = self.slot_by_id.get(move_gene.time_slot_id)
+                                        old_p, old_d = old_slot['period'], old_slot['day']
+                                        tgt_fac_periods = [pp for pp, _, _ in faculty_day_periods[target_gene.faculty_id].get(old_d, []) if pp != tp]
+                                        tgt_would_consec = any(
+                                            (op == old_p - 1 or op == old_p + 1) and not ((op == 4 and old_p == 5) or (op == 5 and old_p == 4))
+                                            for op in tgt_fac_periods
+                                        )
+                                        
+                                        # Check no clash for target faculty at old slot
+                                        old_slot_genes = [j for j, gj in enumerate(chromosome.genes)
+                                                         if gj.time_slot_id == move_gene.time_slot_id and j != move_idx]
+                                        tgt_clash = any(chromosome.genes[j].faculty_id == target_gene.faculty_id for j in old_slot_genes)
+                                        
+                                        if not tgt_would_consec and not tgt_clash:
+                                            chromosome.genes[move_idx].time_slot_id, chromosome.genes[target_idx].time_slot_id = \
+                                                chromosome.genes[target_idx].time_slot_id, chromosome.genes[move_idx].time_slot_id
+                                            fixed_this_pair = True
+                                            total_fixed_this_pass += 1
+                                            break
+                                
+                                if fixed_this_pair:
                                     break
-                            
-                            if fixed: break
-                            
-                            # Option 2: Swap with another gene in the same class
-                            other_genes = [(j, gen) for j, gen in enumerate(chromosome.genes) 
-                                          if gen.class_id == class_id and j != move_idx]
-                            random.shuffle(other_genes)
-                            
-                            for target_idx, target_gene in other_genes:
-                                target_slot = self.slot_by_id.get(target_gene.time_slot_id)
-                                tp = target_slot['period']
-                                td = target_slot['day']
                                 
-                                target_day_periods = [p for p, p_idx, _ in day_map.get(td, []) if p_idx != move_idx]
-                                is_target_consec = any((op == tp - 1 or op == tp + 1) and not ((op == 4 and tp == 5) or (op == 5 and tp == 4))
-                                                       for op in target_day_periods)
-                                
-                                if not is_target_consec:
-                                    # Swap!
+                                # Option 3: GLOBAL SWAP
+                                all_indices = list(range(len(chromosome.genes)))
+                                random.shuffle(all_indices)
+                                for target_idx in all_indices[:200]:  # Limit search to avoid long runtime
+                                    g_target = chromosome.genes[target_idx]
+                                    if g_target.is_lab or self._is_remedial_gene(g_target) or target_idx == move_idx:
+                                        continue
+                                    
+                                    t_slot_id = g_target.time_slot_id
+                                    t_slot = self.slot_by_id.get(t_slot_id)
+                                    if not t_slot:
+                                        continue
+                                    td, tp = t_slot['day'], t_slot['period']
+                                    
+                                    # Check move_gene faculty free at target slot
+                                    genes_at_target = [j for j, gj in enumerate(chromosome.genes)
+                                                      if gj.time_slot_id == t_slot_id and j != target_idx]
+                                    if any(chromosome.genes[j].faculty_id == move_gene.faculty_id for j in genes_at_target):
+                                        continue
+                                    
+                                    # Check move_gene faculty won't have consecutive at target
+                                    fac_periods_on_td = [pp for pp, _, _ in faculty_day_periods[faculty_id].get(td, []) if pp != p1 and pp != p2]
+                                    if any((op == tp - 1 or op == tp + 1) and not ((op == 4 and tp == 5) or (op == 5 and tp == 4))
+                                           for op in fac_periods_on_td):
+                                        continue
+                                    
+                                    # Check g_target faculty free at old slot
+                                    genes_at_old = [j for j, gj in enumerate(chromosome.genes)
+                                                   if gj.time_slot_id == move_gene.time_slot_id and j != move_idx]
+                                    if any(chromosome.genes[j].faculty_id == g_target.faculty_id for j in genes_at_old):
+                                        continue
+                                        
+                                    # All checks passed! Global Swap.
                                     chromosome.genes[move_idx].time_slot_id, chromosome.genes[target_idx].time_slot_id = \
                                         chromosome.genes[target_idx].time_slot_id, chromosome.genes[move_idx].time_slot_id
-                                    fixed = True
+                                    fixed_this_pair = True
+                                    total_fixed_this_pass += 1
+                                    break
+                                
+                                if fixed_this_pair:
                                     break
                             
-                            if fixed: break
-                        
-                        if fixed:
-                            # Data is now stale for this day/faculty
-                            break 
-                if fixed: break
-            if fixed: break
+                            if fixed_this_pair:
+                                # Data stale for this day, break to next pass
+                                break
+                    # Don't break out of faculty loop - continue to next day/faculty
+            
+            if total_fixed_this_pass == 0:
+                break  # No more violations found or fixable
 
         return chromosome
 
     def _repair_multi_theory(self, chromosome: Chromosome) -> Chromosome:
         """Repair cases where a faculty is assigned 2+ theory subjects in one class.
         
-        When reassigning faculty, checks the faculty schedule to avoid
-        introducing new clashes.
+        Restarts from scratch after each successful reassignment so that the
+        indexes are always fresh and we never introduce new clashes.
         """
-        # (faculty_id, class_id) -> subject_id -> list of gene indices
-        faculty_class_subjects = defaultdict(lambda: defaultdict(list))
-        # (class_id) -> set of faculty teaching THEORY in that class
-        class_theory_faculty = defaultdict(set)
+        max_outer_restarts = 15
         
-        # Build faculty schedule for clash-awareness
-        faculty_schedule = defaultdict(set)  # faculty_id -> set of time_slot_ids
-        for idx, gene in enumerate(chromosome.genes):
-            faculty_schedule[gene.faculty_id].add(gene.time_slot_id)
-            if not gene.is_lab:
-                faculty_class_subjects[(gene.faculty_id, gene.class_id)][gene.subject_id].append(idx)
-                class_theory_faculty[gene.class_id].add(gene.faculty_id)
-        
-        for (faculty_id, class_id), subject_map in faculty_class_subjects.items():
-            if len(subject_map) > 1:
+        for _ in range(max_outer_restarts):
+            # (faculty_id, class_id) -> subject_id -> list of gene indices
+            faculty_class_subjects = defaultdict(lambda: defaultdict(list))
+            # (class_id) -> set of faculty teaching THEORY in that class
+            class_theory_faculty = defaultdict(set)
+            # Build faculty schedule for clash-awareness
+            faculty_schedule = defaultdict(set)  # faculty_id -> set of time_slot_ids
+            for idx, gene in enumerate(chromosome.genes):
+                faculty_schedule[gene.faculty_id].add(gene.time_slot_id)
+                if not gene.is_lab:
+                    faculty_class_subjects[(gene.faculty_id, gene.class_id)][gene.subject_id].append(idx)
+                    class_theory_faculty[gene.class_id].add(gene.faculty_id)
+            
+            fixed_this_pass = False
+            for (faculty_id, class_id), subject_map in faculty_class_subjects.items():
+                if len(subject_map) <= 1:
+                    continue
+                
                 # Keep one subject, move the others
                 subjects = list(subject_map.keys())
                 random.shuffle(subjects)
@@ -1667,8 +1911,8 @@ class GeneticAlgorithm:
                     for idx in gene_indices:
                         subject_slots.add(chromosome.genes[idx].time_slot_id)
                     
-                    # Alternatives: eligible (preference-matched), NOT already teaching
-                    # THEORY in this class, AND free at ALL time slots used by this subject
+                    # Alternatives: preference-matched, NOT already teaching THEORY
+                    # in this class, AND free at ALL time slots used by this subject
                     alternatives = [
                         f for f in eligible
                         if f not in class_theory_faculty[class_id]
@@ -1676,11 +1920,11 @@ class GeneticAlgorithm:
                     ]
                     
                     if not alternatives:
-                        # Fallback 1: eligible but allow clash-risk (still respects class constraint)
+                        # Fallback 1: eligible but allow clash-risk
                         alternatives = [f for f in eligible if f not in class_theory_faculty[class_id]]
                     
                     if not alternatives:
-                        # Fallback 2: dept faculty WITHOUT preferences set, not in this class
+                        # Fallback 2: dept faculty WITHOUT preferences, not in this class
                         alternatives = [
                             f_id for f_id in self.dept_faculty_ids
                             if f_id not in class_theory_faculty[class_id]
@@ -1697,15 +1941,42 @@ class GeneticAlgorithm:
                         # Reassign all genes for this subject in this class
                         for idx in gene_indices:
                             old_slot = chromosome.genes[idx].time_slot_id
-                            # Update schedule tracking
                             faculty_schedule[faculty_id].discard(old_slot)
                             faculty_schedule[new_fac].add(old_slot)
                             chromosome.genes[idx].faculty_id = new_fac
-                        # Update class_theory_faculty for subsequent repairs in this loop
-                        class_theory_faculty[class_id].add(new_fac)
+                        fixed_this_pass = True
+                        break  # Restart outer loop with fresh indexes
+                
+                if fixed_this_pass:
+                    break
+            
+            if not fixed_this_pass:
+                break  # No more violations found
         
         return chromosome
-    
+
+    def _unify_subject_teachers(self, chromosome: Chromosome) -> Chromosome:
+        """Ensure every subject-class pair has exactly one primary teacher.
+        If a subject is split between multiple teachers, resolve it by
+        picking the most frequent teacher or a random eligible one.
+        """
+        subject_assignments = defaultdict(lambda: defaultdict(list))
+        for i, g in enumerate(chromosome.genes):
+            # Apply to ALL subjects per class (Theory, Remedial, etc.)
+            # Labs usually have their own dedicated consolidation but let's be safe
+            subject_assignments[g.class_id][g.subject_id].append(i)
+        
+        for class_id, subjects in subject_assignments.items():
+            for subject_id, gene_indices in subjects.items():
+                teachers = [chromosome.genes[i].faculty_id for i in gene_indices]
+                if len(set(teachers)) > 1:
+                    # Resolve split: pick the teacher assigned to the most hours
+                    best_teacher = max(set(teachers), key=teachers.count)
+                    for i in gene_indices:
+                        chromosome.genes[i].faculty_id = best_teacher
+                        
+        return chromosome
+
     def tournament_selection(self, population: List[Chromosome]) -> Chromosome:
         """Select a chromosome using tournament selection"""
         tournament = random.sample(population, min(self.tournament_size, len(population)))
@@ -1775,45 +2046,76 @@ class GeneticAlgorithm:
                     gene1.time_slot_id, gene2.time_slot_id = gene2.time_slot_id, gene1.time_slot_id
         
         elif mutation_type == 'change_faculty':
-            # Change faculty for a random non-remedial gene
-            non_remedial = [g for g in mutated.genes if not self._is_remedial_gene(g)]
-            if not non_remedial:
+            # Change faculty for a random non-remedial subject (all its hours in the class)
+            subjects_in_genes = list(set((g.class_id, g.subject_id, g.is_lab) for g in mutated.genes if not self._is_remedial_gene(g)))
+            if not subjects_in_genes:
                 return mutated
-            gene = random.choice(non_remedial)
-            eligible = self._get_eligible_faculty_for_subject(gene.subject_id)
-            if eligible:
-                # Build faculty schedule to avoid clashes
-                faculty_schedule = defaultdict(set)
-                for g in mutated.genes:
+            
+            c_id, s_id, is_l = random.choice(subjects_in_genes)
+            eligible = self._get_eligible_faculty_for_subject(s_id)
+            if not eligible:
+                return mutated
+            
+            # Find all slots where this subject appears in this class
+            subject_slots = [g.time_slot_id for g in mutated.genes 
+                             if g.class_id == c_id and g.subject_id == s_id and g.is_lab == is_l]
+            
+            # Build faculty schedules to find a clash-free teacher for ALL slots
+            faculty_schedule = defaultdict(set)
+            for g in mutated.genes:
+                # Exclude this subject's current slots from the current teacher's schedule
+                if not (g.class_id == c_id and g.subject_id == s_id and g.is_lab == is_l):
                     faculty_schedule[g.faculty_id].add(g.time_slot_id)
                     if g.assistant_faculty_id:
                         faculty_schedule[g.assistant_faculty_id].add(g.time_slot_id)
-                
-                if gene.is_lab:
-                    # Get all time slots for this lab subject+class
-                    lab_slots = set()
-                    for g in mutated.genes:
-                        if g.class_id == gene.class_id and g.subject_id == gene.subject_id and g.is_lab:
-                            lab_slots.add(g.time_slot_id)
-                    # Pick faculty free at ALL lab slots
-                    clash_free = [f for f in eligible
-                                  if not (faculty_schedule.get(f, set()) & lab_slots)
-                                  or f == gene.faculty_id]
-                    new_faculty = random.choice(clash_free) if clash_free else random.choice(eligible)
-                    for g in mutated.genes:
-                        if g.class_id == gene.class_id and g.subject_id == gene.subject_id and g.is_lab:
-                            g.faculty_id = new_faculty
-                else:
-                    # Pick faculty free at this gene's time slot
-                    clash_free = [f for f in eligible
-                                  if gene.time_slot_id not in faculty_schedule.get(f, set())
-                                  or f == gene.faculty_id]
-                    new_faculty = random.choice(clash_free) if clash_free else random.choice(eligible)
-                    gene.faculty_id = new_faculty
+            
+            clash_free = [f for f in eligible
+                          if not (faculty_schedule.get(f, set()) & set(subject_slots))]
+            
+            if clash_free:
+                new_faculty = random.choice(clash_free)
+                # Update ALL hours for this subject
+                for g in mutated.genes:
+                    if g.class_id == c_id and g.subject_id == s_id and g.is_lab == is_l:
+                        g.faculty_id = new_faculty
         
         elif mutation_type == 'swap_subjects':
-            # Swap faculty between two genes at the same time slot (different classes)
-            # Only swap if it doesn't create new clashes
+            # Swap faculty assignments between two DIFFERENT subjects in the SAME class
+            # (Maintains one-teacher-per-subject and preserves class slot structure)
+            class_ids = list(set(g.class_id for g in mutated.genes))
+            random.shuffle(class_ids)
+            
+            for c_id in class_ids:
+                class_subjects = list(set((g.subject_id, g.is_lab, g.faculty_id) for g in mutated.genes if g.class_id == c_id))
+                if len(class_subjects) < 2:
+                    continue
+                
+                s1_info, s2_info = random.sample(class_subjects, 2)
+                id1, lab1, fac1 = s1_info
+                id2, lab2, fac2 = s2_info
+                
+                # Check if fac1 can teach id2 and fac2 can teach id1
+                if fac1 in self._get_eligible_faculty_for_subject(id2) and fac2 in self._get_eligible_faculty_for_subject(id1):
+                    # Check for clashes in their schedules across all classes
+                    faculty_schedule = defaultdict(set)
+                    for g in mutated.genes:
+                        if g.class_id != c_id:
+                            faculty_schedule[g.faculty_id].add(g.time_slot_id)
+                            if g.assistant_faculty_id:
+                                faculty_schedule[g.assistant_faculty_id].add(g.time_slot_id)
+                    
+                    slots1 = [g.time_slot_id for g in mutated.genes if g.class_id == c_id and g.subject_id == id1]
+                    slots2 = [g.time_slot_id for g in mutated.genes if g.class_id == c_id and g.subject_id == id2]
+                    
+                    if not (faculty_schedule.get(fac2, set()) & set(slots1)) and not (faculty_schedule.get(fac1, set()) & set(slots2)):
+                        # Swap teachers for ALL hours of these subjects in this class
+                        for g in mutated.genes:
+                            if g.class_id == c_id:
+                                if g.subject_id == id1:
+                                    g.faculty_id = fac2
+                                elif g.subject_id == id2:
+                                    g.faculty_id = fac1
+                        break
             gene1 = random.choice(mutated.genes)
             same_slot_genes = [g for g in mutated.genes 
                               if g.time_slot_id == gene1.time_slot_id and g.class_id != gene1.class_id]
@@ -1879,80 +2181,124 @@ class GeneticAlgorithm:
         Returns:
             Tuple of (best_chromosome, fitness_history)
         """
-        # Initialize population
+        # Initialize and evaluate initial population
         population = self.initialize_population()
-        
-        # Evaluate initial fitness
         for chromosome in population:
             self.calculate_fitness(chromosome)
         
         fitness_history = []
         best_ever = max(population, key=lambda c: c.fitness)
+        stagnation_counter = 0
         
-        for generation in range(self.generations):
-            # Sort by fitness
-            population.sort(key=lambda c: c.fitness, reverse=True)
-            
-            # Track best
-            current_best = population[0]
-            if current_best.fitness > best_ever.fitness:
-                best_ever = current_best.copy()
-            
-            fitness_history.append(current_best.fitness)
-            
-            if callback:
-                callback(generation, current_best.fitness)
-            
-            # Early termination if fitness is good enough
-            if current_best.fitness >= 0:
-                break
-            
-            # Create new population
-            new_population = []
-            
-            # Elitism - keep best chromosomes
-            for i in range(self.elite_count):
-                new_population.append(population[i].copy())
-            
-            # Generate rest through selection, crossover, mutation
-            while len(new_population) < self.population_size:
-                parent1 = self.tournament_selection(population)
-                parent2 = self.tournament_selection(population)
+        # Parallel generation setup
+        max_workers = max(1, multiprocessing.cpu_count() - 1)
+        with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+            for generation in range(self.generations):
+                # Sort population by fitness
+                population.sort(key=lambda c: c.fitness, reverse=True)
                 
-                child1, child2 = self.crossover(parent1, parent2)
+                # Track best chromosome
+                current_best = population[0]
+                if current_best.fitness > best_ever.fitness:
+                    best_ever = current_best.copy()
+                    stagnation_counter = 0
+                else:
+                    stagnation_counter += 1
                 
-                child1 = self.mutate(child1)
-                child2 = self.mutate(child2)
+                fitness_history.append(current_best.fitness)
                 
-                # Repair broken lab blocks, remedial slots, faculty clashes, and workload
-                child1 = self._repair_labs(child1)
-                child2 = self._repair_labs(child2)
-                child1 = self._repair_remedial(child1)
-                child2 = self._repair_remedial(child2)
-                child1 = self._repair_faculty_clashes(child1)
-                child2 = self._repair_faculty_clashes(child2)
-                child1 = self._repair_workload(child1)
-                child2 = self._repair_workload(child2)
-                child1 = self._repair_faculty_consecutive(child1)
-                child2 = self._repair_faculty_consecutive(child2)
-                child1 = self._repair_multi_theory(child1)
-                child2 = self._repair_multi_theory(child2)
+                if callback:
+                    callback(generation, current_best.fitness)
                 
-                # Run faculty clash repair AGAIN after multi-theory repair,
-                # since multi-theory reassignment can introduce new clashes
-                child1 = self._repair_faculty_clashes(child1)
-                child2 = self._repair_faculty_clashes(child2)
+                # Termination conditions
+                if current_best.fitness >= 0 or stagnation_counter >= 50:
+                    break
                 
-                self.calculate_fitness(child1)
-                self.calculate_fitness(child2)
+                # Create next generation
+                new_population = []
                 
-                new_population.append(child1)
-                if len(new_population) < self.population_size:
-                    new_population.append(child2)
-            
-            population = new_population
+                # Elitism: keep the best performers
+                for i in range(min(len(population), self.elite_count)):
+                    new_population.append(population[i].copy())
+                
+                # Tiered Repair strategy: only full repairs every X generations
+                full_repair_gen = (generation % self.repair_frequency == 0) or (generation > self.generations - 10)
+                
+                # Batch parallel generation of children
+                while len(new_population) < self.population_size:
+                    needed = self.population_size - len(new_population)
+                    batch_size = (needed + 1) // 2
+                    
+                    # Pass a subset of high-performing parents to reduce pickling overhead
+                    mating_pool = population[:min(len(population), 20)]
+                    futures = [executor.submit(self._generate_child_pair, mating_pool, full_repair_gen) 
+                               for _ in range(batch_size)]
+                    
+                    for future in concurrent.futures.as_completed(futures):
+                        try:
+                            c1, c2 = future.result()
+                            if len(new_population) < self.population_size:
+                                new_population.append(c1)
+                            if len(new_population) < self.population_size:
+                                new_population.append(c2)
+                        except Exception as e:
+                            print(f"GA Worker Error: {e}")
+                            new_population.append(random.choice(population).copy())
+                
+                population = new_population
         
+        # Final multi-stage repair sequence (FULL MODE)
+        best_ever = self._unify_subject_teachers(best_ever)
+        best_ever = self._repair_faculty_clashes(best_ever, evolution_mode=False)
+        best_ever = self._repair_workload(best_ever, full_mode=True)
+        best_ever = self._repair_faculty_consecutive(best_ever, max_passes=30)
+        # Belt and suspenders: Final clash + workload check after breaking sequences
+        best_ever = self._repair_faculty_clashes(best_ever, evolution_mode=False)
+        best_ever = self._repair_workload(best_ever, full_mode=True)
+        # Final consecutive pass - since workload may have moved genes around
+        best_ever = self._repair_faculty_consecutive(best_ever, max_passes=30)
+        best_ever = self._repair_faculty_clashes(best_ever, evolution_mode=False)
+        best_ever = self._repair_remedial(best_ever)
+            
         return best_ever, fitness_history
+
+    def _generate_child_pair(self, population: List[Chromosome], full_repair: bool) -> Tuple[Chromosome, Chromosome]:
+        """Worker function for parallel child generation."""
+        parent1 = self.tournament_selection(population)
+        parent2 = self.tournament_selection(population)
+        
+        child1, child2 = self.crossover(parent1, parent2)
+        
+        child1 = self.mutate(child1)
+        child2 = self.mutate(child2)
+        
+        # Lazy Repairs
+        child1 = self._repair_labs(child1)
+        child2 = self._repair_labs(child2)
+        child1 = self._repair_remedial(child1)
+        child2 = self._repair_remedial(child2)
+        
+        # Heavy repairs - skip if not full_repair mode
+        if full_repair:
+            child1 = self._repair_faculty_clashes(child1, evolution_mode=True)
+            child2 = self._repair_faculty_clashes(child2, evolution_mode=True)
+            child1 = self._repair_workload(child1)
+            child2 = self._repair_workload(child2)
+            child1 = self._repair_faculty_consecutive(child1)
+            child2 = self._repair_faculty_consecutive(child2)
+            child1 = self._repair_multi_theory(child1)
+            child2 = self._repair_multi_theory(child2)
+            
+            child1 = self._unify_subject_teachers(child1)
+            child2 = self._unify_subject_teachers(child2)
+            
+            child1 = self._repair_faculty_clashes(child1, evolution_mode=True)
+            child2 = self._repair_faculty_clashes(child2, evolution_mode=True)
+
+        self.calculate_fitness(child1)
+        self.calculate_fitness(child2)
+        
+        return child1, child2
 
 
 
@@ -1999,17 +2345,25 @@ def generate_timetable(semester_id: int, semester_instance: str):
     
     faculties = list(Faculty.objects.filter(
         is_active=True
-    ).values('id', 'name', 'designation', 'preferences'))
+    ).values('id', 'name', 'designation', 'preferences', 'min_workload_hours', 'max_workload_hours'))
     
-    # Add min/max hours to faculty data based on designation
+    # Add min/max hours to faculty data based on designation or custom overrides
     for f in faculties:
-        limits = Faculty.WORKLOAD_LIMITS.get(f['designation'], (20, 20))
-        if isinstance(limits, tuple):
-            f['min_hours'] = limits[0]
-            f['max_hours'] = limits[1]
-        else:
-            f['min_hours'] = limits
-            f['max_hours'] = limits
+        # Check for custom overrides first
+        if f.get('min_workload_hours') is not None:
+            f['min_hours'] = f['min_workload_hours']
+        if f.get('max_workload_hours') is not None:
+            f['max_hours'] = f['max_workload_hours']
+            
+        # If either is still missing, fall back to designation defaults
+        if 'min_hours' not in f or 'max_hours' not in f:
+            limits = Faculty.WORKLOAD_LIMITS.get(f['designation'], (20, 20))
+            if isinstance(limits, tuple):
+                if 'min_hours' not in f: f['min_hours'] = limits[0]
+                if 'max_hours' not in f: f['max_hours'] = limits[1]
+            else:
+                if 'min_hours' not in f: f['min_hours'] = limits
+                if 'max_hours' not in f: f['max_hours'] = limits
     
     # VALIDATE TIME SLOTS - Only use teaching slots (not lunch)
     time_slots = list(TimeSlot.objects.filter(
@@ -2045,15 +2399,20 @@ def generate_timetable(semester_id: int, semester_instance: str):
     for assignment in assignments:
         faculty_history[assignment.faculty_id].append(assignment.subject.code)
     
-    # Initialize and run GA
+    # Initialize and run GA with increased capacity for better convergence
     ga = GeneticAlgorithm(
-        population_size=200,
-        generations=1000,
+        population_size=300,
+        generations=1500,
         crossover_rate=0.85,
-        mutation_rate=0.15,
-        elite_count=10,
-        tournament_size=7
+        mutation_rate=0.20,
+        elite_count=15,
+        tournament_size=8
     )
+    
+    # Build semester_number_map from semester_id
+    from core.models import Semester as SemModel
+    sem_obj = SemModel.objects.get(id=semester_id)
+    semester_number_map = {semester_id: sem_obj.number}
     
     ga.load_data(
         classes=classes,
@@ -2061,7 +2420,8 @@ def generate_timetable(semester_id: int, semester_instance: str):
         faculties=faculties,
         time_slots=time_slots,
         faculty_preferences=faculty_preferences,
-        faculty_history=dict(faculty_history)
+        faculty_history=dict(faculty_history),
+        semester_number_map=semester_number_map
     )
     
     best_solution, fitness_history = ga.evolve()
@@ -2082,6 +2442,7 @@ def generate_timetable(semester_id: int, semester_instance: str):
             time_slot_id=gene.time_slot_id,
             semester_instance=semester_instance,
             is_lab_session=gene.is_lab,
+            is_remedial=gene.is_remedial,
             assistant_faculty_id=gene.assistant_faculty_id
         )
         entries_created.append(entry)
@@ -2219,26 +2580,57 @@ def generate_department_timetable(department_id: int, semester_instance: str):
     ).exclude(
         department_id__isnull=True
     ).filter(cross_dept_conditions)
+
+    # ── Rule: BSH Faculty Force-Load ──────────────────────────────────
+    # If any subjects are BSH (MAT, PHT, HUN, etc.), load ALL BSH faculty
+    BSH_PREFIXES = ('PHT', 'HUN', 'MAT', 'CYT', 'PHL', 'CYL', 'EST', 'MNC', 'HUT')
+    has_bsh_subjects = any(s['code'].startswith(BSH_PREFIXES) for s in subjects)
     
-    # Combine both querysets (union removes duplicates)
-    combined_qs = (dept_faculty_qs | cross_dept_faculty_qs).distinct()
-    faculties = list(combined_qs.values('id', 'name', 'designation', 'preferences', 'department_id'))
+    # Collect all faculty IDs to load
+    faculty_ids = set(dept_faculty_qs.values_list('id', flat=True))
+    faculty_ids.update(cross_dept_faculty_qs.values_list('id', flat=True))
+    
+    if has_bsh_subjects:
+        bsh_dept = Department.objects.filter(code='BSH').first()
+        if bsh_dept:
+            bsh_faculty_ids = Faculty.objects.filter(department=bsh_dept, is_active=True).values_list('id', flat=True)
+            faculty_ids.update(bsh_faculty_ids)
+    
+    # Fetch final faculty data in one clean query
+    faculties = list(Faculty.objects.filter(
+        id__in=faculty_ids
+    ).values(
+        'id', 'name', 'designation', 'preferences', 'department_id', 
+        'min_workload_hours', 'max_workload_hours', 'department__code'
+    ))
+    
+    # Map department__code to department_code for consistency
+    for f in faculties:
+        f['department_code'] = f.pop('department__code', None)
     
     if not faculties:
         # Fallback to all active faculty
         faculties = list(Faculty.objects.filter(
             is_active=True
-        ).values('id', 'name', 'designation', 'preferences', 'department_id'))
+        ).values('id', 'name', 'designation', 'preferences', 'department_id', 'department__code', 'min_workload_hours', 'max_workload_hours'))
     
-    # Add min/max hours to faculty data based on designation
+    # Add min/max hours to faculty data based on designation or custom overrides
     for f in faculties:
-        limits = Faculty.WORKLOAD_LIMITS.get(f['designation'], (20, 20))
-        if isinstance(limits, tuple):
-            f['min_hours'] = limits[0]
-            f['max_hours'] = limits[1]
-        else:
-            f['min_hours'] = limits
-            f['max_hours'] = limits
+        # Check for custom overrides first
+        if f.get('min_workload_hours') is not None:
+            f['min_hours'] = f['min_workload_hours']
+        if f.get('max_workload_hours') is not None:
+            f['max_hours'] = f['max_workload_hours']
+            
+        # If either is still missing, fall back to designation defaults
+        if 'min_hours' not in f or 'max_hours' not in f:
+            limits = Faculty.WORKLOAD_LIMITS.get(f['designation'], (20, 20))
+            if isinstance(limits, tuple):
+                if 'min_hours' not in f: f['min_hours'] = limits[0]
+                if 'max_hours' not in f: f['max_hours'] = limits[1]
+            else:
+                if 'min_hours' not in f: f['min_hours'] = limits
+                if 'max_hours' not in f: f['max_hours'] = limits
     
     # VALIDATE TIME SLOTS - Only use teaching slots (not lunch)
     time_slots = list(TimeSlot.objects.filter(
@@ -2320,6 +2712,9 @@ def generate_department_timetable(department_id: int, semester_instance: str):
         tournament_size=7
     )
     
+    # Build semester_number_map: semester_id -> semester_number
+    semester_number_map = {s.id: s.number for s in semesters}
+    
     ga.load_data(
         classes=classes,
         subjects=subjects,
@@ -2328,7 +2723,8 @@ def generate_department_timetable(department_id: int, semester_instance: str):
         faculty_preferences=faculty_preferences,
         faculty_history=dict(faculty_history),
         pre_booked_slots=dict(pre_booked_slots),
-        department_id=department_id
+        department_id=department_id,
+        semester_number_map=semester_number_map
     )
     
     best_solution, fitness_history = ga.evolve()
@@ -2337,6 +2733,12 @@ def generate_department_timetable(department_id: int, semester_instance: str):
     TimetableEntry.objects.filter(
         class_section__semester_id__in=semester_ids,
         semester_instance=semester_instance
+    ).delete()
+    
+    # Also clear FacultySubjectAssignment for this instance and these classes
+    FacultySubjectAssignment.objects.filter(
+        semester_instance=semester_instance,
+        class_section_id__in=[c['id'] for c in classes]
     ).delete()
     
     # Save solution to database and build structured response
@@ -2357,6 +2759,7 @@ def generate_department_timetable(department_id: int, semester_instance: str):
             time_slot_id=gene.time_slot_id,
             semester_instance=semester_instance,
             is_lab_session=gene.is_lab,
+            is_remedial=gene.is_remedial,
             assistant_faculty_id=gene.assistant_faculty_id
         )
         entries_created.append(entry)
@@ -2403,6 +2806,35 @@ def generate_department_timetable(department_id: int, semester_instance: str):
     # Scan saved entries and fix any faculty clashes that the GA missed.
     # This guarantees the final timetable is always clash-free.
     from django.db.models import Count as _Count
+
+    # Helper: find an eligible faculty for a subject, respecting strict
+    # preference matching and departmental lock, excluding booked faculty.
+    def _find_preferred_faculty(subj_code, dept_id, exclude_ids):
+        """Find a faculty who can teach this subject, not in exclude_ids.
+        Rule 1: Faculty whose comma-separated preferences include the exact code.
+        Rule 2: Same-department generalist (no preferences set).
+        Rule 3: Same-department faculty (has preferences for other subjects).
+        Returns Faculty instance or None."""
+        # Rule 1: Exact preference match
+        for fac in Faculty.objects.filter(is_active=True).exclude(id__in=exclude_ids):
+            if fac.preferences:
+                pref_codes = [p.strip() for p in fac.preferences.split(',')]
+                if subj_code in pref_codes:
+                    return fac
+        # Rule 2: Same-department generalist (no preferences)
+        from django.db.models import Q as _Q
+        fac = Faculty.objects.filter(
+            is_active=True, department_id=dept_id
+        ).filter(
+            _Q(preferences__isnull=True) | _Q(preferences='')
+        ).exclude(id__in=exclude_ids).first()
+        if fac:
+            return fac
+        # Rule 3: Any same-department faculty
+        fac = Faculty.objects.filter(
+            is_active=True, department_id=dept_id
+        ).exclude(id__in=exclude_ids).first()
+        return fac
     clash_iter = 0
     while clash_iter < 20:  # Safety cap: at most 20 repair rounds
         clash_groups = (
@@ -2416,53 +2848,78 @@ def generate_department_timetable(department_id: int, semester_instance: str):
         if not clash_groups.exists():
             break
         clash_iter += 1
+        
+        # Track slots used in this iteration to avoid moving two entries to same slot
+        moved_to_this_round = defaultdict(set) # class_id -> set(slot_ids)
+
         for cg in clash_groups:
             clashing = list(
                 TimetableEntry.objects.filter(
                     faculty_id=cg['faculty_id'],
                     time_slot_id=cg['time_slot_id'],
-                    class_section__semester_id__in=semester_ids,
                     semester_instance=semester_instance
                 ).select_related('subject', 'class_section__semester__department')
             )
-            # Keep the first entry as-is; fix the rest
+            # Find which faculties are booked at this slot (including entries from other depts)
             booked_at_slot = set(
                 TimetableEntry.objects.filter(
                     semester_instance=semester_instance,
                     time_slot_id=cg['time_slot_id']
                 ).values_list('faculty_id', flat=True)
             )
+            
+            # Keep the first entry; try to fix others
             for fix_e in clashing[1:]:
                 subj_code = fix_e.subject.code
                 dept_id = fix_e.class_section.semester.department_id
-                subj_dept_id = getattr(fix_e.subject, 'department_id', dept_id)
-                # 1. Faculty whose preferences explicitly include this subject AND free at this slot
-                new_fac = (Faculty.objects.filter(
-                    is_active=True, preferences__contains=subj_code
-                ).exclude(id__in=booked_at_slot).first())
-                # 2. Same-dept faculty with NO preferences (they teach dept-core subjects freely)
-                #    Only valid if subject belongs to their dept
-                if not new_fac and subj_dept_id == dept_id:
-                    new_fac = (Faculty.objects.filter(
-                        is_active=True, department_id=dept_id,
-                        preferences__isnull=True
-                    ).exclude(id__in=booked_at_slot).first())
-                    if not new_fac:
-                        # preferences=[] also means no preferences in some setups
-                        new_fac = (Faculty.objects.filter(
-                            is_active=True, department_id=dept_id,
-                            preferences__exact=[]
-                        ).exclude(id__in=booked_at_slot).first())
-                # 3. Absolute last resort: any free preferred-eligible faculty
-                if not new_fac:
-                    new_fac = (Faculty.objects.filter(
-                        is_active=True, preferences__contains=subj_code
-                    ).exclude(id__in=booked_at_slot).first())
+                
+                # PROTECT RMH: If it's a REMEDIAL entry, WE CANNOT MOVE IT.
+                # It must stay in its synchronized slot. We only change faculty.
+                is_remedial = getattr(fix_e, 'is_remedial', False)
+                if is_remedial:
+                    new_fac = _find_preferred_faculty(subj_code, dept_id, booked_at_slot)
+                    if new_fac:
+                        fix_e.faculty = new_fac
+                        fix_e.save()
+                        booked_at_slot.add(new_fac.id)
+                        print(f"  [RMH-ClashFix] Entry {fix_e.id} faculty changed to {new_fac.name}")
+                    continue # RMH entry must stay in this slot
+                
+                # For non-remedial: first try changing faculty
+                new_fac = _find_preferred_faculty(subj_code, dept_id, booked_at_slot)
                 if new_fac:
                     fix_e.faculty = new_fac
                     fix_e.save()
                     booked_at_slot.add(new_fac.id)
                     print(f"  [ClashFix] Entry {fix_e.id} -> {new_fac.name}")
+                else:
+                    # Move to a different time slot
+                    orig_fac_id = fix_e.faculty_id
+                    cls_id = fix_e.class_section_id
+                    
+                    booked_by_fac = set(TimetableEntry.objects.filter(
+                        faculty_id=orig_fac_id, semester_instance=semester_instance
+                    ).values_list('time_slot_id', flat=True))
+                    
+                    booked_by_class = set(TimetableEntry.objects.filter(
+                        class_section_id=cls_id, semester_instance=semester_instance
+                    ).values_list('time_slot_id', flat=True))
+                    
+                    # Prevent moving two entries to the same empty slot in one iteration
+                    booked_by_class.update(moved_to_this_round[cls_id])
+
+                    from core.models import TimeSlot as _TS
+                    all_slot_ids = set(_TS.objects.filter(
+                        slot_type__in=['MORNING', 'AFTERNOON']
+                    ).values_list('id', flat=True))
+                    
+                    free_slots = all_slot_ids - booked_by_fac - booked_by_class
+                    if free_slots:
+                        new_slot_id = sorted(list(free_slots))[0] 
+                        fix_e.time_slot_id = new_slot_id
+                        fix_e.save()
+                        moved_to_this_round[cls_id].add(new_slot_id)
+                        print(f"  [ClashFix-Move] Entry {fix_e.id} moved to slot {new_slot_id}")
     if clash_iter > 0:
         print(f"  Post-save clash correction: {clash_iter} round(s)")
 
@@ -2474,6 +2931,7 @@ def generate_department_timetable(department_id: int, semester_instance: str):
         .filter(class_section__semester_id__in=semester_ids,
                 semester_instance=semester_instance,
                 is_lab_session=False)
+        .exclude(subject__subject_type='RMH')  # RMH handled separately
         .values('class_section_id', 'subject_id', 'faculty_id')
         .distinct()
     )
@@ -2487,28 +2945,273 @@ def generate_department_timetable(department_id: int, semester_instance: str):
     for (cls_id, subj_id), fac_set in cs_faculty_map.items():
         if len(fac_set) <= 1:
             continue
-        # Pick the faculty with the most entries as the "winner"
-        fac_counts = {}
+
+        # Collect per-faculty entries: fac_id -> [(entry_id, time_slot_id)]
+        fac_entries = {}
         for f in fac_set:
-            fac_counts[f] = TimetableEntry.objects.filter(
+            rows = list(TimetableEntry.objects.filter(
                 class_section_id=cls_id, subject_id=subj_id,
                 faculty_id=f, semester_instance=semester_instance,
                 is_lab_session=False
-            ).count()
-        winner = max(fac_counts, key=fac_counts.get)
-        # Reassign all minority entries to the winner
+            ).values_list('id', 'time_slot_id'))
+            fac_entries[f] = rows
+
+        # Pick winner: most entries, but prefer one that is clash-free
+        # at all slots occupied by the minority faculty.
+        sorted_cands = sorted(fac_set, key=lambda f: len(fac_entries[f]), reverse=True)
+        winner = sorted_cands[0]  # default
+        for candidate in sorted_cands:
+            # Slots this candidate is already booked (outside this subject+class)
+            cand_busy = set(TimetableEntry.objects.filter(
+                faculty_id=candidate, semester_instance=semester_instance
+            ).exclude(
+                class_section_id=cls_id, subject_id=subj_id, is_lab_session=False
+            ).values_list('time_slot_id', flat=True))
+            # Slots held by all OTHER faculty for this subject+class
+            others_slots = set()
+            for f, rows in fac_entries.items():
+                if f != candidate:
+                    others_slots.update(s for _, s in rows)
+            if not (cand_busy & others_slots):
+                winner = candidate
+                break  # clash-free winner found
+
+        # Reassign minority entries slot-by-slot, skipping clashes
+        winner_busy = set(TimetableEntry.objects.filter(
+            faculty_id=winner, semester_instance=semester_instance
+        ).exclude(
+            class_section_id=cls_id, subject_id=subj_id, is_lab_session=False
+        ).values_list('time_slot_id', flat=True))
+
         minority = [f for f in fac_set if f != winner]
+        reassigned = 0
         for m_fac in minority:
-            n = TimetableEntry.objects.filter(
-                class_section_id=cls_id, subject_id=subj_id,
-                faculty_id=m_fac, semester_instance=semester_instance,
-                is_lab_session=False
-            ).update(faculty_id=winner)
-            unified += n
-        print(f"  [SubjectUnify] class={cls_id} subject={subj_id}: unified {len(minority)} minority faculty to faculty_id={winner}")
+            for entry_id, slot_id in fac_entries.get(m_fac, []):
+                if slot_id in winner_busy:
+                    continue  # winner already busy here; ClashFix2 will handle it
+                TimetableEntry.objects.filter(id=entry_id).update(faculty_id=winner)
+                winner_busy.add(slot_id)
+                reassigned += 1
+                unified += 1
+
+        if reassigned:
+            print(f"  [SubjectUnify] class={cls_id} subject={subj_id}: "
+                  f"unified {reassigned} slots -> faculty_id={winner}")
 
     if unified > 0:
         print(f"  Post-save subject unification: {unified} entries reassigned")
+
+    # ── Final ClashFix pass after SubjectUnify ────────────────────────
+    # Catches any clashes SubjectUnify still introduced (e.g. no clash-free winner).
+    clash_iter2 = 0
+    while clash_iter2 < 20:
+        clash_groups2 = (
+            TimetableEntry.objects
+            .filter(class_section__semester_id__in=semester_ids,
+                    semester_instance=semester_instance)
+            .values('faculty_id', 'time_slot_id')
+            .annotate(_cnt=_Count('id'))
+            .filter(_cnt__gt=1)
+        )
+        if not clash_groups2.exists():
+            break
+        clash_iter2 += 1
+        for cg2 in clash_groups2:
+            clashing2 = list(
+                TimetableEntry.objects.filter(
+                    faculty_id=cg2['faculty_id'],
+                    time_slot_id=cg2['time_slot_id'],
+                    class_section__semester_id__in=semester_ids,
+                    semester_instance=semester_instance
+                ).select_related('subject', 'class_section__semester__department')
+            )
+            booked2 = set(
+                TimetableEntry.objects.filter(
+                    semester_instance=semester_instance,
+                    time_slot_id=cg2['time_slot_id']
+                ).values_list('faculty_id', flat=True)
+            )
+            for fix_e2 in clashing2[1:]:
+                subj_code2 = fix_e2.subject.code
+                dept_id2 = fix_e2.class_section.semester.department_id
+                
+                # PROTECT RMH: never move remedial entries, only change faculty
+                is_rmh2 = getattr(fix_e2, 'is_remedial', False)
+                
+                new_fac2 = _find_preferred_faculty(subj_code2, dept_id2, booked2)
+                if new_fac2:
+                    fix_e2.faculty = new_fac2
+                    fix_e2.save()
+                    booked2.add(new_fac2.id)
+                    print(f"  [ClashFix2] Entry {fix_e2.id} -> {new_fac2.name}")
+                elif not is_rmh2:
+                    # Only move NON-RMH entries to a free slot as last resort
+                    orig_fac2 = fix_e2.faculty_id
+                    cls2 = fix_e2.class_section_id
+                    fac_slots2 = set(TimetableEntry.objects.filter(
+                        faculty_id=orig_fac2,
+                        semester_instance=semester_instance
+                    ).values_list('time_slot_id', flat=True))
+                    cls_slots2 = set(TimetableEntry.objects.filter(
+                        class_section_id=cls2,
+                        semester_instance=semester_instance
+                    ).values_list('time_slot_id', flat=True))
+                    from core.models import TimeSlot as _TS2
+                    all_ts2 = list(_TS2.objects.filter(
+                        slot_type__in=['MORNING', 'AFTERNOON']
+                    ).values('id', 'period').order_by('period'))
+                    # Prefer earlier periods for compact scheduling
+                    free2 = [t['id'] for t in all_ts2 if t['id'] not in fac_slots2 and t['id'] not in cls_slots2]
+                    if free2:
+                        fix_e2.time_slot_id = free2[0]  # earliest period
+                        fix_e2.save()
+                        print(f"  [ClashFix2-Move] Entry {fix_e2.id} -> slot {fix_e2.time_slot_id}")
+    if clash_iter2 > 0:
+        print(f"  Post-unify clash correction: {clash_iter2} round(s)")
+
+    # ── Post-save RMH scrub pass ─────────────────────────────────────
+    # Replace any non-remedial entries for RMH-type subjects with theory
+    # subjects. RMH subjects have names like "Remedial / Minor / Honors
+    # Course" which confuse the display if they appear outside remedial slots.
+    from core.models import Subject as _SubjScrub
+    rmh_subject_ids = set(
+        _SubjScrub.objects.filter(subject_type='RMH').values_list('id', flat=True)
+    )
+    scrub_count = 0
+    if rmh_subject_ids:
+        stray_rmh = TimetableEntry.objects.filter(
+            semester_instance=semester_instance,
+            subject_id__in=rmh_subject_ids,
+            is_remedial=False  # non-remedial RMH entries = confusion
+        )
+        for stray in stray_rmh:
+            # Find a theory subject for this class's semester
+            cls_sem_id = stray.class_section.semester_id
+            theory_subj = _SubjScrub.objects.filter(
+                semester_id=cls_sem_id, subject_type='THEORY'
+            ).first()
+            if theory_subj:
+                stray.subject = theory_subj
+                stray.save()
+                scrub_count += 1
+        if scrub_count > 0:
+            print(f"  Post-save RMH scrub: {scrub_count} stray RMH entries replaced with theory")
+
+    # ── Post-save blank-filling pass ──────────────────────────────────
+    # Ensure every class has exactly 35 entries (7 periods × 5 days).
+    # Fill any empty slots with round-robin theory/elective subjects.
+    from core.models import TimeSlot as _TSFill
+    all_teaching_slot_ids = set(
+        _TSFill.objects.filter(slot_type__in=['MORNING', 'AFTERNOON'])
+        .values_list('id', flat=True)
+    )
+    total_filled = 0
+
+    for cls in classes:
+        cls_id = cls['id']
+        existing_slots = set(
+            TimetableEntry.objects.filter(
+                class_section_id=cls_id,
+                semester_instance=semester_instance
+            ).values_list('time_slot_id', flat=True)
+        )
+        missing_slots = all_teaching_slot_ids - existing_slots
+        if not missing_slots:
+            continue
+
+        # Get theory/elective subjects for this class's semester
+        sem_id = cls.get('semester_id')
+        filler_subjects = [
+            s for s in subjects
+            if s['semester_id'] == sem_id and s['subject_type'] in ('THEORY', 'ELECTIVE')
+        ]
+        if not filler_subjects:
+            continue
+
+        # Build map: subject_id -> faculty already assigned for this class
+        existing_entries = TimetableEntry.objects.filter(
+            class_section_id=cls_id,
+            semester_instance=semester_instance,
+            is_lab_session=False
+        ).values('subject_id', 'faculty_id').distinct()
+
+        subj_fac_map = {}
+        for row in existing_entries:
+            if row['subject_id'] not in subj_fac_map:
+                subj_fac_map[row['subject_id']] = row['faculty_id']
+
+        # Sort missing slots by period (earliest first) for compact scheduling
+        sorted_missing = sorted(missing_slots, key=lambda s: (
+            _TSFill.objects.filter(id=s).values_list('period', flat=True).first() or 99
+        ))
+
+        fill_idx = 0
+        for slot_id in sorted_missing:
+            # Find who is already booked at this slot
+            booked_fac_at_slot = set(
+                TimetableEntry.objects.filter(
+                    semester_instance=semester_instance,
+                    time_slot_id=slot_id
+                ).values_list('faculty_id', flat=True)
+            )
+
+            assigned = False
+            for attempt in range(len(filler_subjects)):
+                subj = filler_subjects[(fill_idx + attempt) % len(filler_subjects)]
+                fac_id = subj_fac_map.get(subj['id'])
+
+                if not fac_id:
+                    # Try to find a faculty for this subject
+                    from core.models import Faculty as _FacFill
+                    subj_code = subj.get('code', '')
+                    candidate = _FacFill.objects.filter(
+                        is_active=True, preferences__contains=subj_code
+                    ).exclude(id__in=booked_fac_at_slot).first()
+                    if not candidate:
+                        candidate = _FacFill.objects.filter(
+                            is_active=True, department_id=department_id
+                        ).exclude(id__in=booked_fac_at_slot).first()
+                    if candidate:
+                        fac_id = candidate.id
+                        subj_fac_map[subj['id']] = fac_id
+
+                if fac_id and fac_id not in booked_fac_at_slot:
+                    TimetableEntry.objects.create(
+                        class_section_id=cls_id,
+                        subject_id=subj['id'],
+                        faculty_id=fac_id,
+                        time_slot_id=slot_id,
+                        semester_instance=semester_instance,
+                        is_lab_session=False,
+                        is_remedial=False
+                    )
+                    total_filled += 1
+                    fill_idx = (fill_idx + attempt + 1) % len(filler_subjects)
+                    assigned = True
+                    break
+
+            if not assigned:
+                # Last resort: use first filler subject with any available faculty
+                subj = filler_subjects[fill_idx % len(filler_subjects)]
+                from core.models import Faculty as _FacFill2
+                any_fac = _FacFill2.objects.filter(
+                    is_active=True
+                ).exclude(id__in=booked_fac_at_slot).first()
+                if any_fac:
+                    TimetableEntry.objects.create(
+                        class_section_id=cls_id,
+                        subject_id=subj['id'],
+                        faculty_id=any_fac.id,
+                        time_slot_id=slot_id,
+                        semester_instance=semester_instance,
+                        is_lab_session=False,
+                        is_remedial=False
+                    )
+                    total_filled += 1
+                fill_idx = (fill_idx + 1) % len(filler_subjects)
+
+    if total_filled > 0:
+        print(f"  Post-save blank-filling: {total_filled} empty slots filled")
 
     # ── Post-generation remedial sync validation ──────────────────────
     remedial_validation = []
@@ -2551,6 +3254,140 @@ def generate_department_timetable(department_id: int, semester_instance: str):
               f"({len(config_slots)} slots configured, "
               f"{len(classes_with_rmh_entries)} classes checked)")
     
+    # ── FINAL: Global cross-department clash resolution ────────────────
+    # The earlier clash passes only checked within this department's semesters.
+    # This pass checks ALL entries globally to catch cross-department clashes.
+    from core.models import TimeSlot as _TSGlobal
+    all_teaching_ids = set(
+        _TSGlobal.objects.filter(slot_type__in=['MORNING', 'AFTERNOON'])
+        .values_list('id', flat=True)
+    )
+    global_clash_fixed = 0
+    for _gc_round in range(30):
+        # Detect clashes across the ENTIRE semester instance
+        global_clashes = (
+            TimetableEntry.objects
+            .filter(semester_instance=semester_instance)
+            .values('faculty_id', 'time_slot_id')
+            .annotate(_cnt=_Count('id'))
+            .filter(_cnt__gt=1)
+        )
+        if not global_clashes.exists():
+            break
+        
+        for gc in global_clashes:
+            gc_entries = list(
+                TimetableEntry.objects.filter(
+                    semester_instance=semester_instance,
+                    faculty_id=gc['faculty_id'],
+                    time_slot_id=gc['time_slot_id']
+                ).select_related('subject', 'class_section__semester__department', 'faculty')
+            )
+            if len(gc_entries) < 2:
+                continue
+            
+            # All faculties booked at this slot
+            booked_at_slot = set(
+                TimetableEntry.objects.filter(
+                    semester_instance=semester_instance,
+                    time_slot_id=gc['time_slot_id']
+                ).values_list('faculty_id', flat=True)
+            )
+            
+            # Only fix entries belonging to THIS department's semesters
+            # (we don't want to touch other departments' entries)
+            dept_entries = [e for e in gc_entries if e.class_section.semester_id in semester_ids]
+            if not dept_entries:
+                continue
+            
+            for fix_e in dept_entries:
+                # Skip if clash is already resolved (could happen mid-loop)
+                still_clash = TimetableEntry.objects.filter(
+                    semester_instance=semester_instance,
+                    faculty_id=fix_e.faculty_id,
+                    time_slot_id=fix_e.time_slot_id
+                ).count()
+                if still_clash <= 1:
+                    continue
+                
+                is_rmh = getattr(fix_e, 'is_remedial', False)
+                subj_code = fix_e.subject.code
+                dept_id = fix_e.class_section.semester.department_id
+                
+                # Strategy 1: Swap faculty (strict preference match)
+                new_fac = _find_preferred_faculty(subj_code, dept_id, booked_at_slot)
+                if new_fac:
+                    fix_e.faculty = new_fac
+                    fix_e.save()
+                    booked_at_slot.add(new_fac.id)
+                    global_clash_fixed += 1
+                    continue
+                
+                # Strategy 2: Move this entry to a different time slot (non-RMH only)
+                if not is_rmh:
+                    fac_booked = set(TimetableEntry.objects.filter(
+                        faculty_id=fix_e.faculty_id, semester_instance=semester_instance
+                    ).values_list('time_slot_id', flat=True))
+                    cls_booked = set(TimetableEntry.objects.filter(
+                        class_section_id=fix_e.class_section_id, semester_instance=semester_instance
+                    ).values_list('time_slot_id', flat=True))
+                    free = all_teaching_ids - fac_booked - cls_booked
+                    if free:
+                        # Pick a random free slot to reduce repeated placement conflicts
+                        import random as _rng
+                        new_slot = _rng.choice(list(free))
+                        fix_e.time_slot_id = new_slot
+                        fix_e.save()
+                        global_clash_fixed += 1
+                        continue
+                
+                # Strategy 3: Swap time slot with a non-clashing entry in same class
+                if not is_rmh:
+                    same_class_entries = list(TimetableEntry.objects.filter(
+                        class_section_id=fix_e.class_section_id,
+                        semester_instance=semester_instance,
+                        is_remedial=False, is_lab_session=False
+                    ).exclude(id=fix_e.id))
+                    import random as _rng2
+                    _rng2.shuffle(same_class_entries)
+                    for swap_e in same_class_entries:
+                        # Check the swap candidate won't create a new clash
+                        swap_fac_ok = TimetableEntry.objects.filter(
+                            semester_instance=semester_instance,
+                            faculty_id=swap_e.faculty_id,
+                            time_slot_id=fix_e.time_slot_id
+                        ).exclude(id=swap_e.id).count() == 0
+                        fix_fac_ok = TimetableEntry.objects.filter(
+                            semester_instance=semester_instance,
+                            faculty_id=fix_e.faculty_id,
+                            time_slot_id=swap_e.time_slot_id
+                        ).exclude(id=fix_e.id).count() == 0
+                        if swap_fac_ok and fix_fac_ok:
+                            old_slot = fix_e.time_slot_id
+                            fix_e.time_slot_id = swap_e.time_slot_id
+                            swap_e.time_slot_id = old_slot
+                            fix_e.save()
+                            swap_e.save()
+                            global_clash_fixed += 1
+                            break
+    
+    if global_clash_fixed > 0:
+        print(f"  Global clash resolution: {global_clash_fixed} clashes fixed")
+    
+    # Final count
+    remaining = (
+        TimetableEntry.objects
+        .filter(semester_instance=semester_instance)
+        .values('faculty_id', 'time_slot_id')
+        .annotate(_cnt=_Count('id'))
+        .filter(_cnt__gt=1)
+        .count()
+    )
+    if remaining > 0:
+        print(f"  WARNING: {remaining} faculty clash group(s) still remain")
+    else:
+        print(f"  ✓ Zero faculty clashes remaining")
+
     return {
         'success': True,
         'department': {

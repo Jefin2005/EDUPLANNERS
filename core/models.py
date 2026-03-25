@@ -152,15 +152,21 @@ class Faculty(models.Model):
         related_name='faculty_members'
     )
     preferences = models.TextField(blank=True, help_text="Comma-separated preferred subject codes")
+    min_workload_hours = models.IntegerField(null=True, blank=True, help_text="Custom minimum workload (overrides designation default)")
+    max_workload_hours = models.IntegerField(null=True, blank=True, help_text="Custom maximum workload (overrides designation default)")
     is_active = models.BooleanField(default=True)
     
     @property
     def max_hours(self):
+        if self.max_workload_hours is not None:
+            return self.max_workload_hours
         limits = self.WORKLOAD_LIMITS.get(self.designation, (20, 20))
         return limits[1] if isinstance(limits, tuple) else limits
     
     @property
     def min_hours(self):
+        if self.min_workload_hours is not None:
+            return self.min_workload_hours
         limits = self.WORKLOAD_LIMITS.get(self.designation, (20, 20))
         return limits[0] if isinstance(limits, tuple) else limits
     
@@ -333,6 +339,7 @@ class TimetableEntry(models.Model):
         related_name='assistant_entries'
     )
     is_lab_session = models.BooleanField(default=False)
+    is_remedial = models.BooleanField(default=False, help_text="Whether this is a Remedial/Minor/Honour slot")
     lab_session_number = models.IntegerField(null=True, blank=True, help_text="1 or 2 for weekly lab sessions")
     
     def __str__(self):
