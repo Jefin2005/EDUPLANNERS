@@ -1599,9 +1599,12 @@ def teacher_timetable_lookup(request):
     context['step'] = 3
 
     # Build timetable grid using existing helper
+    # Filter to only show semesters matching the active type (ODD/EVEN)
+    semester_numbers = [1, 3, 5, 7] if config and config.active_semester_type == 'ODD' else [2, 4, 6, 8]
     entries = TimetableEntry.objects.filter(
         Q(faculty_id=selected_teacher_id) | Q(assistant_faculty_id=selected_teacher_id),
-        semester_instance=semester_instance
+        semester_instance=semester_instance,
+        class_section__semester__number__in=semester_numbers
     ).select_related('class_section', 'subject', 'time_slot', 'faculty', 'assistant_faculty')
 
     if entries.exists():
@@ -1829,9 +1832,12 @@ def _prepare_faculty_view(faculty_id, config, selected_dept_id=None):
         return result
     
     # Get all entries where this faculty is assigned (main or assistant)
+    # Filter to only show semesters matching the active type (ODD/EVEN)
+    semester_numbers = [1, 3, 5, 7] if config and config.active_semester_type == 'ODD' else [2, 4, 6, 8]
     entries = TimetableEntry.objects.filter(
         Q(faculty_id=faculty_id) | Q(assistant_faculty_id=faculty_id),
-        semester_instance=semester_instance
+        semester_instance=semester_instance,
+        class_section__semester__number__in=semester_numbers
     ).select_related('class_section', 'subject', 'time_slot', 'faculty', 'assistant_faculty')
     
     if entries.exists():

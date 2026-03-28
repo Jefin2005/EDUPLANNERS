@@ -135,9 +135,9 @@ class Faculty(models.Model):
     ]
     
     WORKLOAD_LIMITS = {
-        'PROFESSOR': (10, 10),
-        'ASSOCIATE_PROFESSOR': (15, 15),
-        'ASSISTANT_PROFESSOR': (20, 23),
+        'PROFESSOR': (8, 10),
+        'ASSOCIATE_PROFESSOR': (11, 15),
+        'ASSISTANT_PROFESSOR': (16, 23),
     }
     
     user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)

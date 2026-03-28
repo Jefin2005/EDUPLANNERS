@@ -73,10 +73,10 @@ class GeneticAlgorithm:
     
     # Constraint weights
     WEIGHTS = {
-        'faculty_clash': -10000,     # Hard: Same faculty in 2 classes at same time
-        'class_clash': -5000,        # Hard: Same class has 2 subjects at same time  
-        'workload_exceeded': -10000, # Hard: Faculty exceeds max hours
-        'lab_continuity': -5000,     # Hard: Lab MUST be in 3 continuous periods
+        'faculty_clash': -20000,     # Heavily penalized
+        'class_clash': -10000,        
+        'workload_exceeded': -200000, # Extremely Hard: Penalty increased for strict compliance
+        'lab_continuity': -10000,
         'lab_timing': -100,          # Soft: Labs should be morning OR afternoon
         'lab_day_clash': -2000,       # Different classes should have labs on different days/halves
         'lab_room_clash': -5000,     # Hard: Same lab subject at same time = room conflict
@@ -87,8 +87,9 @@ class GeneticAlgorithm:
         'faculty_preference': 200,   # Soft: Bonus for matching preferences
         'no_preference_match': -10000, # Hard: Faculty assigned to subject not in their preferences
         'professor_lab': -5000,      # Hard: Professors should NOT be assigned to lab sessions
-        'workload_balance': -500,     # Penalize uneven distribution within same designation
-        'workload_under_min': -10000, # Hard: Faculty below their minimum hours (designation range)
+        'workload_balance': -5000,     # Higher priority for equal distribution
+        'workload_under_min': -150000, # Hard (v2): Increased from -10k to force range compliance
+        'hierarchy_violation': -100000, # Hard (v2): Penalty for Assistant >= Associate, etc.
         'consecutive_theory': -300,  # Soft: Penalize same theory subject in consecutive periods
         # 83. Faculty consecutive class penalty (Higher priority for hardening)
         'faculty_consecutive': -100000, 
@@ -97,6 +98,17 @@ class GeneticAlgorithm:
         'remedial_sync': -10000,          # Hard: Remedial slot must be synchronized across classes in a semester
         'faculty_class_spread': -50000,   # Hard: Penalize faculty in > 3 distinct classes
         'lab_only_senior': -20000,        # Hard: Associate Professors must have at least one theory subject
+        'theory_limit_exceeded': -100000, # Hard: Faculty exceeds max distinct theory preparations
+        'lab_limit_exceeded': -100000,    # Hard: Faculty exceeds max distinct lab preparations
+        'subject_faculty_inconsistency_global': -10000, # Penalize multiple teachers for same subject
+    }
+    
+    # ── Designation-based subject limits ──────────────────────────────
+    # Max distinct theory subjects and lab subjects per faculty by designation
+    DESIGNATION_SUBJECT_LIMITS = {
+        'PROFESSOR':            {'theory': 2, 'lab': 0},
+        'ASSOCIATE_PROFESSOR':  {'theory': 2, 'lab': 1},
+        'ASSISTANT_PROFESSOR':  {'theory': 2, 'lab': 1},
     }
     
     @staticmethod
@@ -121,6 +133,9 @@ class GeneticAlgorithm:
         self.mutation_rate = mutation_rate
         self.elite_count = elite_count
         self.tournament_size = tournament_size
+        
+        # BSH subject prefixes (class-level constant)
+        self.BSH_PREFIXES = ('PHT', 'HUN', 'MAT', 'CYT', 'PHL', 'CYL', 'EST', 'MNC', 'HUT')
         
         # Data to be loaded
         self.classes = []
@@ -389,12 +404,13 @@ class GeneticAlgorithm:
         global_lab_room_usage = defaultdict(set)
         
         # Track faculty schedules across ALL classes to prevent faculty clashes
-        # Format: faculty_id -> set of time_slot_ids
+        # Initialize with pre-booked slots from other departments
         global_faculty_schedule = defaultdict(set)
-        
-        # Track faculty workload (total hours) across ALL classes
-        # Format: faculty_id -> int (total hours assigned so far)
         global_faculty_hours = defaultdict(int)
+        if self.pre_booked_slots:
+            for f_id, slots in self.pre_booked_slots.items():
+                global_faculty_schedule[f_id].update(slots)
+                global_faculty_hours[f_id] += len(slots)
         
         # Track lab faculty assignments: (class_id, lab_subject_id) -> (main_faculty, assistant_faculty)
         # Ensures the same main faculty handles all lab hours for each class+subject
@@ -403,6 +419,16 @@ class GeneticAlgorithm:
         # Track faculty carrying a theory subject in each class to avoid multiple theory assignments
         # Map: class_id -> {faculty_id: subject_id}
         class_faculty_theory_global = defaultdict(dict)
+        
+        # NEW: Track which faculty is assigned to which subject GLOBALLY for this chromosome
+        # to ensure subject-faculty consistency (One Faculty -> One Subject)
+        # Map: subject_id -> faculty_id
+        global_subject_assigned_faculty = {}
+        
+        # Track distinct theory & lab subjects per faculty (for designation limits)
+        # faculty_id -> set of distinct subject_ids
+        global_faculty_theory_subjects = defaultdict(set)
+        global_faculty_lab_subjects = defaultdict(set)
         
         # Shuffle class order so different chromosomes try different orderings
         shuffled_classes = list(self.classes)
@@ -445,15 +471,47 @@ class GeneticAlgorithm:
                     # If all eligible are already teaching or pool is restricted, use anyone eligible
                     if not available:
                         available = eligible
-                    # Pick the one with fewest hours so far to balance workload
-                    faculty_id = min(available, key=lambda f: global_faculty_hours[f])
+                    
+                    # Priority 2: Subject-Faculty Consistency (User Request)
+                    # If this subject is already assigned to a faculty member in another class, prefer them
+                    consistent_faculty = global_subject_assigned_faculty.get(subject_id)
+                    if consistent_faculty and consistent_faculty in available:
+                        faculty_id = consistent_faculty
+                    else:
+                        # Priority 3: Respect designation theory limits (max 2 theory preparations)
+                        # ALSO: Respect absolute max hours (workload limit)
+                        under_limit = [
+                            f for f in available
+                            if (len(global_faculty_theory_subjects[f]) < self.DESIGNATION_SUBJECT_LIMITS.get(
+                                self.faculty_designation.get(f, ''), {'theory': 2}
+                            ).get('theory', 2)
+                            or subject_id in global_faculty_theory_subjects[f])
+                            and (global_faculty_hours[f] + self.subject_info[subject_id]['hours_per_week'] <= self.faculty_workload_limits.get(f, 20))
+                        ]
+                        if under_limit:
+                            available = under_limit
+                        
+                        # Pick the one with fewest hours so far to balance workload
+                        faculty_id = min(available, key=lambda f: global_faculty_hours[f])
+                        
+                    # Claim this faculty for this subject globally
+                    global_subject_assigned_faculty[subject_id] = faculty_id
                 else:
-                    # Fallback: pick any home faculty
-                    all_fac = [f['id'] for f in self.faculties]
-                    faculty_id = random.choice(all_fac)
+                    # Fallback: for BSH subjects, restrict to BSH faculty only
+                    subj_code = self._normalize_code(self.subject_info.get(subject_id, {}).get('code', ''))
+                    if subj_code.startswith(self.BSH_PREFIXES):
+                        bsh_fac = [f['id'] for f in self.faculties if f.get('department_code') == 'BSH']
+                        if bsh_fac:
+                            faculty_id = min(bsh_fac, key=lambda f: global_faculty_hours[f])
+                        else:
+                            faculty_id = random.choice([f['id'] for f in self.faculties])
+                    else:
+                        all_fac = [f['id'] for f in self.faculties]
+                        faculty_id = random.choice(all_fac)
                 
                 subject_to_faculty[subject_id] = faculty_id
                 class_faculty_theory[faculty_id] = subject_id
+                global_faculty_theory_subjects[faculty_id].add(subject_id)
             
             if remedial_slot_ids:
                 # Requirement: Exactly 3 RMH hours. 
@@ -560,17 +618,44 @@ class GeneticAlgorithm:
                                 )
                             ]
                             
-                            if len(eligible_faculty) >= 2:
+                            # Filter out faculty who've reached their lab limit OR max hours
+                            lab_hours = self.subject_info[lab_id].get('hours_per_week', 6)
+                            eligible_faculty = [
+                                f_id for f_id in eligible_faculty
+                                if (len(global_faculty_lab_subjects[f_id]) < self.DESIGNATION_SUBJECT_LIMITS.get(
+                                    self.faculty_designation.get(f_id, ''), {'lab': 1}
+                                ).get('lab', 1)
+                                or (lab_id, class_id) in global_faculty_lab_subjects[f_id])
+                                and (global_faculty_hours[f_id] + lab_hours <= self.faculty_workload_limits.get(f_id, 20))
+                            ]
+                            
+                            # Priority 1: Consistency (User Request)
+                            consistent_faculty = global_subject_assigned_faculty.get(lab_id)
+                            if consistent_faculty and consistent_faculty in eligible_faculty:
+                                main_faculty = consistent_faculty
+                                # Pick any other eligible for assistant
+                                remaining = [f for f in eligible_faculty if f != main_faculty]
+                                assistant_faculty = random.choice(remaining) if remaining else None
+                            elif len(eligible_faculty) >= 2:
                                 main_faculty = random.choice(eligible_faculty)
                                 assistant_faculty = random.choice([f for f in eligible_faculty if f != main_faculty])
                             elif len(eligible_faculty) == 1:
                                 main_faculty = eligible_faculty[0]
                                 assistant_faculty = None
                             else:
-                                # Fallback: pick any faculty (will get penalized in fitness)
-                                all_faculty_ids = [f['id'] for f in self.faculties]
+                                # Fallback: pick any non-Professor faculty (will get penalized in fitness)
+                                all_faculty_ids = [f['id'] for f in self.faculties
+                                                   if self.faculty_designation.get(f['id']) != 'PROFESSOR']
+                                if not all_faculty_ids:
+                                    all_faculty_ids = [f['id'] for f in self.faculties]
                                 main_faculty = random.choice(all_faculty_ids)
                                 assistant_faculty = None
+                            
+                            # Claim this faculty for this subject globally
+                            global_subject_assigned_faculty[lab_id] = main_faculty
+                            global_faculty_lab_subjects[main_faculty].add(lab_id)
+                            if assistant_faculty:
+                                global_faculty_lab_subjects[assistant_faculty].add(lab_id)
                             
                             # Remember this faculty for future lab sessions of same class+subject
                             class_lab_faculty[(class_id, lab_id)] = (main_faculty, assistant_faculty)
@@ -598,9 +683,11 @@ class GeneticAlgorithm:
                             # Track faculty schedule and workload globally
                             global_faculty_schedule[main_faculty].add(slot_id)
                             global_faculty_hours[main_faculty] += 1
+                            global_faculty_lab_subjects[main_faculty].add((lab_id, class_id))
                             if assistant_faculty:
                                 global_faculty_schedule[assistant_faculty].add(slot_id)
                                 global_faculty_hours[assistant_faculty] += 1
+                                global_faculty_lab_subjects[assistant_faculty].add((lab_id, class_id))
             
             # Then, schedule theory subjects
             # Track which subject is assigned to each slot for this class
@@ -737,26 +824,50 @@ class GeneticAlgorithm:
 
                         faculty_id = subject_faculty_map.get(subject_id)
                         if not faculty_id:
+                            # Priority 1: Subject-Faculty Consistency (User Request)
+                            consistent_faculty = global_subject_assigned_faculty.get(subject_id)
                             eligible = subject_eligible_map.get(subject_id, [])
-                            # Avoid faculty already in this class
-                            already_in_class = set(subject_faculty_map.values())
-                            available = [f for f in eligible if f not in already_in_class]
                             
-                            if not available:
-                                # Fallback: anyone eligible
-                                available = eligible
-                            
-                            if available:
-                                # Prefer under-limit
-                                under_limit = [f for f in available if global_faculty_hours[f] < self.faculty_workload_limits.get(f, 20)]
-                                if under_limit:
-                                    faculty_id = min(under_limit, key=lambda f: global_faculty_hours[f])
-                                else:
-                                    faculty_id = min(available, key=lambda f: global_faculty_hours[f])
-                                subject_faculty_map[subject_id] = faculty_id
+                            if consistent_faculty and consistent_faculty in eligible:
+                                faculty_id = consistent_faculty
                             else:
-                                faculty_id = random.choice([f['id'] for f in self.faculties])
-                                subject_faculty_map[subject_id] = faculty_id
+                                # Priority 2: Respect designation theory limits (max 2 preparations)
+                                already_in_class = set(subject_faculty_map.values())
+                                available = [f for f in eligible if f not in already_in_class]
+                                
+                                if not available:
+                                    available = eligible
+                                
+                                if available:
+                                    under_limit = [
+                                        f for f in available
+                                        if global_faculty_hours[f] < self.faculty_workload_limits.get(f, 20)
+                                        and (
+                                            len(global_faculty_theory_subjects[f]) < self.DESIGNATION_SUBJECT_LIMITS.get(
+                                                self.faculty_designation.get(f, ''), {'theory': 2}
+                                            ).get('theory', 2)
+                                            or subject_id in global_faculty_theory_subjects[f]
+                                        )
+                                    ]
+                                    if under_limit:
+                                        faculty_id = min(under_limit, key=lambda f: global_faculty_hours[f])
+                                    else:
+                                        faculty_id = min(available, key=lambda f: global_faculty_hours[f])
+                                else:
+                                    # Fallback: BSH guard — restrict to BSH faculty for BSH subjects
+                                    s_code = self._normalize_code(self.subject_info.get(subject_id, {}).get('code', ''))
+                                    if s_code.startswith(self.BSH_PREFIXES):
+                                        bsh_fac = [f['id'] for f in self.faculties if f.get('department_code') == 'BSH']
+                                        if bsh_fac:
+                                            faculty_id = min(bsh_fac, key=lambda f: global_faculty_hours[f])
+                                        else:
+                                            faculty_id = random.choice([f['id'] for f in self.faculties])
+                                    else:
+                                        faculty_id = random.choice([f['id'] for f in self.faculties])
+                                    
+                            subject_faculty_map[subject_id] = faculty_id
+                            global_subject_assigned_faculty[subject_id] = faculty_id
+                            global_faculty_theory_subjects[faculty_id].add(subject_id)
                         
                         # Check primary faculty first
                         faculty_clash = slot_id in global_faculty_schedule.get(faculty_id, set())
@@ -798,7 +909,16 @@ class GeneticAlgorithm:
                         best_fac = subject_faculty_map.get(best_subj)
                         if not best_fac:
                             eligible = subject_eligible_map.get(best_subj, [])
-                            best_fac = min(eligible, key=lambda f: global_faculty_hours[f]) if eligible else random.choice([f['id'] for f in self.faculties])
+                            if eligible:
+                                best_fac = min(eligible, key=lambda f: global_faculty_hours[f])
+                            else:
+                                # BSH guard: restrict fallback to BSH faculty for BSH subjects
+                                s_code = self._normalize_code(self.subject_info.get(best_subj, {}).get('code', ''))
+                                if s_code.startswith(self.BSH_PREFIXES):
+                                    bsh_fac = [f['id'] for f in self.faculties if f.get('department_code') == 'BSH']
+                                    best_fac = min(bsh_fac, key=lambda f: global_faculty_hours[f]) if bsh_fac else random.choice([f['id'] for f in self.faculties])
+                                else:
+                                    best_fac = random.choice([f['id'] for f in self.faculties])
                             subject_faculty_map[best_subj] = best_fac
                             
                         genes.append(Gene(
@@ -919,8 +1039,7 @@ class GeneticAlgorithm:
 
         # Rule 0: BSH Prefix Prioritization (PHT, HUN, MAT, CYT, PHL, CYL, etc.)
         # These subjects SHOULD be taught by BSH faculty if available.
-        BSH_PREFIXES = ('PHT', 'HUN', 'MAT', 'CYT', 'PHL', 'CYL', 'EST', 'MNC', 'HUT')
-        is_bsh_subject = subject_code.startswith(BSH_PREFIXES)
+        is_bsh_subject = subject_code.startswith(self.BSH_PREFIXES)
 
         # Rule 1: Strict Preference Alignment
         preferred_faculty = []
@@ -956,21 +1075,36 @@ class GeneticAlgorithm:
                 if f.get('department_code') == 'BSH'
             ]
             if bsh_faculty:
-                return bsh_faculty
+                # Apply Professor exclusion for Labs
+                if is_lab:
+                    bsh_faculty = [f_id for f_id in bsh_faculty
+                                   if self.faculty_designation.get(f_id) != 'PROFESSOR']
+                if bsh_faculty:
+                    self._eligible_faculty_cache[subject_id] = bsh_faculty
+                    return bsh_faculty
 
         # ── Rule 2: Departmental Lock (No one preferred this subject) ─────
-        # Eligibility is strictly locked to faculty from the subject's own department.
-        if subject_dept_id:
+        # For BSH subjects whose department_id wrongly points to the host dept
+        # (e.g. CS), override to use BSH department faculty instead.
+        effective_dept_id = subject_dept_id
+        if is_bsh_subject:
+            # Find BSH department ID from loaded faculty data
+            for f in self.faculties:
+                if f.get('department_code') == 'BSH':
+                    effective_dept_id = f['department_id']
+                    break
+        
+        if effective_dept_id:
             # First choice: Dept faculty with NO preferences (active generalists)
             eligible_generalists = [
                 f['id'] for f in self.faculties
-                if f['department_id'] == subject_dept_id and not self.faculty_preferences.get(f['id'])
+                if f['department_id'] == effective_dept_id and not self.faculty_preferences.get(f['id'])
             ]
             
             # Second choice: Any other faculty from the same department
             eligible_others = [
                 f['id'] for f in self.faculties
-                if f['department_id'] == subject_dept_id and self.faculty_preferences.get(f['id'])
+                if f['department_id'] == effective_dept_id and self.faculty_preferences.get(f['id'])
             ]
             
             eligible = eligible_generalists if eligible_generalists else eligible_others
@@ -981,6 +1115,7 @@ class GeneticAlgorithm:
                             if self.faculty_designation.get(f_id) != 'PROFESSOR']
             
             if eligible:
+                self._eligible_faculty_cache[subject_id] = eligible
                 return eligible
 
         # Fallback: Still return empty if no departmental match found (cross-dept case)
@@ -992,8 +1127,15 @@ class GeneticAlgorithm:
         
         # Track violations using a single pass over genes
         faculty_schedule = defaultdict(set)  # faculty_id -> set of time_slot_ids
-        class_schedule = defaultdict(set)    # class_id -> set of time_slot_ids
         faculty_hours = defaultdict(int)      # faculty_id -> total hours
+        
+        # Initialize with pre-booked slots from other departments
+        if self.pre_booked_slots:
+            for f_id, slots in self.pre_booked_slots.items():
+                faculty_schedule[f_id].update(slots)
+                faculty_hours[f_id] += len(slots)
+        
+        class_schedule = defaultdict(set)    # class_id -> set of time_slot_ids
         class_labs = defaultdict(list)        # class_id -> list of lab genes
         faculty_class_theory = defaultdict(lambda: defaultdict(set))
         class_day_special = defaultdict(lambda: defaultdict(int))
@@ -1108,15 +1250,33 @@ class GeneticAlgorithm:
             max_hours = self.faculty_workload_limits.get(faculty_id, 20)
             min_hours = self.faculty_workload_min.get(faculty_id, max_hours)
             
-            # Professors (limit 10) have much higher penalty for exceeding
-            workload_penalty = self.WEIGHTS['workload_exceeded']
-            if max_hours <= 10:
-                workload_penalty *= 50  # 50x penalty for Professor overload (aggressive)
-                
+            # Apply extremely high penalty for any workload exceeding max
             if hours > max_hours:
-                fitness += workload_penalty * (hours - max_hours)
+                fitness += self.WEIGHTS['workload_exceeded'] * (hours - max_hours)
             elif hours < min_hours:
                 fitness += self.WEIGHTS['workload_under_min'] * (min_hours - hours)
+                
+        # Hierarchy Check: Associate > Assistant > Professor
+        # Use average hours per designation for a smoother gradient
+        designation_hours = defaultdict(list)
+        for f_id, hours in faculty_hours.items():
+            desig = self.faculty_designation.get(f_id, '')
+            if desig in ('PROFESSOR', 'ASSOCIATE_PROFESSOR', 'ASSISTANT_PROFESSOR'):
+                designation_hours[desig].append(hours)
+        
+        def get_avg(desig):
+            h = designation_hours.get(desig)
+            return sum(h) / len(h) if h else 0
+            
+        avg_assoc = get_avg('ASSOCIATE_PROFESSOR')
+        avg_asst = get_avg('ASSISTANT_PROFESSOR')
+        avg_prof = get_avg('PROFESSOR')
+        
+        # Hierarchy (Targeted): Professor (8-10) < Associate (11-15) < Assistant (16-23)
+        if avg_assoc > 0 and avg_asst > 0 and avg_assoc >= avg_asst:
+             fitness += self.WEIGHTS['hierarchy_violation'] * (avg_assoc - avg_asst + 1)
+        if avg_prof > 0 and avg_assoc > 0 and avg_prof >= avg_assoc:
+             fitness += self.WEIGHTS['hierarchy_violation'] * (avg_prof - avg_assoc + 1)
 
         # Faculty multi-theory penalty
         for faculty_id, class_map in faculty_class_theory.items():
@@ -1132,6 +1292,43 @@ class GeneticAlgorithm:
             for class_id, theory_subjects in class_map.items():
                 if len(theory_subjects) > 1:
                     fitness += self.WEIGHTS['faculty_multi_theory'] * (len(theory_subjects) - 1)
+        
+        # ── Designation-based subject limit penalties (Preparations) ──
+        # Count distinct theory and lab subject IDs per faculty (Preps)
+        # Also track global subject-teacher mapping for consistency
+        faculty_distinct_theory = defaultdict(set)
+        faculty_distinct_labs = defaultdict(set)
+        subject_teachers = defaultdict(set)
+        
+        for gene in chromosome.genes:
+            subject_teachers[gene.subject_id].add(gene.faculty_id)
+            if gene.is_lab:
+                faculty_distinct_labs[gene.faculty_id].add(gene.subject_id)
+                if gene.assistant_faculty_id:
+                    faculty_distinct_labs[gene.assistant_faculty_id].add(gene.subject_id)
+                    subject_teachers[gene.subject_id].add(gene.assistant_faculty_id)
+            else:
+                faculty_distinct_theory[gene.faculty_id].add(gene.subject_id)
+        
+        # 1. Preparation count penalties
+        for fac_id in set(list(faculty_distinct_theory.keys()) + list(faculty_distinct_labs.keys())):
+            desig = self.faculty_designation.get(fac_id, '')
+            limits = self.DESIGNATION_SUBJECT_LIMITS.get(desig, {'theory': 2, 'lab': 1})
+            
+            theory_count = len(faculty_distinct_theory.get(fac_id, set()))
+            lab_count = len(faculty_distinct_labs.get(fac_id, set()))
+            
+            if theory_count > limits['theory']:
+                fitness += self.WEIGHTS['theory_limit_exceeded'] * (theory_count - limits['theory'])
+            if lab_count > limits['lab']:
+                # Professors have lab limit 0, so any lab count > 0 triggers this
+                fitness += self.WEIGHTS['lab_limit_exceeded'] * (lab_count - limits['lab'])
+        
+        # 2. Global subject-faculty consistency penalty
+        for subj_id, teachers in subject_teachers.items():
+            if len(teachers) > 1:
+                # Penalize every additional teacher assigned to the same subject
+                fitness += self.WEIGHTS['subject_faculty_inconsistency_global'] * (len(teachers) - 1)
 
         # Special subject daily limit penalty
         for class_id, day_counts in class_day_special.items():
@@ -1201,8 +1398,8 @@ class GeneticAlgorithm:
             avg_hours = sum(hours_list) / len(hours_list)
             for hours in hours_list:
                 deviation = abs(hours - avg_hours)
-                if deviation > 2:
-                    fitness += self.WEIGHTS['workload_balance'] * (deviation - 2)
+                if deviation > 0:
+                    fitness += self.WEIGHTS['workload_balance'] * deviation
 
         # Consecutive same-theory penalty
         for day_map in class_day_genes.values():
@@ -1225,7 +1422,17 @@ class GeneticAlgorithm:
                     if l1 and l2 and s1 == s2: continue
                     if p1 == 4 and p2 == 5: continue
                     if p2 == p1 + 1:
+                        # Baseline consecutive penalty
                         fitness += self.WEIGHTS['faculty_consecutive']
+                        # Extra penalty for 3+ in a row (cumulative)
+                        if i > 0:
+                            p0, l0, s0 = period_list[i-1]
+                            if p1 == p0 + 1:
+                                fitness += self.WEIGHTS['faculty_consecutive'] # Double penalty for 3 in a row
+                        if i < len(period_list) - 2:
+                             p3, l3, s3 = period_list[i+2]
+                             if p3 == p2 + 1:
+                                 fitness += self.WEIGHTS['faculty_consecutive'] # Anticipate 3 in a row
         
         # Optimized Remedial sync penalty (Uses class_genes_map)
         if self.remedial_schedule:
@@ -1352,6 +1559,12 @@ class GeneticAlgorithm:
         
         # Build initial indexes
         faculty_slot_genes = defaultdict(lambda: defaultdict(list))
+        # Initialize with pre-booked slots (use -1 to indicate cross-dept booking)
+        if self.pre_booked_slots:
+            for f_id, slots in self.pre_booked_slots.items():
+                for s_id in slots:
+                    faculty_slot_genes[f_id][s_id].append(-1)
+                    
         class_gene_indices = defaultdict(list)
         
         for idx, gene in enumerate(chromosome.genes):
@@ -1368,9 +1581,9 @@ class GeneticAlgorithm:
             for fac_id, slot_map in faculty_slot_genes.items():
                 for slot_id, gene_indices in slot_map.items():
                     if len(gene_indices) > 1:
-                        # Find movable clashing genes
+                        # Find movable clashing genes (skip pre-booked -1 and labs/remedial)
                         movable = [i for i in gene_indices 
-                                   if not chromosome.genes[i].is_lab 
+                                   if i != -1 and not chromosome.genes[i].is_lab 
                                    and not chromosome.genes[i].is_remedial]
                         clashing_indices.extend(movable)
             
@@ -1387,6 +1600,13 @@ class GeneticAlgorithm:
                 fac_id = gene.faculty_id
                 class_id = gene.class_id
                 
+                # Safeguard: if this gene is no longer at this slot (moved by previous iteration), skip
+                if clash_idx not in faculty_slot_genes[fac_id].get(old_slot, []):
+                    continue
+                # If this index is no longer part of a clash at this slot, skip
+                if len(faculty_slot_genes[fac_id].get(old_slot, [])) <= 1:
+                    continue
+                
                 # Strategy 1: Swap with a non-clashing gene in same class
                 class_genes = class_gene_indices[class_id]
                 for target_idx in class_genes:
@@ -1399,11 +1619,13 @@ class GeneticAlgorithm:
                     # Would faculty clash at new_slot?
                     if len(faculty_slot_genes[fac_id].get(new_slot, [])) == 0:
                         # Update indexes
-                        faculty_slot_genes[fac_id][old_slot].remove(clash_idx)
+                        if clash_idx in faculty_slot_genes[fac_id][old_slot]:
+                            faculty_slot_genes[fac_id][old_slot].remove(clash_idx)
                         faculty_slot_genes[fac_id][new_slot].append(clash_idx)
                         
                         target_fac = target_gene.faculty_id
-                        faculty_slot_genes[target_fac][new_slot].remove(target_idx)
+                        if target_idx in faculty_slot_genes[target_fac][new_slot]:
+                            faculty_slot_genes[target_fac][new_slot].remove(target_idx)
                         faculty_slot_genes[target_fac][old_slot].append(target_idx)
                         
                         # Swap data
@@ -1423,7 +1645,9 @@ class GeneticAlgorithm:
                             g = chromosome.genes[g_idx]
                             if g.subject_id == gene.subject_id and not g.is_lab:
                                 old_fac = g.faculty_id
-                                faculty_slot_genes[old_fac][g.time_slot_id].remove(g_idx)
+                                slot_list = faculty_slot_genes[old_fac][g.time_slot_id]
+                                if g_idx in slot_list:
+                                    slot_list.remove(g_idx)
                                 g.faculty_id = new_fac
                                 faculty_slot_genes[new_fac][g.time_slot_id].append(g_idx)
                         fixed_any = True
@@ -1444,9 +1668,12 @@ class GeneticAlgorithm:
                         if (len(faculty_slot_genes[fac_id].get(t_slot, [])) == 0 and 
                             len(faculty_slot_genes[t_fac].get(old_slot, [])) == 0):
                             
-                            faculty_slot_genes[fac_id][old_slot].remove(clash_idx)
+                            if clash_idx in faculty_slot_genes[fac_id][old_slot]:
+                                faculty_slot_genes[fac_id][old_slot].remove(clash_idx)
                             faculty_slot_genes[fac_id][t_slot].append(clash_idx)
-                            faculty_slot_genes[t_fac][t_slot].remove(target_idx)
+                            
+                            if target_idx in faculty_slot_genes[t_fac][t_slot]:
+                                faculty_slot_genes[t_fac][t_slot].remove(target_idx)
                             faculty_slot_genes[t_fac][old_slot].append(target_idx)
                             
                             gene.time_slot_id, g2.time_slot_id = g2.time_slot_id, gene.time_slot_id
@@ -1560,9 +1787,14 @@ class GeneticAlgorithm:
         """
         max_repair_iterations = 15 if full_mode else 3
         
-        # Initial pass: build counts and schedule
+        # Initial pass: build counts and schedule (including pre-booked)
         faculty_hours = defaultdict(int)
         faculty_schedule = defaultdict(set)
+        if self.pre_booked_slots:
+            for f_id, slots in self.pre_booked_slots.items():
+                faculty_hours[f_id] += len(slots)
+                faculty_schedule[f_id].update(slots)
+                
         for g in chromosome.genes:
             faculty_hours[g.faculty_id] += 1
             faculty_schedule[g.faculty_id].add(g.time_slot_id)
@@ -1599,19 +1831,13 @@ class GeneticAlgorithm:
                         valid_alts = [f for f in eligible if f != fac_id 
                                      and gene.time_slot_id not in faculty_schedule[f]]
                         
-                        if is_prof:
-                            # If we are saving a Professor, we can push to an Assistant 
-                            # even if they are slightly over, to prioritize the 10h limit
-                            valid_alts = [f for f in valid_alts 
-                                         if self.faculty_designation.get(f) != 'PROFESSOR']
-                        else:
-                            # Standard: only move to those under their limit
-                            valid_alts = [f for f in valid_alts 
-                                         if faculty_hours[f] < self.faculty_workload_limits.get(f, 20)]
+                        # Standard: only move to those under their limit
+                        valid_alts = [f for f in valid_alts 
+                                     if faculty_hours[f] < self.faculty_workload_limits.get(f, 20)]
                         
                         if not valid_alts: continue
                         
-                        # Target faculty with lowest relative workload
+                        # Target faculty with MOST relative remaining capacity (to respect hierarchy Associate > Assistant > Professor)
                         valid_alts.sort(key=lambda f: faculty_hours[f] - self.faculty_workload_limits.get(f, 20))
                         new_fac = valid_alts[0]
                         
@@ -2682,7 +2908,7 @@ def generate_department_timetable(department_id: int, semester_instance: str):
         semester_instance=semester_instance,
         faculty_id__in=faculty_ids
     ).exclude(
-        class_section__semester_id__in=semester_ids  # exclude THIS department
+        class_section__semester__department_id=department_id  # exclude ALL semesters in this department
     ).values_list('faculty_id', 'time_slot_id')
     
     for fac_id, slot_id in existing_entries:
@@ -2811,20 +3037,34 @@ def generate_department_timetable(department_id: int, semester_instance: str):
     # preference matching and departmental lock, excluding booked faculty.
     def _find_preferred_faculty(subj_code, dept_id, exclude_ids):
         """Find a faculty who can teach this subject, not in exclude_ids.
+        Rule 0: BSH subjects MUST be assigned to BSH faculty.
         Rule 1: Faculty whose comma-separated preferences include the exact code.
         Rule 2: Same-department generalist (no preferences set).
         Rule 3: Same-department faculty (has preferences for other subjects).
         Returns Faculty instance or None."""
+        BSH_PREFIXES = ('PHT', 'HUN', 'MAT', 'CYT', 'PHL', 'CYL', 'EST', 'MNC', 'HUT')
+        is_bsh = subj_code.startswith(BSH_PREFIXES)
+        
+        # For BSH subjects, override dept_id to BSH department
+        effective_dept_id = dept_id
+        if is_bsh:
+            bsh_dept = Department.objects.filter(code='BSH').first()
+            if bsh_dept:
+                effective_dept_id = bsh_dept.id
+        
         # Rule 1: Exact preference match
         for fac in Faculty.objects.filter(is_active=True).exclude(id__in=exclude_ids):
             if fac.preferences:
                 pref_codes = [p.strip() for p in fac.preferences.split(',')]
                 if subj_code in pref_codes:
+                    # BSH guard: only accept BSH faculty for BSH subjects
+                    if is_bsh and fac.department_id != effective_dept_id:
+                        continue
                     return fac
         # Rule 2: Same-department generalist (no preferences)
         from django.db.models import Q as _Q
         fac = Faculty.objects.filter(
-            is_active=True, department_id=dept_id
+            is_active=True, department_id=effective_dept_id
         ).filter(
             _Q(preferences__isnull=True) | _Q(preferences='')
         ).exclude(id__in=exclude_ids).first()
@@ -2832,14 +3072,14 @@ def generate_department_timetable(department_id: int, semester_instance: str):
             return fac
         # Rule 3: Any same-department faculty
         fac = Faculty.objects.filter(
-            is_active=True, department_id=dept_id
+            is_active=True, department_id=effective_dept_id
         ).exclude(id__in=exclude_ids).first()
         return fac
     clash_iter = 0
     while clash_iter < 20:  # Safety cap: at most 20 repair rounds
         clash_groups = (
             TimetableEntry.objects
-            .filter(class_section__semester_id__in=semester_ids,
+            .filter(class_section__semester__department_id=department_id,
                     semester_instance=semester_instance)
             .values('faculty_id', 'time_slot_id')
             .annotate(_cnt=_Count('id'))
@@ -2928,7 +3168,7 @@ def generate_department_timetable(department_id: int, semester_instance: str):
     from django.db.models import Count as _Count2
     multi_faculty_cases = (
         TimetableEntry.objects
-        .filter(class_section__semester_id__in=semester_ids,
+        .filter(class_section__semester__department_id=department_id,
                 semester_instance=semester_instance,
                 is_lab_session=False)
         .exclude(subject__subject_type='RMH')  # RMH handled separately
